@@ -937,14 +937,24 @@ function App() {
       hasLoadedFromFirebase.current = true;
       setFbStatus("loaded");
       setLeague(prev=>{
+        // Unflatten scores: {p0:[...], p1:[...]} -> [[...],[...]]
+        const unflattenMatch = (rec) => {
+          if (!rec) return rec;
+          const out = {...rec};
+          if (rec.t1scores && !Array.isArray(rec.t1scores)) out.t1scores = [rec.t1scores.p0||[], rec.t1scores.p1||[]];
+          if (rec.t2scores && !Array.isArray(rec.t2scores)) out.t2scores = [rec.t2scores.p0||[], rec.t2scores.p1||[]];
+          return out;
+        };
         const savedResults = p.results||{};
         const mergedResults = {};
-        // Apply all weeks from Firebase
         for(const w of Object.keys(savedResults)){
-          mergedResults[w] = {...savedResults[w]};
+          mergedResults[w] = {};
+          for(const mk of Object.keys(savedResults[w]||{})){
+            mergedResults[w][mk] = unflattenMatch(savedResults[w][mk]);
+          }
         }
         // For week 1: use WEEK1_RESULTS as fallback for matches not yet in Firebase
-        mergedResults[1] = {...WEEK1_RESULTS, ...(savedResults[1]||{})};
+        mergedResults[1] = {...WEEK1_RESULTS, ...(mergedResults[1]||{})};
         return {
           ...prev,
           handicaps: {...DEFAULT_HCP, ...(p.handicaps||{})},
@@ -959,15 +969,22 @@ function App() {
     setLeague(next);
     lastSaveTime.current = Date.now();
     try{
-      // Build flat dot-notation updates for safe deep merge
+      // Firestore doesn't support nested arrays, so flatten t1scores/t2scores
+      // [[p1h1..p1h9],[p2h1..p2h9]] -> {p0: [9 nums], p1: [9 nums]}
+      const flattenMatch = (rec) => {
+        if (!rec) return rec;
+        const out = {...rec};
+        if (Array.isArray(rec.t1scores)) out.t1scores = {p0: rec.t1scores[0]||[], p1: rec.t1scores[1]||[]};
+        if (Array.isArray(rec.t2scores)) out.t2scores = {p0: rec.t2scores[0]||[], p1: rec.t2scores[1]||[]};
+        return out;
+      };
       const updates = {};
       updates["handicaps"] = next.handicaps;
       for(const w of Object.keys(next.results)){
         for(const mk of Object.keys(next.results[w]||{})){
-          updates[`results.${w}.${mk}`] = next.results[w][mk];
+          updates[`results.${w}.${mk}`] = flattenMatch(next.results[w][mk]);
         }
       }
-      // setDoc with merge works on both new and existing docs
       await LEAGUE_DOC.set(updates, {merge:true});
       setFbStatus("loaded");
     }catch(e){
