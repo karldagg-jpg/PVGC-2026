@@ -935,40 +935,22 @@ function App() {
       const msSinceSave = Date.now() - lastSaveTime.current;
       if(hasLoadedFromFirebase.current && msSinceSave < 8000) return;
       hasLoadedFromFirebase.current = true;
-      // Debug: show what Firebase returned
-      const resultKeys = Object.keys(p.results||{});
-      const firstWeek = resultKeys[0];
-      const firstMatch = firstWeek ? Object.keys((p.results||{})[firstWeek]||{})[0] : null;
-      const firstRec = firstMatch ? (p.results||{})[firstWeek][firstMatch] : null;
-      const debugMsg = firstRec 
-        ? `W${firstWeek} ${firstMatch}: t1=${JSON.stringify(firstRec.t1scores).slice(0,40)}`
-        : `weeks=${JSON.stringify(resultKeys)}`;
-      setFbStatus("loaded:"+debugMsg);
+      setFbStatus("loaded");
       setLeague(prev=>{
-        // Decode scores: "4,3,4,5,4,3,4,5,4|5,4,3,6,4,3,5,5,5" -> [[4,3,...],[5,4,...]]
-        const decodeScores = (s) => {
-          if (!s || typeof s !== 'string') return s;
-          return s.split('|').map(p => p.split(',').map(n => parseInt(n)||0));
-        };
-        const decodeMatch = (rec) => {
-          if (!rec) return rec;
-          const out = {...rec};
-          if (typeof rec.t1scores === 'string') out.t1scores = decodeScores(rec.t1scores);
-          if (typeof rec.t2scores === 'string') out.t2scores = decodeScores(rec.t2scores);
-          // Also handle old {p0,p1} format
-          if (rec.t1scores && !Array.isArray(rec.t1scores) && rec.t1scores.p0) out.t1scores = [rec.t1scores.p0, rec.t1scores.p1||[]];
-          if (rec.t2scores && !Array.isArray(rec.t2scores) && rec.t2scores.p0) out.t2scores = [rec.t2scores.p0, rec.t2scores.p1||[]];
-          return out;
-        };
         const savedResults = p.results||{};
         const mergedResults = {};
         for(const w of Object.keys(savedResults)){
           mergedResults[w] = {};
           for(const mk of Object.keys(savedResults[w]||{})){
-            mergedResults[w][mk] = decodeMatch(savedResults[w][mk]);
+            const raw = savedResults[w][mk];
+            // Each match is stored as a JSON string
+            try {
+              mergedResults[w][mk] = typeof raw === 'string' ? JSON.parse(raw) : raw;
+            } catch(e) {
+              mergedResults[w][mk] = raw;
+            }
           }
         }
-        // For week 1: use WEEK1_RESULTS as fallback for matches not yet in Firebase
         mergedResults[1] = {...WEEK1_RESULTS, ...(mergedResults[1]||{})};
         return {
           ...prev,
@@ -984,24 +966,12 @@ function App() {
     setLeague(next);
     lastSaveTime.current = Date.now();
     try{
-      // Encode scores as strings: [[4,3,...],[5,4,...]] -> "4,3,...|5,4,..."
-      // Firestore doesn't support nested arrays
-      const encodeScores = (arr) => {
-        if (!Array.isArray(arr)) return arr;
-        return arr.map(p => (p||[]).join(',')).join('|');
-      };
-      const encodeMatch = (rec) => {
-        if (!rec) return rec;
-        const out = {...rec};
-        if (Array.isArray(rec.t1scores)) out.t1scores = encodeScores(rec.t1scores);
-        if (Array.isArray(rec.t2scores)) out.t2scores = encodeScores(rec.t2scores);
-        return out;
-      };
+      // Store each match as a JSON string to avoid all Firestore type restrictions
       const encodedResults = {};
       for(const w of Object.keys(next.results)){
         encodedResults[w] = {};
         for(const mk of Object.keys(next.results[w]||{})){
-          encodedResults[w][mk] = encodeMatch(next.results[w][mk]);
+          encodedResults[w][mk] = JSON.stringify(next.results[w][mk]);
         }
       }
       await LEAGUE_DOC.set({
@@ -1019,11 +989,9 @@ function App() {
 
   async function clearData(){
     const fresh=initLeague();
-    setLeague(fresh);
     setMatch(initMatch());
     setConfirmReset(false);
-    lastSaveTime.current = Date.now();
-    try{ await LEAGUE_DOC.set(fresh); }catch(e){console.warn(e);}
+    await saveLeague(fresh);
   }
 
   // Reload match when week/team/league changes
@@ -1262,35 +1230,16 @@ Use 0 for missing/unreadable scores.`;
       {/* Firebase status banner */}
       {fbStatus==="connecting"&&(
         <div style={{background:"#fffbe6",borderBottom:"2px solid #f0c040",padding:"10px 18px",
-          fontSize:"13px",color:"#7a5a00",display:"flex",alignItems:"center",gap:"8px",flexWrap:"wrap"}}>
-          <span>⏳</span>
-          <span>Connecting to database…</span>
-          <button onClick={async()=>{
-            try{
-              await LEAGUE_DOC.set({test:"ping"},{merge:true});
-              setFbStatus("test-ok");
-            }catch(e){
-              setFbStatus("test-fail:"+e.code+": "+e.message);
-            }
-          }} style={{marginLeft:"8px",padding:"4px 10px",background:"#f0c040",border:"none",
-            borderRadius:"5px",cursor:"pointer",fontSize:"12px",fontWeight:700}}>
-            Test Connection
-          </button>
+          fontSize:"13px",color:"#7a5a00",display:"flex",alignItems:"center",gap:"8px"}}>
+          <span>⏳</span> Connecting to database…
         </div>
       )}
-      {fbStatus.startsWith("loaded:")&&(
-        <div style={{background:"#e6f5ea",borderBottom:"2px solid #2a7a3a",padding:"8px 18px",
-          fontSize:"11px",color:"#1a5a2a",wordBreak:"break-all"}}>
-          🔍 Firebase data: {fbStatus.replace("loaded:","")}<br/>
-          <span style={{opacity:0.7}}>If you see scores above, decode is working. If blank, scores aren't saving correctly.</span>
-        </div>
-      )}
-      {(fbStatus.startsWith("test-fail")||fbStatus.startsWith("error")||fbStatus.startsWith("save-error"))&&(
+      {(fbStatus.startsWith("error")||fbStatus.startsWith("save-error")||fbStatus.startsWith("test-fail"))&&(
         <div style={{background:"#fff0f0",borderBottom:"2px solid #e04040",padding:"10px 18px",
           fontSize:"13px",color:"#900",display:"flex",alignItems:"center",gap:"8px",flexWrap:"wrap"}}>
           <span>⚠️</span>
-          <span><strong>Firebase error:</strong></span>
-          <span style={{fontSize:"12px"}}>{fbStatus}</span>
+          <span><strong>Database error:</strong></span>
+          <span style={{fontSize:"11px"}}>{fbStatus}</span>
         </div>
       )}
 
@@ -1304,7 +1253,7 @@ Use 0 for missing/unreadable scores.`;
           <div>
             <div style={{fontFamily:FD,fontSize:"20px",color:"#0f2a14",letterSpacing:"0.02em",fontWeight:700}}>PVGC 2026 League</div>
             <div style={{fontSize:"11px",color:"#3a5a3a",marginTop:"1px",letterSpacing:"0.1em",textTransform:"uppercase",fontWeight:500}}>
-              Pickering Valley · 18 Teams · Stableford · <span style={{color:GOLD}}>v1.4</span>
+              Pickering Valley · 18 Teams · Stableford · <span style={{color:GOLD}}>v1.6</span>
             </div>
           </div>
           {!confirmReset ? (
