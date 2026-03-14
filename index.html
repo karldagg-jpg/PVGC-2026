@@ -937,12 +937,19 @@ function App() {
       hasLoadedFromFirebase.current = true;
       setFbStatus("loaded");
       setLeague(prev=>{
-        // Unflatten scores: {p0:[...], p1:[...]} -> [[...],[...]]
-        const unflattenMatch = (rec) => {
+        // Decode scores: "4,3,4,5,4,3,4,5,4|5,4,3,6,4,3,5,5,5" -> [[4,3,...],[5,4,...]]
+        const decodeScores = (s) => {
+          if (!s || typeof s !== 'string') return s;
+          return s.split('|').map(p => p.split(',').map(n => parseInt(n)||0));
+        };
+        const decodeMatch = (rec) => {
           if (!rec) return rec;
           const out = {...rec};
-          if (rec.t1scores && !Array.isArray(rec.t1scores)) out.t1scores = [rec.t1scores.p0||[], rec.t1scores.p1||[]];
-          if (rec.t2scores && !Array.isArray(rec.t2scores)) out.t2scores = [rec.t2scores.p0||[], rec.t2scores.p1||[]];
+          if (typeof rec.t1scores === 'string') out.t1scores = decodeScores(rec.t1scores);
+          if (typeof rec.t2scores === 'string') out.t2scores = decodeScores(rec.t2scores);
+          // Also handle old {p0,p1} format
+          if (rec.t1scores && !Array.isArray(rec.t1scores) && rec.t1scores.p0) out.t1scores = [rec.t1scores.p0, rec.t1scores.p1||[]];
+          if (rec.t2scores && !Array.isArray(rec.t2scores) && rec.t2scores.p0) out.t2scores = [rec.t2scores.p0, rec.t2scores.p1||[]];
           return out;
         };
         const savedResults = p.results||{};
@@ -950,7 +957,7 @@ function App() {
         for(const w of Object.keys(savedResults)){
           mergedResults[w] = {};
           for(const mk of Object.keys(savedResults[w]||{})){
-            mergedResults[w][mk] = unflattenMatch(savedResults[w][mk]);
+            mergedResults[w][mk] = decodeMatch(savedResults[w][mk]);
           }
         }
         // For week 1: use WEEK1_RESULTS as fallback for matches not yet in Firebase
@@ -969,26 +976,29 @@ function App() {
     setLeague(next);
     lastSaveTime.current = Date.now();
     try{
-      // Firestore doesn't support nested arrays, so flatten t1scores/t2scores
-      // [[p1holes],[p2holes]] -> {p0:[holes], p1:[holes]}
-      const flattenMatch = (rec) => {
+      // Encode scores as strings: [[4,3,...],[5,4,...]] -> "4,3,...|5,4,..."
+      // Firestore doesn't support nested arrays
+      const encodeScores = (arr) => {
+        if (!Array.isArray(arr)) return arr;
+        return arr.map(p => (p||[]).join(',')).join('|');
+      };
+      const encodeMatch = (rec) => {
         if (!rec) return rec;
         const out = {...rec};
-        if (Array.isArray(rec.t1scores)) out.t1scores = {p0: rec.t1scores[0]||[], p1: rec.t1scores[1]||[]};
-        if (Array.isArray(rec.t2scores)) out.t2scores = {p0: rec.t2scores[0]||[], p1: rec.t2scores[1]||[]};
+        if (Array.isArray(rec.t1scores)) out.t1scores = encodeScores(rec.t1scores);
+        if (Array.isArray(rec.t2scores)) out.t2scores = encodeScores(rec.t2scores);
         return out;
       };
-      // Build nested results object (not dot-notation) so Firestore stores it nested
-      const flatResults = {};
+      const encodedResults = {};
       for(const w of Object.keys(next.results)){
-        flatResults[w] = {};
+        encodedResults[w] = {};
         for(const mk of Object.keys(next.results[w]||{})){
-          flatResults[w][mk] = flattenMatch(next.results[w][mk]);
+          encodedResults[w][mk] = encodeMatch(next.results[w][mk]);
         }
       }
       await LEAGUE_DOC.set({
         handicaps: next.handicaps,
-        results: flatResults,
+        results: encodedResults,
       }, {merge:true});
       setFbStatus("loaded");
       // Reset so the next snapshot (our own echo) refreshes state from Firebase
@@ -1285,7 +1295,7 @@ Use 0 for missing/unreadable scores.`;
           <div>
             <div style={{fontFamily:FD,fontSize:"20px",color:"#0f2a14",letterSpacing:"0.02em",fontWeight:700}}>PVGC 2026 League</div>
             <div style={{fontSize:"11px",color:"#3a5a3a",marginTop:"1px",letterSpacing:"0.1em",textTransform:"uppercase",fontWeight:500}}>
-              Pickering Valley · 18 Teams · Stableford · <span style={{color:GOLD}}>v1.2</span>
+              Pickering Valley · 18 Teams · Stableford · <span style={{color:GOLD}}>v1.3</span>
             </div>
           </div>
           {!confirmReset ? (
