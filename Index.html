@@ -1,0 +1,2340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>PVGC 2026 · Pickering Valley Golf Club</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:#f0ece0;color:#1a2e1a;font-family:'Outfit','system-ui',sans-serif;-webkit-font-smoothing:antialiased;font-size:15px;}
+    #root{min-height:100vh;}
+    input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+    input[type=number]{-moz-appearance:textfield;}
+    input::placeholder{color:#888;opacity:1;}
+    select{-webkit-appearance:none;-moz-appearance:none;}
+    ::-webkit-scrollbar{width:4px;height:4px;}
+    ::-webkit-scrollbar-track{background:transparent;}
+    ::-webkit-scrollbar-thumb{background:#1a3d2455;border-radius:2px;}
+    button:active{opacity:0.8;}
+    input,select,button{font-family:'Outfit','system-ui',sans-serif;}
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useCallback, useRef } = React;
+const firebaseConfig = {
+  apiKey: "AIzaSyA0ubEbHoYbfCSjfNxHUkt_fr_6WMb3t5Y",
+  authDomain: "pvgc-league.firebaseapp.com",
+  projectId: "pvgc-league",
+  storageBucket: "pvgc-league.firebasestorage.app",
+  messagingSenderId: "731595471102",
+  appId: "1:731595471102:web:d4ad8bf15746bab7874daf",
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const LEAGUE_DOC = db.collection("pvgc").doc("league-2026");
+
+// ── Course ─────────────────────────────────────────────────────
+const PAR         = [4,3,4,5,4,3,4,5,4];
+const SI          = [1,3,7,8,4,9,2,6,5];
+const RAINOUT_SUB = {6:0, 7:3, 8:2}; // H7→H1, H8→H4, H9→H3
+
+// ── Teams ──────────────────────────────────────────────────────
+const TEAMS = {
+  1:  {name:"Charles - Dagg",        p1:"Brian Charles",   p2:"Karl Dagg"},
+  2:  {name:"Brosius - Albano",       p1:"Steve Brosius",   p2:"Mike Albano"},
+  3:  {name:"Mistry - Reddy",         p1:"Baz Mistry",      p2:"Sanjay Reddy"},
+  4:  {name:"Pineno - MacKenzie",     p1:"Scot Pineno",     p2:"Scott MacKenzie"},
+  5:  {name:"Carickhoff - Schantz",   p1:"Jack Carickhoff", p2:"Tracy Schantz"},
+  6:  {name:"Deshaies - Adler",       p1:"Jacob Deshaies",  p2:"Mark Adler"},
+  7:  {name:"Harvey - Rowles",        p1:"John Harvey",     p2:"Jeff Rowles"},
+  8:  {name:"Saenz - Huston",         p1:"Bob Saenz",       p2:"Dennis Huston"},
+  9:  {name:"Fahey - Wzorek",         p1:"Chris Fahey",     p2:"Berry Wzorek"},
+  10: {name:"Mulvey - Nelson",        p1:"Tom Mulvey",      p2:"Chris Nelson"},
+  11: {name:"West - Herman",          p1:"Jack West",       p2:"Ron Herman"},
+  12: {name:"Lorenz - Huckestein",    p1:"Gabe Lorenz",     p2:"Jake Huckestein"},
+  13: {name:"Wagner - Hammond",       p1:"Betsy Wagner",    p2:"Gordon Hammond"},
+  14: {name:"Franks - Lightbody",     p1:"John Franks",     p2:"Scott Lightbody"},
+  15: {name:"Jurden - Olivos",        p1:"Jesse Jurden",    p2:"JC Olivos"},
+  16: {name:"Lukas - Blizard",        p1:"Rhonda Lukas",    p2:"Carol Blizard"},
+  17: {name:"Posey - Minasian",       p1:"Russ Posey",      p2:"Aret Minasian"},
+  18: {name:"Pavelik - Mitchell",     p1:"Barry Pavelik",   p2:"Mark Mitchell"},
+};
+
+// Player list: {tid, pi, name}
+const ALL_PLAYERS = Object.entries(TEAMS).flatMap(([tid,t]) => [
+  {tid:parseInt(tid), pi:0, name:t.p1, team:t.name},
+  {tid:parseInt(tid), pi:1, name:t.p2, team:t.name},
+]);
+
+// ── 2026 Schedule ──────────────────────────────────────────────
+const SCHEDULE_RAW = [
+  // Official 2026 schedule — validated (all 18 teams present each week)
+  // Dates corrected from spreadsheet's /25 typo to /26
+  [1,  "2026-04-15", [9,18],[13,15],[14,16],[3,11],[1,10],[4,8],[6,12],[2,7],[5,17]],
+  [2,  "2026-04-22", [5,15],[17,18],[10,11],[1,16],[3,14],[2,12],[4,7],[6,8],[9,13]],
+  [3,  "2026-04-29", [7,8],[12,16],[2,6],[13,18],[4,5],[15,17],[1,14],[9,11],[3,10]],
+  [4,  "2026-05-06", [2,14],[4,11],[3,15],[10,17],[9,16],[7,18],[8,13],[5,12],[1,6]],
+  [5,  "2026-05-13", [7,13],[6,14],[16,17],[3,9],[2,11],[5,8],[12,18],[1,4],[10,15]],
+  [6,  "2026-05-20", [10,16],[8,12],[6,18],[2,4],[5,13],[1,15],[9,17],[11,14],[3,7]],
+  [7,  "2026-05-27", [4,15],[6,17],[12,14],[7,11],[1,8],[5,10],[16,18],[3,13],[2,9]],
+  [8,  "2026-06-03", [6,11],[4,14],[9,10],[8,18],[3,17],[12,13],[5,7],[15,16],[1,2]],
+  [9,  "2026-06-10", [6,9],[4,17],[8,11],[10,18],[7,14],[13,16],[3,5],[1,12],[2,15]],
+  [10, "2026-06-17", [8,10],[3,16],[5,18],[2,13],[4,6],[1,11],[14,17],[9,15],[7,12]],
+  [11, "2026-06-24", [2,17],[4,9],[1,7],[8,14],[11,12],[3,18],[10,13],[5,16],[6,15]],
+  [12, "2026-07-08", [14,18],[11,13],[6,16],[8,17],[9,12],[2,3],[4,10],[7,15],[1,5]],
+  [13, "2026-07-15", [5,11],[1,18],[12,17],[7,9],[8,15],[6,10],[2,16],[3,4],[13,14]],
+  [14, "2026-07-22", [1,13],[5,14],[8,9],[12,15],[7,17],[4,16],[3,6],[2,10],[11,18]],
+  [15, "2026-07-29", [3,12],[7,10],[4,13],[5,6],[2,18],[9,14],[11,15],[1,17],[8,16]],
+  [16, "2026-08-05", [7,16],[3,8],[2,5],[4,18],[6,13],[11,17],[10,12],[14,15],[1,9]],
+  [17, "2026-08-12", [13,17],[5,9],[4,12],[10,14],[11,16],[6,7],[2,8],[1,3],[15,18]],
+  [18, "2026-08-19"],   // Knockdown: 1v2, 3v4, 5v6, 7v8
+  [19, "2026-08-26"],   // Playoffs Quarterfinals: 1v8, 2v7, 3v6, 4v5
+  [20, "2026-09-02"],   // Playoffs Semifinals
+  [21, "2026-09-09"],   // Playoffs Finals
+];
+
+function buildSchedule() {
+  const s = {};
+  for (const [week, date, ...pairs] of SCHEDULE_RAW) {
+    s[week] = {week, date, pairs:(pairs||[]).filter(p=>Array.isArray(p))};
+  }
+  return s;
+}
+const SCHEDULE = buildSchedule();
+
+// ── Playoff matchup helpers ────────────────────────────────────────
+// Returns ordered [rank1..rank8] team IDs from standings (weeks 1-17 only)
+function getPlayoffSeeds(results, handicaps) {
+  const {teamStats} = calcLeagueStats(results, handicaps, 17);
+  return Object.entries(teamStats)
+    .map(([id,s])=>({id:parseInt(id),...s}))
+    .sort((a,b)=>b.totalPts-a.totalPts||b.stab-a.stab)
+    .slice(0,8)
+    .map(s=>s.id);
+}
+
+// Week 18 Knockdown: 1v2, 3v4, 5v6, 7v8
+function getKnockdownPairs(seeds) {
+  if(seeds.length<8) return [];
+  return [[seeds[0],seeds[1]],[seeds[2],seeds[3]],[seeds[4],seeds[5]],[seeds[6],seeds[7]]];
+}
+
+// Week 19 QF: 1v8, 2v7, 3v6, 4v5
+function getQFPairs(seeds) {
+  if(seeds.length<8) return [];
+  return [[seeds[0],seeds[7]],[seeds[1],seeds[6]],[seeds[2],seeds[5]],[seeds[3],seeds[4]]];
+}
+
+// Get winner of a playoff match (higher score wins; tie = lower seed advances)
+function getPlayoffWinner(week, ta, tb, results) {
+  const mk = matchKey(week, Math.min(ta,tb), Math.max(ta,tb));
+  const rec = results[week]?.[mk];
+  if(!rec) return null;
+  // Use team stableford totals to determine winner
+  const totA = (rec.t1scores||[[],[]]).reduce((s,arr)=>s+arr.reduce((x,v)=>x+(v||0),0),0);
+  const totB = (rec.t2scores||[[],[]]).reduce((s,arr)=>s+arr.reduce((x,v)=>x+(v||0),0),0);
+  // t1scores belongs to lower-numbered team
+  const tlow=Math.min(ta,tb), thigh=Math.max(ta,tb);
+  const scoreA = ta===tlow ? totA : totB;
+  const scoreB = tb===tlow ? totA : totB;
+  if(scoreA > scoreB) return ta;
+  if(scoreB > scoreA) return tb;
+  return ta; // tie: lower seed (ta is lower seed by convention)
+}
+
+// Get SF pairs from QF results
+function getSFPairs(seeds, results) {
+  const qf = getQFPairs(seeds);
+  const w = qf.map(([a,b])=>getPlayoffWinner(19,a,b,results));
+  if(w.some(x=>!x)) return null; // QF not complete
+  // SF: QF1 winner vs QF4 winner, QF2 winner vs QF3 winner
+  return [[w[0],w[3]],[w[1],w[2]]];
+}
+
+// Get Finals pair from SF results + 3rd place match
+function getFinalPairs(seeds, results) {
+  const sf = getSFPairs(seeds, results);
+  if(!sf) return null;
+  const w = sf.map(([a,b])=>getPlayoffWinner(20,a,b,results));
+  if(w.some(x=>!x)) return null;
+  // Losers
+  const l = sf.map(([a,b],i)=>w[i]===a?b:a);
+  return {championship:[w[0],w[1]], thirdPlace:[l[0],l[1]]};
+}
+
+function getOpponent(teamId, week, dynamicPairs=null) {
+  if(dynamicPairs) {
+    for(const [a,b] of dynamicPairs) {
+      if(a===teamId) return b;
+      if(b===teamId) return a;
+    }
+    return null;
+  }
+  const w = SCHEDULE[week];
+  if (!w?.pairs) return null;
+  for (const [a,b] of w.pairs) {
+    if (a===teamId) return b;
+    if (b===teamId) return a;
+  }
+  return null;
+}
+
+function matchKey(w,ta,tb) { return `${w}-${Math.min(ta,tb)}-${Math.max(ta,tb)}`; }
+
+// ── Scoring logic ──────────────────────────────────────────────
+function stabPts(gross, par, strokes) {
+  if (!gross) return null;
+  const diff = par - (gross - strokes);
+  if (diff >= 3) return 5;
+  if (diff === 2) return 4;
+  if (diff === 1) return 3;
+  if (diff === 0) return 1;
+  if (diff === -1) return 0;
+  return -1;
+}
+function hcpStr(hcp, si) {
+  const h = Math.floor(parseFloat(hcp)||0); // truncate to whole number for stroke allocation
+  if (h < 0) return si <= Math.abs(h) ? -1 : 0;
+  // Each full 9 holes = 1 extra stroke on every hole
+  // Remainder strokes apply to holes where SI <= remainder
+  const full = Math.floor(h / 9);  // strokes every hole gets
+  const remainder = h % 9;          // extra strokes on SI 1..remainder
+  return full + (si <= remainder ? 1 : 0);
+}
+
+// ── Compute team total from a saved match record ───────────────
+function computeTeamTotal(rec, tIdx, tid, handicaps) {
+  let total = 0;
+  const types  = tIdx===0 ? rec.t1types  : rec.t2types;
+  const scores = tIdx===0 ? rec.t1scores : rec.t2scores;
+  for (let pi=0; pi<2; pi++) {
+    const type = (types||[])[pi]||"normal";
+    if (type==="sub") { total+=6; continue; }
+    for (let hi=0; hi<9; hi++) {
+      const effHi = (rec.rainout && hi>=rec.holesPlayed && RAINOUT_SUB[hi]!==undefined) ? RAINOUT_SUB[hi] : hi;
+      const gross = (scores||[[],[]])[pi]?.[effHi]||0;
+      if (!gross) continue;
+      const hcp = (handicaps[tid]||[0,0])[pi]||0;
+      total += stabPts(gross, PAR[hi], hcpStr(hcp, SI[hi]))||0;
+    }
+  }
+  return total;
+}
+
+// Compute individual player total from record
+function computePlayerTotal(rec, tIdx, pi, tid, handicaps) {
+  const types  = tIdx===0 ? rec.t1types  : rec.t2types;
+  const scores = tIdx===0 ? rec.t1scores : rec.t2scores;
+  const type = (types||[])[pi]||"normal";
+  if (type==="sub") return 6;
+  let total = 0;
+  for (let hi=0; hi<9; hi++) {
+    const effHi = (rec.rainout && hi>=rec.holesPlayed && RAINOUT_SUB[hi]!==undefined) ? RAINOUT_SUB[hi] : hi;
+    const gross = (scores||[[],[]])[pi]?.[effHi]||0;
+    if (!gross) continue;
+    const hcp = (handicaps[tid]||[0,0])[pi]||0;
+    total += stabPts(gross, PAR[hi], hcpStr(hcp, SI[hi]))||0;
+  }
+  return total;
+}
+
+// ── Bonus points: rank all 9 team totals in a week ─────────────
+// Returns {teamId: bonusPts} — only if ALL 9 matches scored
+function calcWeekBonus(week, results, handicaps) {
+  const w = SCHEDULE[week];
+  if (!w?.pairs?.length) return null;
+  const totals = [];
+  for (const [ta,tb] of w.pairs) {
+    const key = matchKey(week,ta,tb);
+    const rec = results[week]?.[key];
+    if (!rec) return null; // not all scored yet
+    const [tlow,thigh] = ta<tb?[ta,tb]:[tb,ta];
+    totals.push({tid:tlow,  total:computeTeamTotal(rec,0,tlow,handicaps)});
+    totals.push({tid:thigh, total:computeTeamTotal(rec,1,thigh,handicaps)});
+  }
+  // Sort descending by total
+  totals.sort((a,b)=>b.total-a.total);
+  const bonus = {};
+  // 8/6/4/2 for pairs: rank 1-2 get 8, 3-4 get 6, 5-6 get 4, 7-8 get 2, 9-10 (if tie) also 2
+  // Handle ties: if teams tie, they share the same bracket
+  const pts = [8,8,6,6,4,4,2,2,2,2];
+  // Group tied teams at same bonus level
+  let i=0;
+  while (i < totals.length) {
+    let j=i;
+    while (j<totals.length && totals[j].total===totals[i].total) j++;
+    // teams i..j-1 are tied — average their bonus levels
+    const avgPts = pts.slice(i,j).reduce((s,p)=>s+p,0)/(j-i);
+    for (let k=i;k<j;k++) bonus[totals[k].tid] = Math.round(avgPts);
+    i=j;
+  }
+  return bonus;
+}
+
+// ── Full league stats ──────────────────────────────────────────
+function calcLeagueStats(results, handicaps, maxWeek=17) {
+  // Team stats: matchPts, bonusPts, totalPts, stab, wins, losses, ties, played
+  const teamStats = {};
+  for (let t=1;t<=18;t++) teamStats[t] = {matchPts:0,bonusPts:0,totalPts:0,stab:0,wins:0,losses:0,ties:0,played:0};
+
+  // Player stats: rounds[], total (drop 3 lowest at end)
+  const playerStats = {};
+  ALL_PLAYERS.forEach(p => { playerStats[`${p.tid}-${p.pi}`] = {rounds:[],name:p.name,team:TEAMS[p.tid]?.name,tid:p.tid,pi:p.pi}; });
+
+  for (let w=1; w<=maxWeek; w++) {
+    const week = SCHEDULE[w];
+    if (!week?.pairs?.length) continue;
+
+    // Bonus pts for week (null if not all scored)
+    const bonus = calcWeekBonus(w, results, handicaps);
+
+    for (const pair of week.pairs) {
+      if (!Array.isArray(pair)) continue;
+      const [ta,tb] = pair;
+      const key = matchKey(w,ta,tb);
+      const rec = results[w]?.[key];
+      if (!rec) continue;
+
+      const [tlow,thigh] = ta<tb?[ta,tb]:[tb,ta];
+      const totA = computeTeamTotal(rec,0,tlow,handicaps);
+      const totB = computeTeamTotal(rec,1,thigh,handicaps);
+
+      teamStats[tlow].stab  += totA;
+      teamStats[thigh].stab += totB;
+      teamStats[tlow].played++;
+      teamStats[thigh].played++;
+
+      // Points: Low vs Low (2/1), High vs High (2/1), Team match (4/2)
+      const hA = handicaps[tlow]||[0,0];
+      const hB = handicaps[thigh]||[0,0];
+      const lowA = hA[0]<=hA[1]?0:1, highA = 1-lowA;
+      const lowB = hB[0]<=hB[1]?0:1, highB = 1-lowB;
+      const pairings = [{piA:lowA,piB:lowB},{piA:highA,piB:highB}];
+      let winsA=0, winsB=0;
+      for (const {piA,piB} of pairings) {
+        const pA = computePlayerTotal(rec,0,piA,tlow,handicaps);
+        const pB = computePlayerTotal(rec,1,piB,thigh,handicaps);
+        if (pA>pB)      { teamStats[tlow].matchPts+=2; winsA++; }
+        else if (pB>pA) { teamStats[thigh].matchPts+=2; winsB++; }
+        else            { teamStats[tlow].matchPts+=1; teamStats[thigh].matchPts+=1; }
+      }
+      // Team match result (4 for win, 2 each for tie)
+      if (winsA>winsB)      { teamStats[tlow].matchPts+=4;  teamStats[tlow].wins++;  teamStats[thigh].losses++; }
+      else if (winsB>winsA) { teamStats[thigh].matchPts+=4; teamStats[thigh].wins++; teamStats[tlow].losses++; }
+      else                  { teamStats[tlow].matchPts+=2;  teamStats[thigh].matchPts+=2; teamStats[tlow].ties++; teamStats[thigh].ties++; }
+
+      // Bonus pts
+      if (bonus) {
+        teamStats[tlow].bonusPts  += bonus[tlow]||0;
+        teamStats[thigh].bonusPts += bonus[thigh]||0;
+      }
+
+      // Player individual totals
+      for (let pi=0; pi<2; pi++) {
+        const ptA = computePlayerTotal(rec,0,pi,tlow,handicaps);
+        const ptB = computePlayerTotal(rec,1,pi,thigh,handicaps);
+        playerStats[`${tlow}-${pi}`].rounds.push({week:w,pts:ptA});
+        playerStats[`${thigh}-${pi}`].rounds.push({week:w,pts:ptB});
+      }
+    }
+  }
+
+  // Finalize team totals
+  for (let t=1;t<=18;t++) {
+    teamStats[t].totalPts = teamStats[t].matchPts + teamStats[t].bonusPts;
+  }
+
+  // Finalize POTY: drop 3 lowest rounds
+  const potyList = Object.values(playerStats).map(p => {
+    const sorted = [...p.rounds].sort((a,b)=>a.pts-b.pts);
+    const kept   = sorted.slice(Math.min(3,sorted.length));
+    const total  = kept.reduce((s,r)=>s+r.pts,0);
+    return {...p, total, keptRounds:kept.length, droppedRounds:sorted.slice(0,Math.min(3,sorted.length))};
+  }).sort((a,b)=>b.total-a.total);
+
+  // Weekly POTY: highest individual score per week across all players
+  const weeklyPoty = {};
+  for (let w=1;w<=17;w++) {
+    let best = -Infinity;
+    let winners = [];
+    ALL_PLAYERS.forEach(p => {
+      const key = matchKey(w, p.tid, getOpponent(p.tid,w)||0);
+      // Find which tIdx this player is
+      const opp = getOpponent(p.tid, w);
+      if (!opp) return;
+      const [tlow,thigh] = p.tid<opp?[p.tid,opp]:[opp,p.tid];
+      const tIdx = p.tid===tlow?0:1;
+      const rec = results[w]?.[matchKey(w,tlow,thigh)];
+      if (!rec) return;
+      const pts = computePlayerTotal(rec, tIdx, p.pi, p.tid, handicaps);
+      if (pts > best) { best=pts; winners=[{...p,pts}]; }
+      else if (pts===best) winners.push({...p,pts});
+    });
+    if (winners.length) weeklyPoty[w] = {pts:best, winners};
+  }
+
+  return {teamStats, potyList, weeklyPoty};
+}
+
+// ── Default handicaps ──────────────────────────────────────────
+const DEFAULT_HCP = {
+  1:  [6,6],   // Brian Charles (6), Karl Dagg (6)    ← real Week 1
+  2:  [6,10],  // Steve Brosius, Mike Albano
+  3:  [6,7],   // Baz Mistry, Sanjay Reddy
+  4:  [9,11],  // Scot Pineno, Scott MacKenzie
+  5:  [2,6],   // Jack Carickhoff (2), Tracy Schantz (6)
+  6:  [3,0],   // Jacob Deshaies (3), Mark Adler (new member — no prior HCP)
+  7:  [10,9],  // John Harvey, Jeff Rowles
+  8:  [8,10],  // Bob Saenz, Dennis Huston
+  9:  [7,0],   // Chris Fahey (7), Berry Wzorek (TBD — update when known)
+  10: [7,4],   // Tom Mulvey (7), Chris Nelson (4)    ← real Week 1
+  11: [11,16], // Jack West, Ron Herman
+  12: [13,3],  // Gabe Lorenz, Jake Huckestein
+  13: [16,11], // Betsy Wagner, Gordon Hammond
+  14: [7,1],   // John Franks, Scott Lightbody
+  15: [10,8],  // Jesse Jurden (10), JC Olivos (8)
+  16: [7,28],  // Rhonda Lukas, Carol Blizard
+  17: [10,9],  // Russ Posey, Aret Minasian
+  18: [18,9],  // Barry Pavelik, Mark Mitchell
+};
+
+
+// ── Pre-loaded Week 1 results ──────────────────────────────────
+const WEEK1_RESULTS = {
+  // Real scores: Charles/Dagg vs Carickhoff/Celenza (T5 scores still needed)
+  "1-1-5": {
+    t1scores:[[4,4,4,6,3,3,5,5,5],[5,5,4,6,4,4,5,5,6]],
+    t2scores:[[4,3,4,5,4,3,4,5,4],[4,3,4,5,4,3,4,5,4]],
+    t1types:["normal","normal"], t2types:["normal","normal"],
+    rainout:false, holesPlayed:9
+  },
+  // Real scores: Mulvey/Nelson vs West/Herman (T11 scores still needed)
+  "1-10-11": {
+    t1scores:[[4,4,4,7,5,5,4,4,4],[4,3,4,6,5,4,5,5,5]],
+    t2scores:[[4,3,4,5,4,3,4,5,4],[4,3,4,5,4,3,4,5,4]],
+    t1types:["normal","normal"], t2types:["normal","normal"],
+    rainout:false, holesPlayed:9
+  },
+};
+
+// ── New members (2026) — keyed by "tid-pi" ─────────────────────
+// New members use 60% all season, no +2 cap, start HCP from round 1.
+const NEW_MEMBERS = {
+  "6-1": true,  // Mark Adler (Team 6, player 2)
+};
+
+function isNewMember(tid, pi) {
+  return !!NEW_MEMBERS[`${tid}-${pi}`];
+}
+
+function initLeague() {
+  const handicaps={}, results={};
+  for (let t=1;t<=18;t++) handicaps[t]=[...DEFAULT_HCP[t]];
+  for (let w=1;w<=18;w++) results[w]={};
+  results[1] = {...WEEK1_RESULTS};
+  return {handicaps, results};
+}
+
+// ── Auto-handicap calculation ─────────────────────────────────
+// Stagger percentages for returning players (by round number played)
+const HCP_PCT = [0, 0.60, 0.70, 0.75, 0.80]; // index 1-4, then 0.90 for 5+
+
+// Calculate the auto handicap for one player given their season gross scores so far.
+// grossRounds: array of gross totals in chronological order (round 1 first).
+// startHcp: their DEFAULT_HCP value (last season ending hcp).
+// Returns: new handicap (integer, capped at startHcp+2).
+function calcAutoHcp(grossRounds, startHcp, isNew) {
+  const n = grossRounds.length;
+  if (n === 0) return isNew ? 0 : startHcp;  // new members start at 0 until round 1
+
+  let avgGross, PCT;
+
+  if (isNew) {
+    // New members: always 60%, always average all rounds, no cap
+    PCT = 0.60;
+    avgGross = grossRounds.reduce((s, g) => s + g, 0) / n;
+    return Math.round(PCT * (avgGross - 36));
+  }
+
+  // Returning members
+  PCT = n <= 4 ? HCP_PCT[n] : 0.90;
+
+  if (n <= 4) {
+    avgGross = grossRounds.reduce((s, g) => s + g, 0) / n;
+  } else {
+    // Average of lowest 7 gross scores out of all rounds
+    const sorted = [...grossRounds].sort((a, b) => a - b);
+    const best7 = sorted.slice(0, Math.min(7, n));
+    avgGross = best7.reduce((s, g) => s + g, 0) / best7.length;
+  }
+
+  const raw = PCT * (avgGross - 36);
+  const rounded = Math.round(raw);
+  // Cap: cannot exceed startHcp + 2, no floor (negatives allowed)
+  return Math.min(rounded, startHcp + 2);
+}
+
+// Build per-player gross round history from all saved results up to (not including) a given week.
+// Returns: { [tid]: [[p1_grosses...], [p2_grosses...]] }
+function buildGrossHistory(results, upToWeek) {
+  // Collect gross totals per player per team
+  const history = {};
+  for (let t = 1; t <= 18; t++) history[t] = [[], []];
+
+  for (let w = 1; w < upToWeek; w++) {
+    const weekResults = results[w] || {};
+    for (const [key, rec] of Object.entries(weekResults)) {
+      if (!rec || rec.rainout) continue;
+      // Skip w1stab records — no real gross scores stored
+      if (rec.w1stab) continue;
+      const parts = key.split('-');
+      const tlow = parseInt(parts[1]);
+      const thigh = parseInt(parts[2]);
+
+      // t1 = tlow, t2 = thigh
+      [[tlow, rec.t1scores, rec.t1types], [thigh, rec.t2scores, rec.t2types]].forEach(([tid, scores, types]) => {
+        if (!scores || !history[tid]) return;
+        for (let pi = 0; pi < 2; pi++) {
+          const type = (types || [])[pi] || 'normal';
+          if (type !== 'normal') continue; // skip subs/phantoms
+          const gross = (scores[pi] || []).reduce((s, g) => s + (g || 0), 0);
+          if (gross > 0) history[tid][pi].push(gross);
+        }
+      });
+    }
+  }
+  return history;
+}
+
+// Returns suggested handicaps for all players for a given week (based on prior weeks' scores).
+// Returns: { [tid]: [p1hcp, p2hcp] } — same shape as league.handicaps
+function calcSuggestedHcps(results, currentWeek) {
+  const history = buildGrossHistory(results, currentWeek);
+  const suggested = {};
+  for (let t = 1; t <= 18; t++) {
+    const startHcps = DEFAULT_HCP[t] || [0, 0];
+    suggested[t] = [0, 1].map(pi =>
+      calcAutoHcp(history[t][pi], startHcps[pi], isNewMember(t, pi))
+    );
+  }
+  return suggested;
+}
+
+function initMatch() {
+  return {
+    t1scores:[Array(9).fill(0),Array(9).fill(0)],
+    t2scores:[Array(9).fill(0),Array(9).fill(0)],
+    t1types:["normal","normal"],
+    t2types:["normal","normal"],
+    rainout:false, holesPlayed:6,
+  };
+}
+
+// ── Theme ──────────────────────────────────────────────────────
+// ── Masters Scorecard Theme (light) ───────────────────────────────
+// Augusta National: ivory card, dark green text, gold trim
+const G="#1a6b3a";    // Augusta dark green (under par, headings)
+const GO="#b8600a";   // Burnt orange/amber (accents, CBS-inspired)
+const R="#b91c1c";    // Over par red
+const M="#4a6a52";    // Muted Augusta green (secondary text)
+const BG="#f0ece0";   // Parchment/ivory — the scorecard background
+const CREAM="#1a2e1a"; // Deep green — main text on light bg
+const GOLD="#8a6a1a"; // Dark gold trim
+const CARD="rgba(255,255,255,0.7)";
+const CARD2="rgba(255,255,255,0.95)";
+const FD="'Cormorant Garamond','Georgia',serif";
+const FB="'Outfit','DM Sans','system-ui',sans-serif";
+const FM="'Outfit','DM Sans','system-ui',sans-serif";
+
+// ── Small components ───────────────────────────────────────────
+const Tag=({children,color=M})=>(
+  <span style={{fontSize:"8px",letterSpacing:"0.14em",textTransform:"uppercase",
+    background:color+"18",color,border:`1px solid ${color}55`,borderRadius:"2px",padding:"2px 8px",
+    fontFamily:"'Cormorant SC',Georgia,serif",fontWeight:600}}>
+    {children}
+  </span>
+);
+
+const PtsBadge=({pts})=>{
+  if(pts===null||pts===undefined) return <span style={{color:M,fontSize:"13px",fontFamily:"'Cormorant Garamond',Georgia,serif"}}>–</span>;
+  const color=pts>=3?"#6aaa72":pts===1?"#f0e16a":pts===0?"#6a7a5a":"#c0392b";
+  return <span style={{display:"inline-block",minWidth:"24px",textAlign:"center",
+    fontWeight:700,fontSize:"15px",color,fontFamily:"'Cormorant Garamond',Georgia,serif",letterSpacing:"0.02em"}}>{pts}</span>;
+};
+
+const ScoreInput=({value,onChange,disabled})=>(
+  <input type="number" min="1" max="15"
+    value={value===0?"":value} placeholder="–" disabled={disabled}
+    onChange={e=>onChange(parseInt(e.target.value)||0)}
+    style={{width:"46px",borderRadius:"6px",textAlign:"center",padding:"5px 3px",
+      fontFamily:FB,fontSize:"14px",outline:"none",
+      background:disabled?"rgba(26,61,36,0.04)":"rgba(255,255,255,0.7)",
+      border:`1px solid ${GOLD}44`,color:disabled?M:CREAM}}/>
+);
+
+const NavBtn=({children,active,onClick})=>(
+  <button onClick={onClick} style={{
+    padding:"10px 16px",borderRadius:"0",border:"none",
+    borderBottom:active?`3px solid ${G}`:"3px solid transparent",
+    background:active?G+"15":"transparent",
+    color:active?G:"#2a3a2a",
+    fontFamily:FB,fontSize:"13px",letterSpacing:"0.08em",textTransform:"uppercase",
+    cursor:"pointer",fontWeight:active?700:500,transition:"all 0.15s",whiteSpace:"nowrap"
+  }}>{children}</button>
+);
+
+function fmtDate(str){
+  if(!str) return "";
+  const d=new Date(str+"T12:00:00");
+  return d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
+}
+
+// ── App ────────────────────────────────────────────────────────
+
+// ── Entry Tab Component ────────────────────────────────────────
+function EntryTab({league, saveLeague, entryWeek, setEntryWeek, entryTeam, setEntryTeam,
+                   entryScores, setEntryScores, entrySaved, setEntrySaved,
+                   userName, setUserName,
+                   knockdownPairs, qfPairs, sfPairs, finalPairs}) {
+  const cellRefs = useRef({});
+  const [showNamePrompt, setShowNamePrompt] = useState(false);
+
+  const entDynPairs = entryWeek===18?(knockdownPairs||null):entryWeek===19?(qfPairs||null):entryWeek===20?(sfPairs||null):entryWeek===21?(finalPairs?[finalPairs.championship,finalPairs.thirdPlace]:null):null;
+  const entOpp = getOpponent(entryTeam, entryWeek, entDynPairs);
+  const entT1id = entryTeam;
+  const entT2id = entOpp;
+  const mk = entT1id && entT2id ? matchKey(entryWeek, Math.min(entT1id,entT2id), Math.max(entT1id,entT2id)) : null;
+  const savedRec = mk ? league.results[entryWeek]?.[mk] : null;
+
+  const getOrd = (tid) => {
+    const [h0,h1] = (league.handicaps[tid]||[0,0]);
+    return h0 <= h1 ? [0,1] : [1,0];
+  };
+
+  const players = entT1id && entT2id ? (()=>{
+    const [t1L,t1H] = getOrd(entT1id);
+    const [t2L,t2H] = getOrd(entT2id);
+    return [
+      {tid:entT1id, pi:t1L, tIdx:0, label:"Low"},
+      {tid:entT1id, pi:t1H, tIdx:0, label:"High"},
+      {tid:entT2id, pi:t2L, tIdx:1, label:"Low"},
+      {tid:entT2id, pi:t2H, tIdx:1, label:"High"},
+    ];
+  })() : [];
+
+  const draftKey = `${entryWeek}-${entT1id}-${entT2id}`;
+
+  // Pre-fill from saved Firebase data if no local draft yet
+  const getEntry = (tIdx, pi, hi) => {
+    const draft = entryScores[draftKey];
+    if (draft) return draft[tIdx][pi][hi] || 0;
+    // Fall back to what's saved in Firebase
+    if (!savedRec) return 0;
+    const scores = tIdx===0
+      ? (entT1id < entT2id ? savedRec.t1scores : savedRec.t2scores)
+      : (entT1id < entT2id ? savedRec.t2scores : savedRec.t1scores);
+    return scores?.[pi]?.[hi] || 0;
+  };
+
+  const initDraft = () => {
+    // Initialize draft FROM saved data so edits are additive, not destructive
+    if (!savedRec) return { 0:[Array(9).fill(0),Array(9).fill(0)], 1:[Array(9).fill(0),Array(9).fill(0)] };
+    const t1s = entT1id < entT2id ? savedRec.t1scores : savedRec.t2scores;
+    const t2s = entT1id < entT2id ? savedRec.t2scores : savedRec.t1scores;
+    return {
+      0: [(t1s?.[0]||[]).map(x=>x||0), (t1s?.[1]||[]).map(x=>x||0)],
+      1: [(t2s?.[0]||[]).map(x=>x||0), (t2s?.[1]||[]).map(x=>x||0)],
+    };
+  };
+
+  const setEntry = (tIdx, pi, hi, val) => {
+    setEntryScores(prev => {
+      const cur = prev[draftKey] || initDraft();
+      return {
+        ...prev,
+        [draftKey]: {
+          ...cur,
+          [tIdx]: cur[tIdx].map((row,i) => i===pi ? row.map((v,h) => h===hi ? val : v) : [...row])
+        }
+      };
+    });
+    setEntrySaved(false);
+  };
+
+  const saveEntry = async () => {
+    if (!mk || !entT1id || !entT2id) return;
+    const draft = entryScores[draftKey] || initDraft();
+    const isSwapped = entT1id > entT2id;
+    const t1s = isSwapped ? draft[1] : draft[0];
+    const t2s = isSwapped ? draft[0] : draft[1];
+    const existing = savedRec || {};
+    const toSave = {
+      ...initMatch(), ...existing,
+      t1scores: t1s, t2scores: t2s,
+      t1types: existing.t1types || ["normal","normal"],
+      t2types: existing.t2types || ["normal","normal"],
+      updatedBy: userName || "scorer",
+      updatedAt: new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}),
+    };
+    const next = {...league, results: {...league.results,
+      [entryWeek]: {...league.results[entryWeek], [mk]: toSave}}};
+    await saveLeague(next);
+    // Clear draft so grid goes blank again for next entry
+    setEntryScores(prev => { const n={...prev}; delete n[draftKey]; return n; });
+    setEntrySaved(true);
+    setTimeout(() => setEntrySaved(false), 2500);
+  };
+
+  const focusCell = (row, col) => {
+    const el = cellRefs.current[`${row}-${col}`];
+    if (el) { el.focus(); el.select(); }
+  };
+  const handleKeyDown = (e, row, col) => {
+    if (e.key === "Tab" || e.key === "Enter") {
+      e.preventDefault();
+      if (col < 8) focusCell(row, col+1);
+      else if (row < 3) focusCell(row+1, 0);
+    } else if (e.key === "ArrowRight") { e.preventDefault(); focusCell(row, Math.min(8,col+1)); }
+    else if (e.key === "ArrowLeft")  { e.preventDefault(); focusCell(row, Math.max(0,col-1)); }
+    else if (e.key === "ArrowDown")  { e.preventDefault(); focusCell(Math.min(3,row+1), col); }
+    else if (e.key === "ArrowUp")    { e.preventDefault(); focusCell(Math.max(0,row-1), col); }
+  };
+
+  // (Masters theme — uses global constants);
+
+  const LBL = {fontSize:"14px",fontWeight:600,color:M,letterSpacing:"0.05em",textTransform:"uppercase",marginBottom:"6px"};
+  const SEL = {width:"100%",background:"#fff",border:`2px solid ${G}`,borderRadius:"13px",
+    color:CREAM,fontFamily:FB,fontSize:"16px",fontWeight:600,padding:"12px 14px",cursor:"pointer",outline:"none",display:"block"};
+
+  return (
+    <div style={{maxWidth:"860px",margin:"0 auto",padding:"20px 14px"}}>
+
+      {/* Title + scorer name */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"18px"}}>
+        <div style={{fontFamily:FD,fontSize:"30px",fontWeight:700,color:CREAM}}>Score Entry</div>
+        <button onClick={()=>setShowNamePrompt(v=>!v)}
+          style={{padding:"9px 16px",background:userName?G+"18":"#fff",
+            border:`2px solid ${G}`,borderRadius:"8px",color:G,
+            fontFamily:FB,fontSize:"14px",fontWeight:600,cursor:"pointer"}}>
+          {userName ? `✎ ${userName}` : "Set Your Name"}
+        </button>
+      </div>
+
+      {/* Name prompt */}
+      {showNamePrompt&&(
+        <div style={{background:"#fff",border:`2px solid ${G}`,borderRadius:"12px",
+          padding:"16px",marginBottom:"16px",display:"flex",gap:"13px",flexWrap:"wrap",alignItems:"center"}}>
+          <span style={{fontSize:"15px",color:CREAM,fontWeight:500}}>Your name:</span>
+          <input type="text" placeholder="e.g. Karl Dagg" defaultValue={userName}
+            onKeyDown={e=>{if(e.key==="Enter"){const v=e.target.value.trim();setUserName(v);localStorage.setItem("pvgc_user",v);setShowNamePrompt(false);}}}
+            style={{flex:1,minWidth:"160px",background:"#f8f8f4",border:`2px solid ${G}66`,
+              borderRadius:"8px",color:CREAM,fontFamily:FB,fontSize:"16px",padding:"10px 12px",outline:"none"}}
+            autoFocus
+          />
+          <button onClick={e=>{const v=e.target.closest("div").querySelector("input").value.trim();setUserName(v);localStorage.setItem("pvgc_user",v);setShowNamePrompt(false);}}
+            style={{padding:"10px 20px",background:G,border:"none",borderRadius:"8px",
+              color:"#fff",fontFamily:FB,fontSize:"15px",fontWeight:700,cursor:"pointer"}}>Save</button>
+        </div>
+      )}
+
+      {/* Week + Team selectors */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px",marginBottom:"14px"}}>
+        <div>
+          <div style={LBL}>Week</div>
+          <select value={entryWeek} onChange={e=>{setEntryWeek(parseInt(e.target.value));setEntrySaved(false);}} style={SEL}>
+            {Array.from({length:21},(_,i)=>i+1).map(w=>(
+              <option key={w} value={w}>Week {w} — {fmtDate(SCHEDULE[w]?.date)}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <div style={LBL}>Team</div>
+          <select value={entryTeam} onChange={e=>{setEntryTeam(parseInt(e.target.value));setEntrySaved(false);}} style={SEL}>
+            {Array.from({length:18},(_,i)=>i+1).map(t=>(
+              <option key={t} value={t}>T{t}: {TEAMS[t]?.name}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Opponent banner */}
+      {entOpp
+        ? <div style={{background:"#fff",border:`2px solid ${G}`,borderRadius:"13px",
+            padding:"12px 16px",marginBottom:"16px",display:"flex",alignItems:"center",gap:"12px",flexWrap:"wrap"}}>
+            <span style={{fontSize:"15px",color:M}}>vs</span>
+            <span style={{fontSize:"18px",fontWeight:700,color:G}}>{TEAMS[entOpp]?.name}</span>
+            <span style={{fontSize:"14px",color:M}}>Team {entOpp}</span>
+            {savedRec?.updatedBy&&(
+              <span style={{marginLeft:"auto",fontSize:"13px",color:GOLD,fontWeight:500}}>
+                ✎ last saved by {savedRec.updatedBy}{savedRec.updatedAt?" at "+savedRec.updatedAt:""}
+              </span>
+            )}
+          </div>
+        : <div style={{background:"#fff3f3",border:`2px solid ${R}55`,borderRadius:"13px",
+            padding:"12px 16px",marginBottom:"16px",fontSize:"16px",color:R,fontWeight:600}}>
+            No match scheduled for Week {entryWeek}
+          </div>
+      }
+
+      {entOpp&&(<>
+        {/* One card per player */}
+        {players.map((p, rowIdx) => {
+          const pname = TEAMS[p.tid]?.[p.pi===0?"p1":"p2"] || "";
+          const hcp = (league.handicaps[p.tid]||[0,0])[p.pi] || 0;
+          const teamColor = p.tIdx===0 ? G : GO;
+          let grossTotal=0, stabTotal=0;
+          const holes = Array(9).fill(0).map((_,hi)=>{
+            const gross=getEntry(p.tIdx,p.pi,hi);
+            const pts=gross?stabPts(gross,PAR[hi],hcpStr(hcp,SI[hi])):null;
+            if(gross>0){grossTotal+=gross;stabTotal+=(pts||0);}
+            return {gross,pts};
+          });
+          return (
+            <div key={rowIdx} style={{background:"#fff",border:`2px solid ${teamColor}66`,
+              borderRadius:"14px",marginBottom:"14px",overflow:"hidden",
+              boxShadow:"0 1px 4px rgba(26,61,36,0.08)"}}>
+              {/* Player header */}
+              <div style={{background:teamColor+"20",padding:"12px 16px",
+                display:"flex",alignItems:"center",justifyContent:"space-between",
+                borderBottom:`2px solid ${teamColor}44`}}>
+                <div style={{display:"flex",alignItems:"center",gap:"13px"}}>
+                  <div style={{width:"12px",height:"12px",borderRadius:"50%",background:teamColor,flexShrink:0}}/>
+                  <span style={{fontSize:"18px",fontWeight:700,color:"#1a2e1a"}}>{pname}</span>
+                  <span style={{fontSize:"14px",color:M,fontWeight:500}}>HCP {hcp}</span>
+                </div>
+                {grossTotal>0&&(
+                  <div style={{display:"flex",gap:"20px",alignItems:"center"}}>
+                    <div style={{textAlign:"center"}}>
+                      <div style={{fontSize:"14px",color:M,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase"}}>Gross</div>
+                      <div style={{fontSize:"24px",fontWeight:700,color:CREAM,lineHeight:1.1}}>{grossTotal}</div>
+                    </div>
+                    <div style={{textAlign:"center"}}>
+                      <div style={{fontSize:"14px",color:G,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase"}}>Stab</div>
+                      <div style={{fontSize:"24px",fontWeight:700,color:G,lineHeight:1.1}}>{stabTotal}</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              {/* Hole inputs */}
+              <div style={{padding:"12px"}}>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(9,1fr)",gap:"5px",marginBottom:"5px"}}>
+                  {PAR.map((par,hi)=>(
+                    <div key={hi} style={{textAlign:"center"}}>
+                      <div style={{fontSize:"13px",fontWeight:700,color:G}}>H{hi+1}</div>
+                      <div style={{fontSize:"12px",color:M}}>P{par}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(9,1fr)",gap:"5px"}}>
+                  {holes.map(({gross,pts},hi)=>{
+                    const ptColor=pts===null?M:pts>=3?G:pts===1?GOLD:pts===0?M:R;
+                    const bgColor=gross?(pts>=3?"#e6f5ea":pts===1?"#fdf6e0":pts===0?"#ffffff":R+"18"):"#ffffff";
+                    const bdColor=gross?(pts>=3?G:pts===1?GOLD:pts===0?"#999":R):"#999";
+                    return (
+                      <div key={hi} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"3px"}}>
+                        <input
+                          ref={el=>cellRefs.current[`${rowIdx}-${hi}`]=el}
+                          type="number" min="1" max="15"
+                          value={gross||""}
+                          placeholder={String(PAR[hi])}
+                          onChange={e=>{const v=parseInt(e.target.value);setEntry(p.tIdx,p.pi,hi,isNaN(v)||v<1?0:Math.min(15,v));}}
+                          onKeyDown={e=>handleKeyDown(e,rowIdx,hi)}
+                          onFocus={e=>e.target.select()}
+                          style={{width:"100%",height:"48px",background:bgColor,
+                            border:`2px solid ${bdColor}`,borderRadius:"8px",
+                            color:gross?ptColor:"#555",fontFamily:FB,fontSize:"19px",
+                            fontWeight:700,textAlign:"center",outline:"none",
+                            MozAppearance:"textfield",appearance:"textfield"}}
+                        />
+                        {gross>0&&pts!==null&&(
+                          <span style={{fontSize:"12px",fontWeight:700,color:ptColor}}>
+                            {pts>0?"+"+pts:pts}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Save */}
+        <button onClick={saveEntry}
+          style={{width:"100%",padding:"18px",borderRadius:"12px",marginTop:"4px",
+            border:`2px solid ${entrySaved?G:G}`,
+            background:entrySaved?G:"#fff",
+            color:entrySaved?"#fff":G,fontFamily:FB,fontSize:"17px",
+            letterSpacing:"0.06em",textTransform:"uppercase",cursor:"pointer",
+            fontWeight:700,transition:"all 0.2s"}}>
+          {entrySaved ? "✓ Saved!" : userName ? "Save Scores" : "Save Scores (set your name first)"}
+        </button>
+      </>)}
+    </div>
+  );
+}
+
+
+function App() {
+  const [screen,  setScreen]  = useState("schedule");
+  const [league,  setLeague]  = useState(initLeague);
+  const [selWeek, setWeek]    = useState(1);
+  const [selTeam, setTeam]    = useState(1);
+  const [match,   setMatch]   = useState(initMatch());
+  const [hole,    setHole]    = useState(0);
+  const [scanState, setScan]  = useState("idle");
+  const [scanMsg,  setScanMsg]= useState("");
+  const [potyTab, setPotyTab] = useState("season"); // season | weekly
+  const [hcpSearch, setHcpSearch] = useState("");
+  const [entryWeek, setEntryWeek] = useState(1);
+  const [entryTeam, setEntryTeam] = useState(1);
+  // User identity for score attribution
+  const [userName, setUserName] = useState(()=>localStorage.getItem("pvgc_user")||"");
+  const [showNamePrompt, setShowNamePrompt] = useState(false);
+  // Handicap PIN gate
+  const [hcpUnlocked, setHcpUnlocked] = useState(false);
+  // Playoff seeds (computed from week 17 standings)
+  const playoffSeeds = React.useMemo(()=>getPlayoffSeeds(league.results,league.handicaps),[league]);
+  const knockdownPairs = React.useMemo(()=>getKnockdownPairs(playoffSeeds),[playoffSeeds]);
+  const qfPairs = React.useMemo(()=>getQFPairs(playoffSeeds),[playoffSeeds]);
+  const sfPairs = React.useMemo(()=>getSFPairs(playoffSeeds,league.results),[playoffSeeds,league.results]);
+  const finalPairs = React.useMemo(()=>getFinalPairs(playoffSeeds,league.results),[playoffSeeds,league.results]);
+  const [hcpPin, setHcpPin] = useState("");
+  const [hcpPinErr, setHcpPinErr] = useState(false);
+  // entryScores: { [tid]: [[9 holes], [9 holes]] } — local draft before save
+  const [entryScores, setEntryScores] = useState({});
+  const [entrySaved, setEntrySaved] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
+
+  // ── Firebase real-time sync ────────────────────────────────────
+  const lastSaveTime = useRef(0);
+  const hasLoadedFromFirebase = useRef(false);
+  const [fbStatus, setFbStatus] = useState("connecting"); // connecting | loaded | error
+
+  useEffect(()=>{
+    const unsub = LEAGUE_DOC.onSnapshot((snap)=>{
+      if(!snap.exists()){
+        setFbStatus("loaded"); // doc doesn't exist yet, that's fine
+        hasLoadedFromFirebase.current = true;
+        return;
+      }
+      const p = snap.data();
+      // Always apply the first snapshot (initial load).
+      // After that, suppress our own echoes for 8s but always let other users through.
+      const msSinceSave = Date.now() - lastSaveTime.current;
+      if(hasLoadedFromFirebase.current && msSinceSave < 8000) return;
+      hasLoadedFromFirebase.current = true;
+      setFbStatus("loaded");
+      setLeague(prev=>{
+        // Unflatten scores: {p0:[...], p1:[...]} -> [[...],[...]]
+        const unflattenMatch = (rec) => {
+          if (!rec) return rec;
+          const out = {...rec};
+          if (rec.t1scores && !Array.isArray(rec.t1scores)) out.t1scores = [rec.t1scores.p0||[], rec.t1scores.p1||[]];
+          if (rec.t2scores && !Array.isArray(rec.t2scores)) out.t2scores = [rec.t2scores.p0||[], rec.t2scores.p1||[]];
+          return out;
+        };
+        const savedResults = p.results||{};
+        const mergedResults = {};
+        for(const w of Object.keys(savedResults)){
+          mergedResults[w] = {};
+          for(const mk of Object.keys(savedResults[w]||{})){
+            mergedResults[w][mk] = unflattenMatch(savedResults[w][mk]);
+          }
+        }
+        // For week 1: use WEEK1_RESULTS as fallback for matches not yet in Firebase
+        mergedResults[1] = {...WEEK1_RESULTS, ...(mergedResults[1]||{})};
+        return {
+          ...prev,
+          handicaps: {...DEFAULT_HCP, ...(p.handicaps||{})},
+          results: mergedResults,
+        };
+      });
+    }, (err)=>{ console.warn("Firestore error:", err); setFbStatus("error:"+err.code); });
+    return ()=>unsub();
+  },[]);
+
+  async function saveLeague(next){
+    setLeague(next);
+    lastSaveTime.current = Date.now();
+    try{
+      // Firestore doesn't support nested arrays, so flatten t1scores/t2scores
+      // [[p1holes],[p2holes]] -> {p0:[holes], p1:[holes]}
+      const flattenMatch = (rec) => {
+        if (!rec) return rec;
+        const out = {...rec};
+        if (Array.isArray(rec.t1scores)) out.t1scores = {p0: rec.t1scores[0]||[], p1: rec.t1scores[1]||[]};
+        if (Array.isArray(rec.t2scores)) out.t2scores = {p0: rec.t2scores[0]||[], p1: rec.t2scores[1]||[]};
+        return out;
+      };
+      // Build nested results object (not dot-notation) so Firestore stores it nested
+      const flatResults = {};
+      for(const w of Object.keys(next.results)){
+        flatResults[w] = {};
+        for(const mk of Object.keys(next.results[w]||{})){
+          flatResults[w][mk] = flattenMatch(next.results[w][mk]);
+        }
+      }
+      await LEAGUE_DOC.set({
+        handicaps: next.handicaps,
+        results: flatResults,
+      }, {merge:true});
+      setFbStatus("loaded");
+    }catch(e){
+      console.warn("Save error:",e);
+      setFbStatus("save-error:"+e.code+":"+e.message);
+    }
+  }
+
+  async function clearData(){
+    const fresh=initLeague();
+    setLeague(fresh);
+    setMatch(initMatch());
+    setConfirmReset(false);
+    lastSaveTime.current = Date.now();
+    try{ await LEAGUE_DOC.set(fresh); }catch(e){console.warn(e);}
+  }
+
+  // Reload match when week/team/league changes
+  const prevWeekTeam = useRef({week:null,team:null});
+  useEffect(()=>{
+    const selDynPairs = selWeek===18 ? knockdownPairs
+                    : selWeek===19 ? qfPairs
+                    : selWeek===20 ? (sfPairs||null)
+                    : selWeek===21 ? (finalPairs?[finalPairs.championship,finalPairs.thirdPlace]:null)
+                    : null;
+    const opp=getOpponent(selTeam,selWeek,selDynPairs);
+    if(!opp){setMatch(initMatch());return;}
+    const [tlow,thigh]=selTeam<opp?[selTeam,opp]:[opp,selTeam];
+    const saved=league.results[selWeek]?.[matchKey(selWeek,tlow,thigh)];
+    if(!saved){setMatch(initMatch());return;}
+    const display = selTeam===tlow ? {...initMatch(),...saved} : {
+      ...initMatch(),...saved,
+      t1scores:saved.t2scores, t1types:saved.t2types,
+      t2scores:saved.t1scores, t2types:saved.t1types,
+    };
+    setMatch(display);
+    // Only reset hole when switching to a different match, not on every league update
+    const prev = prevWeekTeam.current;
+    if(prev.week !== selWeek || prev.team !== selTeam){
+      setHole(0);
+      prevWeekTeam.current = {week:selWeek, team:selTeam};
+    }
+  },[selWeek,selTeam,league.results]);
+
+  // Dynamic pairs for current selected week
+  const selDynPairs = selWeek===18 ? knockdownPairs
+                    : selWeek===19 ? qfPairs
+                    : selWeek===20 ? (sfPairs||null)
+                    : selWeek===21 ? (finalPairs?[finalPairs.championship,finalPairs.thirdPlace]:null)
+                    : null;
+  const opp=getOpponent(selTeam,selWeek,selDynPairs);
+  const [t1id,t2id]=selTeam<(opp||99)?[selTeam,opp||0]:[opp||0,selTeam];
+
+  // Effective hole (rainout)
+  const effH=(hi)=>(match.rainout&&hi>=match.holesPlayed&&RAINOUT_SUB[hi]!==undefined)?RAINOUT_SUB[hi]:hi;
+  const isRain=(hi)=>match.rainout&&hi>=match.holesPlayed&&RAINOUT_SUB[hi]!==undefined;
+
+  function getPts(tIdx,pi,hi){
+    const tid=tIdx===0?t1id:t2id; if(!tid) return null;
+    const type=(tIdx===0?match.t1types:match.t2types)[pi];
+    if(type==="sub") return null;
+    const gross=(tIdx===0?match.t1scores:match.t2scores)[pi][effH(hi)];
+    if(!gross) return null;
+    return stabPts(gross,PAR[hi],hcpStr((league.handicaps[tid]||[0,0])[pi],SI[hi]));
+  }
+
+  function getPlayerTotalLive(tIdx,pi){
+    const tid=tIdx===0?t1id:t2id; if(!tid) return 0;
+    const type=(tIdx===0?match.t1types:match.t2types)[pi];
+    if(type==="sub") return 6;
+    return Array(9).fill(0).reduce((s,_,hi)=>s+(getPts(tIdx,pi,hi)||0),0);
+  }
+
+  function getTeamTotalLive(tIdx){return getPlayerTotalLive(tIdx,0)+getPlayerTotalLive(tIdx,1);}
+
+  function teamHolePts(tIdx,hi){
+    return [0,1].reduce((s,pi)=>{
+      const type=(tIdx===0?match.t1types:match.t2types)[pi];
+      return s+(type==="sub"?0:(getPts(tIdx,pi,hi)||0));
+    },0);
+  }
+  function hasScore(tIdx,hi){
+    return [0,1].some(pi=>{
+      const type=(tIdx===0?match.t1types:match.t2types)[pi];
+      return type!=="sub"&&(tIdx===0?match.t1scores:match.t2scores)[pi][effH(hi)]>0;
+    });
+  }
+
+  function setScoreVal(tIdx,pi,hi,val){
+    setMatch(prev=>{
+      const n={...prev,t1scores:prev.t1scores.map(a=>[...a]),t2scores:prev.t2scores.map(a=>[...a])};
+      if(tIdx===0) n.t1scores[pi][hi]=val; else n.t2scores[pi][hi]=val;
+      return n;
+    });
+  }
+  function setTypeVal(tIdx,pi,val){
+    setMatch(prev=>{
+      const n={...prev,t1types:[...prev.t1types],t2types:[...prev.t2types]};
+      if(tIdx===0) n.t1types[pi]=val; else n.t2types[pi]=val;
+      if(val==="phantom"){
+        const sc=tIdx===0?prev.t1scores.map(a=>[...a]):prev.t2scores.map(a=>[...a]);
+        for(let h=0;h<9;h++) sc[pi][h]=PAR[h]+2;
+        if(tIdx===0) n.t1scores=sc; else n.t2scores=sc;
+      }
+      return n;
+    });
+  }
+
+  // Live match points
+  function liveMatchPts(){
+    if(!t1id||!t2id) return {t1m:0,t2m:0,details:[]};
+    const sortIdx=tid=>{const[h0,h1]=(league.handicaps[tid]||[0,0]);return h0<=h1?[0,1]:[1,0];};
+    const[t1L,t1H]=sortIdx(t1id); const[t2L,t2H]=sortIdx(t2id);
+    const matchups=[{label:"Low vs Low",t1pi:t1L,t2pi:t2L},{label:"High vs High",t1pi:t1H,t2pi:t2H}];
+    let t1m=0,t2m=0;
+    const details=matchups.map(m=>{
+      const t1p=getPlayerTotalLive(0,m.t1pi), t2p=getPlayerTotalLive(1,m.t2pi);
+      let t1mi=0,t2mi=0;
+      if(t1p>t2p) t1mi=2; else if(t2p>t1p) t2mi=2; else{t1mi=1;t2mi=1;}
+      t1m+=t1mi; t2m+=t2mi;
+      return{...m,t1p,t2p,t1mi,t2mi,
+        t1name:TEAMS[t1id]?.[m.t1pi===0?"p1":"p2"]||"",
+        t2name:TEAMS[t2id]?.[m.t2pi===0?"p1":"p2"]||""};
+    });
+    return{t1m,t2m,details};
+  }
+
+  async function saveMatch(matchToSave){
+    if(!t1id||!t2id) return;
+    const m = matchToSave || match;
+    const[tlow,thigh]=t1id<t2id?[t1id,t2id]:[t2id,t1id];
+    const key=matchKey(selWeek,tlow,thigh);
+    const toSave = selTeam===tlow ? {...m} : {
+      ...m,
+      t1scores:m.t2scores, t1types:m.t2types,
+      t2scores:m.t1scores, t2types:m.t1types,
+    };
+    const next={...league,results:{...league.results,
+      [selWeek]:{...league.results[selWeek],[key]:toSave}}};
+    await saveLeague(next);
+    setScanMsg("✓ Saved");
+    setTimeout(()=>setScanMsg(""),2000);
+  }
+
+  // Auto-save 1.5s after any score change
+  const autoSaveTimer = useRef(null);
+  useEffect(()=>{
+    if(!t1id||!t2id) return;
+    if(autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(()=>saveMatch(match), 1500);
+    return ()=>clearTimeout(autoSaveTimer.current);
+  },[match]);
+
+  // Auto-advance hole when all 4 players have a score — runs after render, no mid-setState jump
+  // Auto-advance: only fires when match scores change, not when hole changes
+  // Tracks the hole that was complete to avoid re-firing after advance
+  const lastAdvancedHole = useRef(-1);
+  useEffect(()=>{
+    if(!t1id||!t2id) return;
+    // Don't re-check if we already advanced away from this hole
+    if(lastAdvancedHole.current === hole) return;
+    const getOrder=(tid)=>{const[h0,h1]=(league.handicaps[tid]||[0,0]);return h0<=h1?{low:0,high:1}:{low:1,high:0};};
+    const o1=getOrder(t1id), o2=getOrder(t2id);
+    const rows2=[
+      {tIdx:0,pi:o1.low},{tIdx:1,pi:o2.low},
+      {tIdx:0,pi:o1.high},{tIdx:1,pi:o2.high},
+    ];
+    const allScored=rows2.every(row=>{
+      const types=row.tIdx===0?match.t1types:match.t2types;
+      if((types||[])[row.pi]==="sub"||(types||[])[row.pi]==="phantom") return true;
+      const scores=row.tIdx===0?match.t1scores:match.t2scores;
+      return (scores||[[],[]])[row.pi]?.[effH(hole)]>0;
+    });
+    if(allScored && hole<8){
+      lastAdvancedHole.current = hole;
+      setTimeout(()=>setHole(h=>h+1), 500);
+    }
+  },[match]);  // only match, NOT hole — prevents double-fire on advance
+
+  // Scorecard scan
+  async function scanCard(file){
+    if(!file) return;
+    setScan("loading"); setScanMsg("Reading scorecard...");
+    try{
+      const b64=await new Promise((res,rej)=>{
+        const r=new FileReader();
+        r.onload=()=>res(r.result.split(",")[1]);
+        r.onerror=()=>rej(new Error("read failed"));
+        r.readAsDataURL(file);
+      });
+      const p1a=TEAMS[t1id]?.p1||"P1", p2a=TEAMS[t1id]?.p2||"P2";
+      const p1b=TEAMS[t2id]?.p1||"P1", p2b=TEAMS[t2id]?.p2||"P2";
+      const prompt=`This is a golf scorecard from Pickering Valley Golf Course (front 9, pars: ${PAR.join(",")}).
+Two teams are playing:
+- Team A: ${TEAMS[t1id]?.name} — players: ${p1a} (player 1) and ${p2a} (player 2)
+- Team B: ${TEAMS[t2id]?.name} — players: ${p1b} (player 1) and ${p2b} (player 2)
+
+Extract each player's GROSS score (actual strokes) per hole 1-9.
+Return ONLY valid JSON, no explanation:
+{"t1p1":[h1,h2,h3,h4,h5,h6,h7,h8,h9],"t1p2":[...],"t2p1":[...],"t2p2":[...]}
+Use 0 for missing/unreadable scores.`;
+      const resp=await fetch("https://api.anthropic.com/v1/messages",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:500,
+          messages:[{role:"user",content:[
+            {type:"image",source:{type:"base64",media_type:file.type||"image/jpeg",data:b64}},
+            {type:"text",text:prompt}
+          ]}]})
+      });
+      const data=await resp.json();
+      const text=(data.content||[]).map(c=>c.text||"").join("").trim();
+      const sc=JSON.parse(text.replace(/```json|```/g,"").trim());
+      const v=arr=>Array.isArray(arr)&&arr.length===9?arr.map(x=>(typeof x==="number"&&x>=0&&x<=15)?x:0):Array(9).fill(0);
+      setMatch(prev=>({...prev,t1scores:[v(sc.t1p1),v(sc.t1p2)],t2scores:[v(sc.t2p1),v(sc.t2p2)]}));
+      const filled=[...(sc.t1p1||[]),...(sc.t1p2||[]),...(sc.t2p1||[]),...(sc.t2p2||[])].filter(x=>x>0).length;
+      setScan("done"); setScanMsg(`✓ Read ${filled}/36 scores — review then save`);
+    }catch(e){
+      console.error(e); setScan("error");
+      setScanMsg("Could not read scorecard — try a clearer photo or enter manually");
+    }
+  }
+
+  // Compute full league stats
+  const {teamStats,potyList,weeklyPoty}=calcLeagueStats(league.results,league.handicaps);
+  const teamStandings=Object.entries(teamStats)
+    .map(([id,s])=>({id:parseInt(id),...s}))
+    .sort((a,b)=>b.totalPts-a.totalPts||b.stab-a.stab);
+
+  const matchData=liveMatchPts();
+  const t1Total=getTeamTotalLive(0), t2Total=getTeamTotalLive(1);
+
+  // Check if all matches scored for current week (for bonus display)
+  const weekBonus=calcWeekBonus(selWeek,league.results,league.handicaps);
+
+  const TABS=["schedule","scoring","entry","standings","poty","hcp"];
+
+  return(
+    <div style={{minHeight:"100vh",background:BG,fontFamily:FB,color:CREAM,paddingBottom:"60px",
+      backgroundImage:"radial-gradient(ellipse at 30% 0%,#dfe8d4 0%,transparent 50%),radial-gradient(ellipse at 70% 100%,#e8e0cc 0%,transparent 50%)"}}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Mono:wght@300;400;500&display=swap');
+        *{box-sizing:border-box;}
+        input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;}
+        input[type=number]{-moz-appearance:textfield;}
+        select{-webkit-appearance:none;-moz-appearance:none;}
+        ::-webkit-scrollbar{width:4px;height:4px;}
+        ::-webkit-scrollbar-thumb{background:#2a3a1a;border-radius:2px;}
+        button:hover{opacity:0.85;}
+      `}</style>
+
+      {/* Firebase status banner */}
+      {fbStatus==="connecting"&&(
+        <div style={{background:"#fffbe6",borderBottom:"2px solid #f0c040",padding:"10px 18px",
+          fontSize:"13px",color:"#7a5a00",display:"flex",alignItems:"center",gap:"8px",flexWrap:"wrap"}}>
+          <span>⏳</span>
+          <span>Connecting to database…</span>
+          <button onClick={async()=>{
+            try{
+              await LEAGUE_DOC.set({test:"ping"},{merge:true});
+              setFbStatus("test-ok");
+            }catch(e){
+              setFbStatus("test-fail:"+e.code+": "+e.message);
+            }
+          }} style={{marginLeft:"8px",padding:"4px 10px",background:"#f0c040",border:"none",
+            borderRadius:"5px",cursor:"pointer",fontSize:"12px",fontWeight:700}}>
+            Test Connection
+          </button>
+        </div>
+      )}
+      {fbStatus==="test-ok"&&(
+        <div style={{background:"#e6f5ea",borderBottom:"2px solid #2a7a3a",padding:"10px 18px",
+          fontSize:"13px",color:"#1a5a2a",display:"flex",alignItems:"center",gap:"8px"}}>
+          <span>✓</span> Firebase write succeeded! Reload the page.
+        </div>
+      )}
+      {(fbStatus.startsWith("test-fail")||fbStatus.startsWith("error")||fbStatus.startsWith("save-error"))&&(
+        <div style={{background:"#fff0f0",borderBottom:"2px solid #e04040",padding:"10px 18px",
+          fontSize:"13px",color:"#900",display:"flex",alignItems:"center",gap:"8px",flexWrap:"wrap"}}>
+          <span>⚠️</span>
+          <span><strong>Firebase error:</strong></span>
+          <span style={{fontSize:"12px"}}>{fbStatus}</span>
+        </div>
+      )}
+
+      {/* Header */}
+      <div style={{padding:"12px 18px 0 18px",
+        display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:"8px",
+        background:"#ffffff",position:"sticky",top:0,zIndex:20,
+        borderBottom:`3px solid ${G}`,
+        boxShadow:"0 3px 10px rgba(26,61,36,0.12)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:"13px",paddingBottom:"12px"}}>
+          <div>
+            <div style={{fontFamily:FD,fontSize:"20px",color:"#0f2a14",letterSpacing:"0.02em",fontWeight:700}}>PVGC 2026 League</div>
+            <div style={{fontSize:"11px",color:"#3a5a3a",marginTop:"1px",letterSpacing:"0.1em",textTransform:"uppercase",fontWeight:500}}>
+              Pickering Valley · 18 Teams · Stableford · <span style={{color:GOLD}}>v1.1</span>
+            </div>
+          </div>
+          {!confirmReset ? (
+            <button onClick={()=>setConfirmReset(true)}
+              style={{padding:"4px 9px",borderRadius:"6px",border:`1px solid ${R}55`,
+                background:R+"12",color:R,fontFamily:FB,fontSize:"12px",letterSpacing:"0.06em",
+                textTransform:"uppercase",cursor:"pointer",whiteSpace:"nowrap"}}>
+              ↺ Reset
+            </button>
+          ) : (
+            <div style={{display:"flex",gap:"4px",alignItems:"center"}}>
+              <span style={{fontSize:"12px",color:R}}>Sure?</span>
+              <button onClick={clearData}
+                style={{padding:"4px 9px",borderRadius:"6px",border:`1px solid ${R}`,
+                  background:R,color:"#fff",fontFamily:FB,fontSize:"12px",fontWeight:700,
+                  cursor:"pointer",whiteSpace:"nowrap"}}>Yes</button>
+              <button onClick={()=>setConfirmReset(false)}
+                style={{padding:"4px 9px",borderRadius:"6px",border:`1px solid ${GOLD}66`,
+                  background:"transparent",color:M,fontFamily:FB,fontSize:"12px",
+                  cursor:"pointer",whiteSpace:"nowrap"}}>No</button>
+            </div>
+          )}
+        </div>
+        <div style={{display:"flex",gap:"0px",flexWrap:"wrap"}}>
+          {TABS.map(t=><NavBtn key={t} active={screen===t} onClick={()=>setScreen(t)}>{t==="poty"?"POTY":t==="hcp"?"HCP":t==="entry"?"Entry":t}</NavBtn>)}
+        </div>
+      </div>
+
+      {/* ══ SCHEDULE ══ */}
+      {screen==="schedule"&&(
+        <div style={{maxWidth:"900px",margin:"0 auto",padding:"22px 14px"}}>
+          <div style={{fontFamily:FD,fontSize:"28px",marginBottom:"4px",fontWeight:600,letterSpacing:"0.02em",color:CREAM}}>2026 Season</div>
+          <div style={{color:M,fontSize:"14px",marginBottom:"20px"}}>18 teams · Wednesdays · First tee 4:10pm</div>
+          <div style={{display:"grid",gap:"8px"}}>
+            {SCHEDULE_RAW.map(([week,date,...pairs])=>{
+              const isKnockdown=week===18;
+              const isPlayoff=week>=19;
+              // Dynamic pairs for knockout rounds
+              const dynPairs = isKnockdown ? knockdownPairs
+                             : week===19 ? qfPairs
+                             : week===20 ? (sfPairs||[])
+                             : week===21 ? (finalPairs?[finalPairs.championship,finalPairs.thirdPlace]:[])
+                             : null;
+              const cleanPairs = dynPairs || (pairs||[]).filter(Array.isArray);
+              const scored=cleanPairs.filter(([ta,tb])=>!!league.results[week]?.[matchKey(week,Math.min(ta,tb),Math.max(ta,tb))]).length;
+              const allDone=cleanPairs.length>0&&scored===cleanPairs.length;
+              const bonus=(!isKnockdown&&!isPlayoff&&allDone)?calcWeekBonus(week,league.results,league.handicaps):null;
+              return(
+                <div key={week} style={{background:CARD,
+                  border:`1px solid ${week===selWeek?G+"55":"rgba(26,61,36,0.06)"}`,borderRadius:"13px",overflow:"hidden"}}>
+                  <div style={{padding:"11px 15px",display:"flex",alignItems:"center",justifyContent:"space-between",
+                    background:week===selWeek?G+"0d":"transparent",cursor:"pointer"}}
+                    onClick={()=>{ setWeek(week); if(isKnockdown||isPlayoff){ const p=dynPairs; if(p&&p.length>0){setTeam(p[0][0]);} } }}>
+                    <div style={{display:"flex",alignItems:"center",gap:"13px"}}>
+                      <div style={{width:"34px",height:"34px",borderRadius:"50%",
+                        border:`1px solid ${allDone?G:GOLD}55`,display:"flex",alignItems:"center",justifyContent:"center",
+                        fontWeight:600,fontSize:"12px",color:allDone?G:GOLD}}>{week}</div>
+                      <div>
+                        <div style={{fontSize:"12px"}}>
+                          Week {week}
+                          {isKnockdown&&<span style={{color:GO,marginLeft:"7px",fontSize:"13px",fontWeight:700}}>KNOCKDOWN</span>}
+                          {week===19&&<span style={{color:GO,marginLeft:"7px",fontSize:"13px",fontWeight:700}}>QUARTERFINALS</span>}
+                          {week===20&&<span style={{color:GO,marginLeft:"7px",fontSize:"13px",fontWeight:700}}>SEMIFINALS</span>}
+                          {week===21&&<span style={{color:GO,marginLeft:"7px",fontSize:"13px",fontWeight:700}}>CHAMPIONSHIP</span>}
+                          {allDone&&<span style={{color:G,marginLeft:"7px",fontSize:"13px"}}>✓ Complete</span>}
+                          {bonus&&<span style={{color:G,marginLeft:"7px",fontSize:"13px"}}>Bonus pts awarded</span>}
+                        </div>
+                        <div style={{fontSize:"13px",color:M,marginTop:"1px"}}>{fmtDate(date)}</div>
+                      </div>
+                    </div>
+                    <div style={{display:"flex",alignItems:"center",gap:"7px"}}>
+                      {scored>0&&<Tag color={allDone?G:GO}>{scored}/{cleanPairs.length}</Tag>}
+                        <button onClick={e=>{e.stopPropagation();setWeek(week);
+                            if(dynPairs&&dynPairs.length>0) setTeam(dynPairs[0][0]);
+                            setScreen("scoring");}}
+                          style={{padding:"4px 10px",borderRadius:"6px",border:`1px solid ${G}44`,
+                            background:GOLD+"18",color:GOLD,fontFamily:FM||FB,fontSize:"13px",
+                            letterSpacing:"0.06em",textTransform:"uppercase",cursor:"pointer"}}>Score →</button>
+                    </div>
+                  </div>
+                  {week===selWeek&&(isKnockdown||isPlayoff)&&cleanPairs.length===0&&(
+                    <div style={{padding:"10px 15px 12px",fontSize:"14px",color:M}}>
+                      {isKnockdown&&"Matchups determined by final regular season standings (top 8)."}
+                      {week===19&&"Matchups set after Knockdown round results."}
+                      {week===20&&"Matchups set after Quarterfinal results."}
+                      {week===21&&"Matchups set after Semifinal results."}
+                    </div>
+                  )}
+                  {week===selWeek&&cleanPairs.length>0&&(
+                    <div style={{padding:"0 15px 12px",display:"flex",flexWrap:"wrap",gap:"5px"}}>
+                      {cleanPairs.map(([ta,tb],i)=>{
+                        const key=matchKey(week,ta,tb);
+                        const done=!!league.results[week]?.[key];
+                        return(
+                          <div key={i} onClick={()=>{setTeam(ta);setWeek(week);setScreen("scoring");}}
+                            style={{padding:"5px 9px",borderRadius:"6px",cursor:"pointer",fontSize:"13px",
+                              background:done?G+"18":"rgba(26,61,36,0.04)",
+                              border:`1px solid ${done?G+"33":"rgba(26,61,36,0.08)"}`,
+                              color:done?G:CREAM}}>
+                            {TEAMS[ta]?.name} <span style={{color:M}}>vs</span> {TEAMS[tb]?.name}
+                            {done&&<span style={{marginLeft:"4px"}}>✓</span>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ══ SCORING ══ */}
+      {screen==="scoring"&&(
+        <div style={{maxWidth:"820px",margin:"0 auto",padding:"14px 10px"}}>
+
+          {/* Week / Team selectors */}
+          <div style={{display:"flex",gap:"8px",marginBottom:"12px",flexWrap:"wrap",alignItems:"center"}}>
+            <div style={{display:"flex",alignItems:"center",gap:"5px"}}>
+              <span style={{fontSize:"12px",color:M,letterSpacing:"0.08em",textTransform:"uppercase"}}>Week</span>
+              <select value={selWeek} onChange={e=>setWeek(parseInt(e.target.value))}
+                style={{background:"rgba(255,255,255,0.95)",border:`1px solid ${GOLD}44`,
+                  borderRadius:"7px",color:CREAM,fontFamily:FB,fontSize:"14px",padding:"6px 9px",cursor:"pointer",outline:"none"}}>
+                {Array.from({length:17},(_,i)=>i+1).map(w=>(
+                  <option key={w} value={w}>W{w} — {fmtDate(SCHEDULE[w]?.date)}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:"5px"}}>
+              <span style={{fontSize:"12px",color:M,letterSpacing:"0.08em",textTransform:"uppercase"}}>Team</span>
+              <select value={selTeam} onChange={e=>setTeam(parseInt(e.target.value))}
+                style={{background:"rgba(255,255,255,0.95)",border:`1px solid ${GOLD}44`,
+                  borderRadius:"7px",color:CREAM,fontFamily:FB,fontSize:"14px",padding:"6px 9px",cursor:"pointer",outline:"none"}}>
+                {Array.from({length:18},(_,i)=>i+1).map(t=>(
+                  <option key={t} value={t}>T{t}: {TEAMS[t]?.name}</option>
+                ))}
+              </select>
+            </div>
+            {opp
+              ? <div style={{marginLeft:"auto",fontSize:"14px",color:M,display:"flex",flexDirection:"column",alignItems:"flex-end",gap:"2px"}}>
+                <span>vs <span style={{color:GO}}>{TEAMS[opp]?.name}</span></span>
+                {match.updatedBy&&<span style={{fontSize:"12px",color:GOLD,fontFamily:FB}}>
+                  ✎ {match.updatedBy}{match.updatedAt?" · "+match.updatedAt:""}
+                </span>}
+              </div>
+              : <div style={{marginLeft:"auto",fontSize:"13px",color:R}}>No match this week</div>}
+          </div>
+
+          {!opp ? (
+            <div style={{textAlign:"center",padding:"50px 20px",color:M,fontSize:"12px"}}>
+              No match scheduled for Week {selWeek}.
+            </div>
+          ) : (<>
+
+          {/* Rainout toggle */}
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:"7px",
+            background:CARD,border:`1px solid ${match.rainout?GO+"44":"rgba(255,255,255,0.95)"}`,
+            borderRadius:"12px",padding:"9px 13px",marginBottom:"13px"}}>
+            <div style={{fontSize:"14px"}}>☔ Rainout
+              <span style={{fontSize:"12px",color:M,marginLeft:"7px"}}>H7→H1 · H8→H4 · H9→H3</span>
+            </div>
+            <div style={{display:"flex",gap:"7px",alignItems:"center"}}>
+              {match.rainout&&(
+                <select value={match.holesPlayed} onChange={e=>setMatch(p=>({...p,holesPlayed:parseInt(e.target.value)}))}
+                  style={{background:"rgba(255,255,255,0.95)",border:`1px solid ${GOLD}44`,
+                    borderRadius:"6px",color:CREAM,fontFamily:FB,fontSize:"13px",padding:"4px 8px",cursor:"pointer",outline:"none"}}>
+                  {[6,7,8].map(n=><option key={n} value={n}>Stopped H{n}</option>)}
+                </select>
+              )}
+              <button onClick={()=>setMatch(p=>({...p,rainout:!p.rainout}))}
+                style={{width:"38px",height:"20px",borderRadius:"13px",border:"none",cursor:"pointer",
+                  background:match.rainout?GOLD:"rgba(255,255,255,0.6)",position:"relative",transition:"background 0.2s"}}>
+                <span style={{position:"absolute",top:"2px",left:match.rainout?"19px":"2px",
+                  width:"16px",height:"16px",borderRadius:"50%",background:match.rainout?BG:"#888",transition:"left 0.2s"}}/>
+              </button>
+            </div>
+          </div>
+
+          {/* ── 4-ROW SCORECARD ── */}
+          {(()=>{
+            // Build the 4 players in match order
+            // Low hcp = pi with smaller hcp, High hcp = other pi
+            const getOrder=(tid)=>{
+              const [h0,h1]=(league.handicaps[tid]||[0,0]);
+              return h0<=h1?{low:0,high:1}:{low:1,high:0};
+            };
+            const o1=getOrder(t1id), o2=getOrder(t2id);
+
+            // rows: [{label, tIdx, pi, tid, color, rival: {tIdx,pi,tid}}]
+            const rows=[
+              {label:"Low",  tIdx:0, pi:o1.low,  tid:t1id, color:G,  rivalTIdx:1, rivalPi:o2.low},
+              {label:"Low",  tIdx:1, pi:o2.low,  tid:t2id, color:GO, rivalTIdx:0, rivalPi:o1.low},
+              {label:"High", tIdx:0, pi:o1.high, tid:t1id, color:G,  rivalTIdx:1, rivalPi:o2.high},
+              {label:"High", tIdx:1, pi:o2.high, tid:t2id, color:GO, rivalTIdx:0, rivalPi:o1.high},
+            ];
+
+            const getGross=(tIdx,pi,hi)=>(tIdx===0?match.t1scores:match.t2scores)[pi]?.[hi]||0;
+            const scoreName=(gross,par)=>{
+              if(!gross) return "";
+              const d=gross-par;
+              if(d<=-3) return "Eagle+";
+              if(d===-2) return "Eagle";
+              if(d===-1) return "Birdie";
+              if(d===0)  return "Par";
+              if(d===1)  return "Bogey";
+              if(d===2)  return "Dbl Bogey";
+              return "+" + d;
+            };
+            const getNet=(tIdx,pi,tid,hi)=>{
+              const gross=getGross(tIdx,pi,effH(hi));
+              if(!gross) return null;
+              const strokes=hcpStr(getHcp(tid,pi),SI[hi]);
+              return gross - strokes;
+            };
+            const getGrossTotal=(tIdx,pi)=>Array(9).fill(0).reduce((s,_,h)=>s+(getGross(tIdx,pi,effH(h))||0),0);
+            const getNetTotal=(tIdx,pi,tid)=>Array(9).fill(0).reduce((s,_,h)=>{
+              const g=getGross(tIdx,pi,effH(h)); if(!g) return s;
+              return s+g-hcpStr(getHcp(tid,pi),SI[h]);
+            },0);
+            const getType=(tIdx,pi)=>(tIdx===0?match.t1types:match.t2types)[pi]||"normal";
+            const getHcp=(tid,pi)=>(league.handicaps[tid]||[0,0])[pi]||0;
+
+            const getPtsFor=(tIdx,pi,tid,hi)=>{
+              const type=getType(tIdx,pi);
+              if(type==="sub") return 6;
+              const gross=getGross(tIdx,pi,effH(hi));
+              if(!gross) return null;
+              return stabPts(gross,PAR[hi],hcpStr(getHcp(tid,pi),SI[hi]));
+            };
+
+            const getRunTotal=(tIdx,pi,tid)=>{
+              const type=getType(tIdx,pi);
+              if(type==="sub") return 6;
+              let t=0;
+              for(let h=0;h<9;h++) t+=getPtsFor(tIdx,pi,tid,h)||0;
+              return t;
+            };
+
+            // Individual match pts per pairing
+            const matchResults=[
+              {label:"Low vs Low",
+               t1name:TEAMS[t1id]?.[o1.low===0?"p1":"p2"],
+               t2name:TEAMS[t2id]?.[o2.low===0?"p1":"p2"],
+               t1pts:getRunTotal(0,o1.low,t1id),
+               t2pts:getRunTotal(1,o2.low,t2id)},
+              {label:"High vs High",
+               t1name:TEAMS[t1id]?.[o1.high===0?"p1":"p2"],
+               t2name:TEAMS[t2id]?.[o2.high===0?"p1":"p2"],
+               t1pts:getRunTotal(0,o1.high,t1id),
+               t2pts:getRunTotal(1,o2.high,t2id)},
+            ];
+
+            return(<>
+              {/* Hole navigation */}
+              <div style={{display:"flex",gap:"4px",justifyContent:"center",marginBottom:"13px",flexWrap:"wrap"}}>
+                {Array(9).fill(0).map((_,h)=>{
+                  const done=rows.every(r=>{
+                    const type=getType(r.tIdx,r.pi);
+                    return type==="sub"||type==="phantom"||getGross(r.tIdx,r.pi,effH(h))>0;
+                  });
+                  return(
+                    <button key={h} onClick={()=>setHole(h)}
+                      style={{width:"34px",height:"34px",borderRadius:"50%",fontFamily:FB,fontSize:"14px",cursor:"pointer",
+                        border:hole===h?`2px solid ${GOLD}`:done?`1px solid ${G}55`:`1px solid ${GOLD}33`,
+                        background:hole===h?GOLD+"18":done?G+"0a":"transparent",
+                        color:hole===h?GOLD:done?G+"cc":M,position:"relative"}}>
+                      {h+1}
+                      {isRain(h)&&<span style={{position:"absolute",top:0,right:1,fontSize:"7px",color:GO}}>R</span>}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Score entry card — all 4 players, current hole */}
+              <div style={{background:CARD2,border:`1px solid ${GOLD}33`,borderRadius:"13px",
+                overflow:"hidden",marginBottom:"12px"}}>
+                {/* Hole header */}
+                <div style={{background:"rgba(26,61,36,0.08)",borderBottom:`1px solid ${GOLD}44`,
+                  padding:"10px 15px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
+                    <span style={{fontFamily:FD,fontSize:"19px",color:GOLD}}>Hole {hole+1}</span>
+                    <span style={{fontSize:"13px",color:M}}>Par {PAR[hole]}</span>
+                    <span style={{fontSize:"13px",color:M}}>SI {SI[hole]}</span>
+                    {isRain(hole)&&<Tag color={GO}>☔ → H{effH(hole)+1}</Tag>}
+                  </div>
+                  <div style={{display:"flex",gap:"4px"}}>
+                    <button onClick={()=>setHole(h=>Math.max(0,h-1))} disabled={hole===0}
+                      style={{padding:"5px 12px",borderRadius:"6px",border:`1px solid ${GOLD}33`,
+                        background:"rgba(26,61,36,0.04)",color:CREAM,fontFamily:FB,fontSize:"13px",
+                        cursor:hole===0?"not-allowed":"pointer",opacity:hole===0?0.3:1}}>‹</button>
+                    <button onClick={()=>setHole(h=>Math.min(8,h+1))} disabled={hole===8}
+                      style={{padding:"5px 12px",borderRadius:"6px",border:`1px solid ${GOLD}33`,
+                        background:"rgba(26,61,36,0.04)",color:CREAM,fontFamily:FB,fontSize:"13px",
+                        cursor:hole===8?"not-allowed":"pointer",opacity:hole===8?0.3:1}}>›</button>
+                  </div>
+                </div>
+
+                {/* 4 player rows */}
+                {rows.map((r,ri)=>{
+                  const type=getType(r.tIdx,r.pi);
+                  const hcp=getHcp(r.tid,r.pi);
+                  const strokes=hcpStr(hcp,SI[hole]);
+                  const gross=getGross(r.tIdx,r.pi,effH(hole));
+                  const pts=getPtsFor(r.tIdx,r.pi,r.tid,hole);
+                  const pname=TEAMS[r.tid]?.[r.pi===0?"p1":"p2"]||"";
+                  const isSep=ri===1; // separator between low/high pairs
+
+                  const adjGross=(delta)=>{
+                    const cur=getGross(r.tIdx,r.pi,effH(hole));
+                    const next=Math.max(1,Math.min(15,(cur||PAR[hole])+delta));
+                    setScoreVal(r.tIdx,r.pi,effH(hole),next);
+                  };
+
+                  const ptColor=pts===null?M:pts>=3?G:pts===1?"#c0a060":pts===0?M:R;
+
+                  return(
+                    <div key={ri}>
+                      {isSep&&<div style={{height:"1px",background:"rgba(26,61,36,0.08)",margin:"0 0"}}/>}
+                      <div style={{padding:"10px 14px",display:"flex",alignItems:"center",gap:"8px",
+                        background:ri%2===0?"rgba(255,255,255,0.01)":"transparent",
+                        borderBottom:ri<3?`1px solid ${GOLD}22`:"none"}}>
+
+                        {/* Player info */}
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{display:"flex",alignItems:"center",gap:"5px",flexWrap:"wrap"}}>
+                            <span style={{width:"6px",height:"6px",borderRadius:"50%",
+                              background:r.color,flexShrink:0,display:"inline-block"}}/>
+                            <span style={{fontSize:"12px",fontWeight:600,color:CREAM,
+                              overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{pname}</span>
+                            <Tag color={r.label==="Low"?"#4db8f0":"#b97df5"}>{r.label} HCP</Tag>
+                            {type==="sub"&&<Tag color={GO}>Sub</Tag>}
+                            {type==="phantom"&&<Tag color={R}>Phantom</Tag>}
+                          </div>
+                          <div style={{fontSize:"12px",color:M,marginTop:"2px",paddingLeft:"14px"}}>
+                            HCP {hcp}
+                            {strokes>0&&<span style={{color:G}}> +{strokes} stroke</span>}
+                            {strokes<0&&<span style={{color:R}}> {strokes} stroke</span>}
+                            {" · "}
+                            <span style={{color:r.color}}>Total: {getRunTotal(r.tIdx,r.pi,r.tid)}</span>
+                          </div>
+                        </div>
+
+                        {/* Type selector */}
+                        <select value={type} onChange={e=>setTypeVal(r.tIdx,r.pi,e.target.value)}
+                          style={{background:"rgba(26,61,36,0.04)",border:`1px solid ${GOLD}33`,
+                            borderRadius:"5px",color:CREAM,fontFamily:FB,fontSize:"12px",
+                            padding:"3px 5px",cursor:"pointer",outline:"none",flexShrink:0}}>
+                          <option value="normal">Regular</option>
+                          <option value="sub">Sub</option>
+                          <option value="phantom">Phantom</option>
+                        </select>
+
+                        {/* +/- Score entry + net + stab */}
+                        {type==="sub"?(
+                          <div style={{display:"flex",flexDirection:"column",alignItems:"center",
+                            minWidth:"90px",gap:"2px"}}>
+                            <span style={{fontSize:"13px",color:GO}}>6 pts fixed</span>
+                            <span style={{fontSize:"12px",color:M}}>Sub</span>
+                          </div>
+                        ):(
+                          <div style={{display:"flex",alignItems:"center",gap:"6px",flexShrink:0}}>
+                            {/* −/+ stepper */}
+                            <div style={{display:"flex",alignItems:"center"}}>
+                              <button onClick={()=>adjGross(-1)} disabled={type==="phantom"}
+                                style={{width:"42px",height:"52px",borderRadius:"9px 0 0 9px",
+                                  border:`1px solid ${GOLD}44`,borderRight:"none",
+                                  background:"rgba(26,61,36,0.08)",color:CREAM,fontSize:"22px",
+                                  cursor:type==="phantom"?"not-allowed":"pointer",
+                                  display:"flex",alignItems:"center",justifyContent:"center",
+                                  opacity:type==="phantom"?0.3:1,userSelect:"none",touchAction:"manipulation"}}>−</button>
+                              <div style={{width:"52px",height:"52px",border:`1px solid ${GOLD}44`,
+                                background:"rgba(26,61,36,0.08)",display:"flex",flexDirection:"column",
+                                alignItems:"center",justifyContent:"center",gap:"1px"}}>
+                                <span style={{fontSize:"20px",fontWeight:700,
+                                  color:gross?ptColor:M,lineHeight:1}}>{gross||PAR[hole]}</span>
+                                <span style={{fontSize:"8px",lineHeight:1,
+                                  color:gross?ptColor:M,letterSpacing:"0.02em"}}>
+                                  {gross?scoreName(gross,PAR[hole]):"tap −/+"}
+                                </span>
+                              </div>
+                              <button onClick={()=>adjGross(+1)} disabled={type==="phantom"}
+                                style={{width:"42px",height:"52px",borderRadius:"0 9px 9px 0",
+                                  border:`1px solid ${GOLD}44`,borderLeft:"none",
+                                  background:"rgba(26,61,36,0.08)",color:CREAM,fontSize:"22px",
+                                  cursor:type==="phantom"?"not-allowed":"pointer",
+                                  display:"flex",alignItems:"center",justifyContent:"center",
+                                  opacity:type==="phantom"?0.3:1,userSelect:"none",touchAction:"manipulation"}}>+</button>
+                            </div>
+                            {/* Net + stab column */}
+                            {gross>0&&(
+                              <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"3px",minWidth:"36px"}}>
+                                <div style={{fontSize:"12px",color:M,letterSpacing:"0.04em"}}>NET</div>
+                                <div style={{fontSize:"15px",fontWeight:700,color:CREAM,lineHeight:1}}>
+                                  {getNet(r.tIdx,r.pi,r.tid,hole)}
+                                </div>
+                                <PtsBadge pts={pts}/>
+                              </div>
+                            )}
+                            {!gross&&(
+                              <div style={{width:"36px"}}/>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Gross / Net / Stab summary strip */}
+              <div style={{background:CARD2,border:`1px solid ${GOLD}22`,
+                borderRadius:"14px",padding:"10px 14px",marginBottom:"13px",
+                display:"grid",gridTemplateColumns:"1fr 1fr",gap:"6px"}}>
+                {rows.map((r,ri)=>{
+                  const type=getType(r.tIdx,r.pi);
+                  const pname=TEAMS[r.tid]?.[r.pi===0?"p1":"p2"]||"";
+                  const gross=type==="sub"?null:getGrossTotal(r.tIdx,r.pi);
+                  const net=type==="sub"?null:getNetTotal(r.tIdx,r.pi,r.tid);
+                  const stab=getRunTotal(r.tIdx,r.pi,r.tid);
+                  const rivalStab=getRunTotal(r.rivalTIdx,r.rivalPi,ri<2?t2id:t1id);
+                  const winning=stab>rivalStab, losing=stab<rivalStab;
+                  return(
+                    <div key={ri} style={{background:"rgba(26,61,36,0.05)",borderRadius:"8px",
+                      padding:"8px 10px",border:`1px solid ${winning?r.color+"33":losing?R+"22":"rgba(26,61,36,0.04)"}`}}>
+                      <div style={{display:"flex",alignItems:"center",gap:"4px",marginBottom:"5px"}}>
+                        <span style={{width:"5px",height:"5px",borderRadius:"50%",background:r.color,
+                          display:"inline-block",flexShrink:0}}/>
+                        <span style={{fontSize:"13px",fontWeight:600,color:CREAM,
+                          overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{pname}</span>
+                        {winning&&<span style={{marginLeft:"auto",fontSize:"12px",color:r.color}}>▲ leading</span>}
+                        {losing&&<span style={{marginLeft:"auto",fontSize:"12px",color:R}}>▼ trailing</span>}
+                      </div>
+                      <div style={{display:"flex",gap:"13px"}}>
+                        <div style={{textAlign:"center"}}>
+                          <div style={{fontSize:"12px",color:M,letterSpacing:"0.04em"}}>GROSS</div>
+                          <div style={{fontSize:"16px",fontWeight:700,color:CREAM,lineHeight:1.1}}>
+                            {type==="sub"?"—":gross||"—"}
+                          </div>
+                        </div>
+                        <div style={{textAlign:"center"}}>
+                          <div style={{fontSize:"12px",color:M,letterSpacing:"0.04em"}}>NET</div>
+                          <div style={{fontSize:"16px",fontWeight:700,color:"#c8d4c0",lineHeight:1.1}}>
+                            {type==="sub"?"—":net||"—"}
+                          </div>
+                        </div>
+                        <div style={{textAlign:"center"}}>
+                          <div style={{fontSize:"12px",color:G,letterSpacing:"0.04em"}}>STAB</div>
+                          <div style={{fontSize:"16px",fontWeight:700,
+                            color:winning?r.color:losing?R:G,lineHeight:1.1}}>{stab}</div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Full 4-row scrollable scorecard */}
+              <div style={{background:CARD2,border:`1px solid ${GOLD}22`,
+                borderRadius:"14px",overflow:"hidden",marginBottom:"12px"}}>
+                <div style={{padding:"8px 13px",borderBottom:"1px solid rgba(255,255,255,0.06)",
+                  display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{fontSize:"12px",letterSpacing:"0.1em",textTransform:"uppercase",color:M}}>Full Scorecard</span>
+                  <span style={{fontSize:"12px",color:M}}>gross <span style={{color:"#555"}}>·</span> <span style={{color:G}}>stab</span></span>
+                </div>
+                <div style={{overflowX:"auto"}}>
+                  <table style={{width:"100%",borderCollapse:"collapse",fontSize:"14px",minWidth:"520px"}}>
+                    <thead>
+                      <tr style={{borderBottom:"1px solid rgba(255,255,255,0.07)"}}>
+                        <td style={{padding:"6px 10px",color:M,fontSize:"12px",whiteSpace:"nowrap"}}>Player</td>
+                        {Array(9).fill(0).map((_,h)=>(
+                          <td key={h} style={{padding:"6px 4px",textAlign:"center",
+                            color:h===hole?G:M,fontWeight:h===hole?600:400,fontSize:"12px"}}>
+                            {h+1}{isRain(h)&&<span style={{color:GO,fontSize:"7px"}}>R</span>}
+                          </td>
+                        ))}
+                        <td style={{padding:"6px 8px",textAlign:"center",fontSize:"12px"}}>
+                          <div style={{color:M}}>Gross</div>
+                          <div style={{color:"#c8d4c0"}}>Net</div>
+                          <div style={{color:G}}>Stab</div>
+                        </td>
+                      </tr>
+                      <tr style={{borderBottom:"1px solid rgba(255,255,255,0.07)",
+                        background:"rgba(26,61,36,0.03)",fontSize:"12px",color:M}}>
+                        <td style={{padding:"3px 10px"}}>Par</td>
+                        {PAR.map((p,h)=>(
+                          <td key={h} style={{padding:"3px 4px",textAlign:"center"}}>{p}</td>
+                        ))}
+                        <td style={{padding:"3px 8px",textAlign:"center"}}>
+                          <div>36</div>
+                          <div style={{color:G}}>—</div>
+                        </td>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((r,ri)=>{
+                        const type=getType(r.tIdx,r.pi);
+                        const pname=TEAMS[r.tid]?.[r.pi===0?"p1":"p2"]||"";
+                        const total=getRunTotal(r.tIdx,r.pi,r.tid);
+                        // find rival for this player
+                        const rivalTotal=getRunTotal(r.rivalTIdx,r.rivalPi,ri<2?t2id:t1id);
+                        const winning=total>rivalTotal, losing=total<rivalTotal;
+                        return(
+                          <tr key={ri} style={{borderBottom:ri<3?`1px solid ${GOLD}22`:"none",
+                            background:ri===2?"rgba(26,61,36,0.04)":"transparent"}}>
+                            <td style={{padding:"7px 10px",whiteSpace:"nowrap"}}>
+                              <div style={{display:"flex",alignItems:"center",gap:"4px"}}>
+                                <span style={{width:"5px",height:"5px",borderRadius:"50%",
+                                  background:r.color,display:"inline-block",flexShrink:0}}/>
+                                <span style={{fontSize:"13px",color:CREAM,fontWeight:600}}>{pname}</span>
+                              </div>
+                              <div style={{fontSize:"8px",color:M,paddingLeft:"12px"}}>
+                                HCP {getHcp(r.tid,r.pi)} · {r.label}
+                              </div>
+                            </td>
+                            {Array(9).fill(0).map((_,h)=>{
+                              if(type==="sub") return(
+                                <td key={h} style={{padding:"7px 4px",textAlign:"center",color:GO,fontSize:"13px"}}>S</td>
+                              );
+                              const pts=getPtsFor(r.tIdx,r.pi,r.tid,h);
+                              const gross=getGross(r.tIdx,r.pi,effH(h));
+                              const ptColor2=pts===null?(gross?"#555":M):pts>=3?G:pts===1?"#c0a060":pts===0?M:R;
+                              return(
+                                <td key={h} onClick={()=>setHole(h)}
+                                  style={{padding:"4px 3px",textAlign:"center",cursor:"pointer",
+                                    background:h===hole?"rgba(184,150,46,0.05)":"transparent",
+                                    minWidth:"28px"}}>
+                                  {gross>0 ? (
+                                    <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"1px"}}>
+                                      <span style={{fontSize:"14px",fontWeight:600,color:CREAM}}>{gross}</span>
+                                      <span style={{fontSize:"12px",fontWeight:pts!==null&&pts>=3?700:400,color:ptColor2}}>
+                                        {pts!==null?pts:"?"}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <span style={{color:CREAM,fontSize:"14px"}}>–</span>
+                                  )}
+                                </td>
+                              );
+                            })}
+                            <td style={{padding:"4px 8px",textAlign:"center",whiteSpace:"nowrap"}}>
+                              <div style={{fontSize:"14px",fontWeight:700,color:CREAM}}>
+                                {type==="sub"?"—":getGrossTotal(r.tIdx,r.pi)||"—"}
+                              </div>
+                              <div style={{fontSize:"14px",fontWeight:600,color:"#c8d4c0"}}>
+                                {type==="sub"?"—":getNetTotal(r.tIdx,r.pi,r.tid)||"—"}
+                              </div>
+                              <div style={{fontSize:"14px",fontWeight:700,color:winning?r.color:losing?R:G}}>
+                                {total}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Individual match results */}
+              <div style={{background:CARD2,border:`1px solid ${GOLD}22`,
+                borderRadius:"14px",overflow:"hidden",marginBottom:"12px"}}>
+                <div style={{padding:"8px 13px",borderBottom:"1px solid rgba(255,255,255,0.06)",
+                  fontSize:"12px",letterSpacing:"0.1em",textTransform:"uppercase",color:M,
+                  display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span>Individual Matches</span>
+                  <span style={{color:G}}>
+                    {(()=>{
+                      const t1m=matchResults.reduce((s,m)=>s+(m.t1pts>m.t2pts?2:m.t1pts===m.t2pts?1:0),0);
+                      const t2m=matchResults.reduce((s,m)=>s+(m.t2pts>m.t1pts?2:m.t1pts===m.t2pts?1:0),0);
+                      const t1team=t1m>t2m?4:t1m===t2m?2:0;
+                      const t2team=t2m>t1m?4:t1m===t2m?2:0;
+                      return <>T{t1id} {t1m+t1team}<span style={{color:M}}> vs </span>{t2m+t2team} T{t2id}<span style={{color:GO}}> / 8 match pts</span></>;
+                    })()}
+                  </span>
+                </div>
+                {matchResults.map((m,i)=>{
+                  const t1wins=m.t1pts>m.t2pts, t2wins=m.t2pts>m.t1pts, tied=m.t1pts===m.t2pts;
+                  return(
+                    <div key={i} style={{padding:"10px 14px",
+                      borderBottom:i===0?`1px solid ${GOLD}22`:"none",
+                      display:"flex",alignItems:"center",justifyContent:"space-between",gap:"8px"}}>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:"12px",color:M,marginBottom:"3px",letterSpacing:"0.07em",textTransform:"uppercase"}}>{m.label}</div>
+                        <div style={{fontSize:"12px"}}>
+                          <span style={{color:t1wins?G:CREAM,fontWeight:t1wins?700:400}}>{m.t1name}</span>
+                          <span style={{color:M,margin:"0 6px"}}>vs</span>
+                          <span style={{color:t2wins?GO:CREAM,fontWeight:t2wins?700:400}}>{m.t2name}</span>
+                        </div>
+                      </div>
+                      <div style={{display:"flex",alignItems:"center",gap:"6px",flexShrink:0}}>
+                        <span style={{fontWeight:700,fontSize:"15px",
+                          color:t1wins?G:tied?CREAM:"#555"}}>{m.t1pts}</span>
+                        <span style={{color:M,fontSize:"13px"}}>–</span>
+                        <span style={{fontWeight:700,fontSize:"15px",
+                          color:t2wins?GO:tied?CREAM:"#555"}}>{m.t2pts}</span>
+                        <Tag color={t1wins?G:t2wins?GO:M}>
+                          {t1wins?"+2":t2wins?"+2":"Split 1-1"}
+                        </Tag>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+            </>);
+          })()}
+
+          {/* Bonus pts */}
+          {weekBonus?(
+            <div style={{background:GOLD+"0a",border:`1px solid ${GOLD}33`,borderRadius:"14px",padding:"11px 14px",marginBottom:"12px"}}>
+              <div style={{fontSize:"12px",letterSpacing:"0.1em",textTransform:"uppercase",color:GOLD,marginBottom:"8px"}}>
+                ✓ Week {selWeek} Bonus Points Awarded
+              </div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:"5px"}}>
+                {Object.entries(weekBonus).sort((a,b)=>b[1]-a[1]).map(([tid,bp])=>(
+                  <div key={tid} style={{padding:"4px 9px",borderRadius:"6px",background:G+"18",
+                    border:`1px solid ${G}33`,fontSize:"13px"}}>
+                    <span style={{color:G,fontWeight:600}}>+{bp}</span>
+                    <span style={{color:M,marginLeft:"4px"}}>{TEAMS[parseInt(tid)]?.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ):(
+            <div style={{background:GO+"0d",border:`1px solid ${GO}22`,borderRadius:"14px",
+              padding:"10px 14px",marginBottom:"12px",fontSize:"13px",color:M}}>
+              ⚡ Bonus points (8/6/4/2) awarded once all 9 Week {selWeek} matches are scored.
+            </div>
+          )}
+
+          {/* Handicaps */}
+          <div style={{background:CARD2,border:`1px solid ${GOLD}22`,borderRadius:"14px",padding:"11px 14px",marginBottom:"12px"}}>
+            <div style={{fontSize:"12px",letterSpacing:"0.1em",textTransform:"uppercase",color:M,marginBottom:"12px"}}>Handicaps (9-hole)</div>
+            <div style={{display:"flex",gap:"13px",flexWrap:"wrap"}}>
+              {[{tIdx:0,tid:t1id,color:G},{tIdx:1,tid:t2id,color:GO}].map(({tIdx,tid,color})=>(
+                <div key={tIdx} style={{flex:"1 1 180px"}}>
+                  <div style={{fontSize:"13px",color,marginBottom:"5px"}}>{TEAMS[tid]?.name}</div>
+                  {[0,1].map(pi=>{
+                    const pname=TEAMS[tid]?.[pi===0?"p1":"p2"]||"";
+                    const hcp=(league.handicaps[tid]||[0,0])[pi]||0;
+                    return(
+                      <div key={pi} style={{display:"flex",alignItems:"center",gap:"7px",marginBottom:pi===0?"4px":0}}>
+                        <span style={{fontSize:"13px",flex:1,color:CREAM}}>{pname}</span>
+                        <input type="number" min="-9" max="36" value={hcp}
+                          onChange={e=>{
+                            const val=parseInt(e.target.value)||0;
+                            const next={...league,handicaps:{...league.handicaps,[tid]:[...(league.handicaps[tid]||[0,0])]}};
+                            next.handicaps[tid][pi]=val;
+                            saveLeague(next);
+                          }}
+                          style={{width:"46px",background:"rgba(255,255,255,0.95)",border:`1px solid ${GOLD}33`,
+                            borderRadius:"5px",color:CREAM,fontFamily:FB,fontSize:"14px",
+                            padding:"3px 5px",textAlign:"center",outline:"none"}}/>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Scan scorecard */}
+          <div style={{background:CARD,border:`1px solid ${scanState==="done"?G+"44":scanState==="error"?R+"44":"rgba(255,255,255,0.95)"}`,
+            borderRadius:"14px",padding:"12px 14px",marginBottom:"12px"}}>
+            <div style={{fontSize:"12px",letterSpacing:"0.1em",textTransform:"uppercase",color:M,marginBottom:"8px"}}>📷 Scan Scorecard</div>
+            <div style={{fontSize:"13px",color:M,marginBottom:"8px"}}>Upload a photo and Claude will auto-fill all scores.</div>
+            <label style={{padding:"7px 13px",borderRadius:"7px",border:`1px solid ${G}44`,
+              background:GOLD+"18",color:GOLD,fontFamily:FM||FB,fontSize:"13px",letterSpacing:"0.06em",
+              textTransform:"uppercase",cursor:scanState==="loading"?"not-allowed":"pointer",
+              opacity:scanState==="loading"?0.5:1,display:"inline-block"}}>
+              {scanState==="loading"?"Scanning...":"Upload Photo"}
+              <input type="file" accept="image/*" capture="environment" style={{display:"none"}}
+                disabled={scanState==="loading"}
+                onChange={e=>{if(e.target.files[0])scanCard(e.target.files[0]);e.target.value="";}}/>
+            </label>
+            {scanMsg&&(
+              <div style={{marginTop:"8px",fontSize:"13px",color:scanState==="done"?G:scanState==="error"?R:M}}>{scanMsg}</div>
+            )}
+          </div>
+
+          {/* Save */}
+          {/* Auto-saves on score change */}
+
+          </>)}
+        </div>
+      )}
+
+      {/* ══ STANDINGS ══ */}
+      {screen==="standings"&&(
+        <div style={{maxWidth:"860px",margin:"0 auto",padding:"22px 14px"}}>
+          <div style={{fontFamily:FD,fontSize:"28px",marginBottom:"4px",fontWeight:600,color:CREAM,letterSpacing:"0.02em"}}>Leaderboard</div>
+          <div style={{color:M,fontSize:"14px",marginBottom:"18px"}}>
+            Total pts = Match pts (head-to-head) + Bonus pts (weekly stableford rank 8/6/4/2)
+          </div>
+
+          <div style={{background:CARD2,border:`1px solid ${GOLD}22`,borderRadius:"12px",overflow:"hidden",marginBottom:"20px"}}>
+            <div style={{overflowX:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:"14px",minWidth:"580px"}}>
+                <thead>
+                  <tr style={{borderBottom:`1px solid ${GOLD}33`,background:"rgba(26,61,36,0.05)"}}>
+                    {["#","Team","W","L","T","Match Pts","Bonus Pts","Total Pts","Played",""].map((h,i)=>(
+                      <td key={i} style={{padding:"9px 10px",color:M,textAlign:i>=2?"center":"left",
+                        fontSize:"12px",letterSpacing:"0.08em",textTransform:"uppercase"}}>{h}</td>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {teamStandings.map((s,idx)=>{
+                    const rank=idx+1;
+                    const inPlayoffs=rank<=8;
+                    const rc=rank===1?GO:rank<=3?G:inPlayoffs?CREAM:M;
+                    return(
+                      <tr key={s.id} style={{borderBottom:`1px solid ${GOLD}22`,
+                        background:inPlayoffs?"rgba(184,150,46,0.03)":"transparent"}}>
+                        <td style={{padding:"10px 10px",fontWeight:700,color:rc,fontSize:"13px"}}>{rank}</td>
+                        <td style={{padding:"10px 10px"}}>
+                          <div style={{fontSize:"14px",color:inPlayoffs?CREAM:M}}>{TEAMS[s.id]?.name}</div>
+                          <div style={{fontSize:"12px",color:M,marginTop:"1px"}}>{TEAMS[s.id]?.p1} · {TEAMS[s.id]?.p2}</div>
+                        </td>
+                        <td style={{padding:"10px 10px",textAlign:"center",color:G,fontWeight:600}}>{s.wins}</td>
+                        <td style={{padding:"10px 10px",textAlign:"center",color:R}}>{s.losses}</td>
+                        <td style={{padding:"10px 10px",textAlign:"center",color:M}}>{s.ties}</td>
+                        <td style={{padding:"10px 10px",textAlign:"center",color:"#c0a060"}}>{s.matchPts}</td>
+                        <td style={{padding:"10px 10px",textAlign:"center",color:G}}>{s.bonusPts}</td>
+                        <td style={{padding:"10px 10px",textAlign:"center",fontWeight:700,fontSize:"13px",color:inPlayoffs?G:M}}>{s.totalPts}</td>
+                        <td style={{padding:"10px 10px",textAlign:"center",color:M}}>{s.played}</td>
+                        <td style={{padding:"10px 10px"}}>
+                          {rank<=8&&s.played>0&&<Tag color={G}>Playoffs</Tag>}
+                          {rank===8&&<Tag color={GO}>Bubble</Tag>}
+                          {rank===9&&<Tag color={GO}>Bubble</Tag>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div style={{padding:"10px 14px",borderTop:"1px solid rgba(255,255,255,0.06)",
+              fontSize:"12px",color:M,display:"flex",gap:"14px",flexWrap:"wrap"}}>
+              <span><span style={{color:G}}>●</span> Top 8 qualify for playoffs · Ranks 8 &amp; 9 = Bubble</span>
+              <span>Match pts: Win=2, Tie=1, Loss=0</span>
+              <span>Bonus pts: 1st-2nd=8, 3rd-4th=6, 5th-6th=4, 7th-8th+=2 per week</span>
+            </div>
+          </div>
+
+        </div>
+      )}
+
+      {/* ══ POTY ══ */}
+      {screen==="poty"&&(
+        <div style={{maxWidth:"820px",margin:"0 auto",padding:"22px 14px"}}>
+          <div style={{fontFamily:FD,fontSize:"28px",marginBottom:"4px",fontWeight:600,color:CREAM}}>Player of the Year</div>
+          <div style={{color:M,fontSize:"14px",marginBottom:"18px"}}>
+            Individual stableford points · Weekly cash payout · Season champion
+          </div>
+
+          {/* Tab toggle */}
+          <div style={{display:"flex",gap:"6px",marginBottom:"18px"}}>
+            {["season","weekly"].map(t=>(
+              <button key={t} onClick={()=>setPotyTab(t)} style={{padding:"6px 14px",borderRadius:"20px",
+                fontFamily:FB,fontSize:"13px",letterSpacing:"0.07em",textTransform:"uppercase",cursor:"pointer",
+                border:potyTab===t?`1px solid ${GO}`:`1px solid ${GOLD}33`,
+                background:potyTab===t?GO+"22":"transparent",color:potyTab===t?GO:M}}>
+                {t==="season"?"Season Standings":"Weekly Results"}
+              </button>
+            ))}
+          </div>
+
+          {potyTab==="season"&&(
+            <>
+              <div style={{background:GO+"0d",border:`1px solid ${GO}33`,borderRadius:"13px",
+                padding:"10px 14px",marginBottom:"14px",fontSize:"13px",color:M}}>
+                ⚡ Season total drops the <span style={{color:GO}}>3 lowest rounds</span> per player at season end.
+                Scores shown are current running totals (all rounds included until season ends).
+              </div>
+              <div style={{background:CARD2,border:`1px solid ${GOLD}22`,borderRadius:"12px",overflow:"hidden"}}>
+                <div style={{overflowX:"auto"}}>
+                  <table style={{width:"100%",borderCollapse:"collapse",fontSize:"14px",minWidth:"460px"}}>
+                    <thead>
+                      <tr style={{borderBottom:`1px solid ${GOLD}33`,background:"rgba(26,61,36,0.05)"}}>
+                        {["#","Player","Team","Rounds","Cur. Total","Drop-3 Total",""].map((h,i)=>(
+                          <td key={i} style={{padding:"9px 10px",color:M,textAlign:i>=3?"center":"left",
+                            fontSize:"12px",letterSpacing:"0.08em",textTransform:"uppercase"}}>{h}</td>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {potyList.map((p,idx)=>{
+                        const rank=idx+1;
+                        const rc=rank===1?GO:rank===2?"#c0a060":rank===3?G:CREAM;
+                        const curTotal=p.rounds.reduce((s,r)=>s+r.pts,0);
+                        return(
+                          <tr key={`${p.tid}-${p.pi}`} style={{borderBottom:`1px solid ${GOLD}22`}}>
+                            <td style={{padding:"9px 10px",fontWeight:700,color:rc,fontSize:"13px"}}>{rank}</td>
+                            <td style={{padding:"9px 10px",fontWeight:rank<=3?600:400,color:rank<=3?CREAM:M}}>{p.name}</td>
+                            <td style={{padding:"9px 10px",fontSize:"13px",color:M}}>{p.team}</td>
+                            <td style={{padding:"9px 10px",textAlign:"center",color:M}}>{p.rounds.length}</td>
+                            <td style={{padding:"9px 10px",textAlign:"center",color:M}}>{curTotal}</td>
+                            <td style={{padding:"9px 10px",textAlign:"center",fontWeight:rank<=3?700:400,
+                              fontSize:rank===1?"15px":"12px",color:rc}}>{p.total}</td>
+                            <td style={{padding:"9px 10px"}}>
+                              {rank===1&&p.rounds.length>0&&<Tag color={GO}>🏆 Leader</Tag>}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+
+          {potyTab==="weekly"&&(
+            <div style={{display:"grid",gap:"8px"}}>
+              {Array.from({length:17},(_,i)=>i+1).map(w=>{
+                const wr=weeklyPoty[w];
+                if(!wr) return(
+                  <div key={w} style={{background:CARD2,border:`1px solid ${GOLD}22`,
+                    borderRadius:"12px",padding:"11px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <span style={{fontSize:"14px",color:M}}>Week {w} — {fmtDate(SCHEDULE[w]?.date)}</span>
+                    <Tag color={M}>Not scored</Tag>
+                  </div>
+                );
+                const isTie=wr.winners.length>1;
+                return(
+                  <div key={w} style={{background:GO+"0d",border:`1px solid ${GO}33`,
+                    borderRadius:"12px",padding:"11px 14px"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}}>
+                      <span style={{fontSize:"14px",color:GO,fontFamily:FD}}>Week {w} — {fmtDate(SCHEDULE[w]?.date)}</span>
+                      <div style={{display:"flex",gap:"6px",alignItems:"center"}}>
+                        {isTie&&<Tag color={GO}>Split payout</Tag>}
+                        {!isTie&&<Tag color={GO}>🏆 Winner</Tag>}
+                      </div>
+                    </div>
+                    {wr.winners.map((p,i)=>(
+                      <div key={i} style={{display:"flex",alignItems:"center",gap:"8px",
+                        marginBottom:i<wr.winners.length-1?"6px":0}}>
+                        <span style={{color:GO,fontSize:"14px"}}>★</span>
+                        <div>
+                          <div style={{fontSize:"13px",fontWeight:700,color:CREAM}}>{p.name}</div>
+                          <div style={{fontSize:"13px",color:M}}>{p.team}</div>
+                        </div>
+                        <div style={{marginLeft:"auto",textAlign:"right"}}>
+                          <div style={{fontSize:"15px",fontWeight:700,color:GO}}>{wr.pts} pts</div>
+                          <div style={{fontSize:"12px",color:M}}>stableford</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ══ BULK ENTRY ══ */}
+      {screen==="entry"&&(
+        <EntryTab
+          league={league} saveLeague={saveLeague}
+          entryWeek={entryWeek} setEntryWeek={setEntryWeek}
+          entryTeam={entryTeam} setEntryTeam={setEntryTeam}
+          entryScores={entryScores} setEntryScores={setEntryScores}
+          entrySaved={entrySaved} setEntrySaved={setEntrySaved}
+          userName={userName} setUserName={setUserName}
+          knockdownPairs={knockdownPairs} qfPairs={qfPairs}
+          sfPairs={sfPairs} finalPairs={finalPairs}
+        />
+      )}
+
+            {/* ══ HANDICAPS ══ */}
+      {screen==="hcp"&&(
+        hcpUnlocked ? (
+        <div style={{maxWidth:"700px",margin:"0 auto",padding:"22px 14px"}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"4px"}}>
+            <div style={{fontFamily:FD,fontSize:"28px",fontWeight:600,color:CREAM}}>Handicaps</div>
+            <button onClick={()=>setHcpUnlocked(false)}
+              style={{fontSize:"13px",padding:"5px 10px",background:"rgba(192,57,43,0.15)",
+                border:"1px solid rgba(192,57,43,0.4)",borderRadius:"6px",color:R,
+                fontFamily:FB,cursor:"pointer",letterSpacing:"0.08em"}}>Lock</button>
+          </div>
+          <div style={{color:M,fontSize:"14px",marginBottom:"20px"}}>
+            9-hole handicaps · Auto-calculated from scores · Affects stableford &amp; match pairings
+          </div>
+          {/* Auto-calc notice */}
+          <div style={{background:"rgba(26,107,58,0.06)",border:"1px solid rgba(168,201,127,0.2)",
+            borderRadius:"13px",padding:"10px 14px",marginBottom:"16px",fontSize:"14px",color:M}}>
+            <span style={{color:G,fontWeight:700}}>Auto HCP</span> — suggested handicaps are calculated
+            from each player's gross scores using the league formula. The cap (⬆ max +2 from season start)
+            is enforced automatically. You can still override manually.
+          </div>
+
+          {/* Search */}
+          <input
+            type="text"
+            placeholder="Search player or team..."
+            onChange={e=>setHcpSearch(e.target.value.toLowerCase())}
+            style={{width:"100%",padding:"9px 13px",borderRadius:"8px",marginBottom:"16px",
+              background:"rgba(255,255,255,0.95)",border:`1px solid ${GOLD}44`,
+              color:CREAM,fontFamily:FB,fontSize:"12px",outline:"none"}}/>
+
+          <div style={{display:"grid",gap:"13px"}}>
+            {Object.entries(TEAMS)
+              .filter(([tid,t])=>{
+                if(!hcpSearch) return true;
+                return t.name.toLowerCase().includes(hcpSearch)
+                  ||t.p1.toLowerCase().includes(hcpSearch)
+                  ||t.p2.toLowerCase().includes(hcpSearch);
+              })
+              .map(([tidStr,team])=>{
+                const tid=parseInt(tidStr);
+                const hcps=league.handicaps[tid]||[0,0];
+                const sugHcps=calcSuggestedHcps(league.results, selWeek)[tid]||[0,0];
+                return(
+                  <div key={tid} style={{background:CARD2,border:`1px solid ${GOLD}22`,
+                    borderRadius:"12px",padding:"14px 16px"}}>
+                    {/* Team header */}
+                    <div style={{fontSize:"12px",letterSpacing:"0.1em",textTransform:"uppercase",
+                      color:M,marginBottom:"12px"}}>
+                      T{tid} · {team.name}
+                    </div>
+                    {/* Two players */}
+                    <div style={{display:"grid",gap:"8px"}}>
+                      {[0,1].map(pi=>{
+                        const pname=pi===0?team.p1:team.p2;
+                        const hcp=hcps[pi]||0;
+                        const isLow=hcps[0]<=hcps[1]?pi===0:pi===1;
+                        const newMember=isNewMember(tid,pi);
+                        const startHcp=(DEFAULT_HCP[tid]||[0,0])[pi];
+                        const cap=newMember?999:startHcp+2;
+                        const atCap=!newMember&&hcp>=cap;
+                        const sug=sugHcps[pi];
+                        const sugDiff=sug-hcp;
+                        const hasSug=sug!==hcp;
+                        return(
+                          <div key={pi} style={{display:"grid",
+                            gridTemplateColumns:"1fr auto",
+                            alignItems:"center",gap:"12px",
+                            background:"rgba(26,61,36,0.05)",borderRadius:"8px",padding:"10px 14px"}}>
+                            {/* Player name + tags + auto suggestion */}
+                            <div>
+                              <div style={{fontSize:"13px",fontWeight:600,color:CREAM,marginBottom:"4px"}}>{pname}</div>
+                              <div style={{display:"flex",gap:"5px",alignItems:"center",flexWrap:"wrap"}}>
+                                <Tag color={isLow?"#4db8f0":"#b97df5"}>{isLow?"Low":"High"}</Tag>
+                                {newMember&&<Tag color="#f0a050">New</Tag>}
+                                {atCap&&<Tag color={R}>⬆ Cap {cap}</Tag>}
+                                {hasSug&&(
+                                  <button onClick={()=>{
+                                    const next={...league,handicaps:{...league.handicaps,[tid]:[...hcps]}};
+                                    next.handicaps[tid][pi]=sug;
+                                    saveLeague(next);
+                                  }} style={{fontSize:"12px",padding:"2px 7px",borderRadius:"4px",
+                                    border:`1px solid ${sugDiff>0?R+"99":G+"99"}`,
+                                    background:sugDiff>0?R+"18":G+"18",
+                                    color:sugDiff>0?R:G,cursor:"pointer",fontFamily:FB}}>
+                                    Auto → {sug} ({sugDiff>0?"+":""}{sugDiff})
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                            {/* Stepper with cap enforcement */}
+                            <div style={{display:"flex",alignItems:"center"}}>
+                              <button
+                                onClick={()=>{
+                                  const next={...league,handicaps:{...league.handicaps,[tid]:[...hcps]}};
+                                  next.handicaps[tid][pi]=Math.max(-9,Math.round(hcp)-1);
+                                  saveLeague(next);
+                                }}
+                                style={{width:"36px",height:"36px",borderRadius:"8px 0 0 8px",
+                                  border:`1px solid ${GOLD}44`,borderRight:"none",
+                                  background:"rgba(26,61,36,0.08)",color:CREAM,fontSize:"20px",
+                                  cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",
+                                  userSelect:"none"}}>−</button>
+                              <input
+                                type="number" step="1" min="-9" max={cap}
+                                value={hcp}
+                                onChange={e=>{
+                                  const v=parseInt(e.target.value);
+                                  if(isNaN(v)) return;
+                                  const next={...league,handicaps:{...league.handicaps,[tid]:[...hcps]}};
+                                  next.handicaps[tid][pi]=Math.min(cap,Math.max(-9,v));
+                                  saveLeague(next);
+                                }}
+                                style={{width:"60px",height:"36px",border:`1px solid ${GOLD}44`,
+                                  background:"rgba(26,61,36,0.08)",
+                                  color:atCap?R:G,fontWeight:700,fontSize:"15px",
+                                  textAlign:"center",outline:"none",fontFamily:FB,
+                                  MozAppearance:"textfield",appearance:"textfield"}}/>
+                              <button
+                                onClick={()=>{
+                                  if(atCap) return;
+                                  const next={...league,handicaps:{...league.handicaps,[tid]:[...hcps]}};
+                                  next.handicaps[tid][pi]=Math.min(cap,Math.round(hcp)+1);
+                                  saveLeague(next);
+                                }}
+                                disabled={atCap}
+                                style={{width:"36px",height:"36px",borderRadius:"0 8px 8px 0",
+                                  border:`1px solid ${GOLD}44`,borderLeft:"none",
+                                  background:atCap?"rgba(26,61,36,0.04)":"rgba(255,255,255,0.95)",
+                                  color:atCap?"#333":CREAM,fontSize:"20px",
+                                  cursor:atCap?"not-allowed":"pointer",
+                                  display:"flex",alignItems:"center",justifyContent:"center",
+                                  userSelect:"none",opacity:atCap?0.35:1}}>+</button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+            })}
+          </div>
+        </div>
+        ) : (
+          <div style={{maxWidth:"340px",margin:"80px auto",padding:"32px",
+            background:"rgba(255,255,255,0.6)",border:`1px solid ${GOLD}44`,
+            borderRadius:"12px",textAlign:"center"}}>
+            <div style={{fontFamily:FD,fontSize:"26px",color:CREAM,marginBottom:"6px"}}>Handicap Access</div>
+            <div style={{fontSize:"12px",color:M,marginBottom:"24px",fontFamily:FB}}>Commissioner access only</div>
+            <input type="password" placeholder="Enter PIN"
+              value={hcpPin} onChange={e=>setHcpPin(e.target.value)}
+              onKeyDown={e=>{
+                if(e.key==="Enter"){
+                  if(hcpPin==="2026pvgc"){setHcpUnlocked(true);setHcpPin("");}
+                  else{setHcpPin("");setHcpPinErr(true);setTimeout(()=>setHcpPinErr(false),2000);}
+                }
+              }}
+              style={{width:"100%",background:"rgba(255,255,255,0.7)",border:`1px solid ${GOLD}44`,
+                borderRadius:"8px",color:CREAM,fontFamily:FB,fontSize:"16px",padding:"12px 16px",
+                textAlign:"center",outline:"none",letterSpacing:"0.3em",marginBottom:"13px"}}
+            />
+            {hcpPinErr&&<div style={{color:R,fontSize:"14px",marginBottom:"13px",fontFamily:FB}}>Incorrect PIN</div>}
+            <button onClick={()=>{
+                if(hcpPin==="2026pvgc"){setHcpUnlocked(true);setHcpPin("");}
+                else{setHcpPin("");setHcpPinErr(true);setTimeout(()=>setHcpPinErr(false),2000);}
+              }}
+              style={{width:"100%",padding:"12px",background:GOLD+"22",border:`1px solid ${GOLD}55`,
+                borderRadius:"8px",color:GOLD,fontFamily:FB,fontSize:"12px",
+                letterSpacing:"0.1em",textTransform:"uppercase",cursor:"pointer"}}>
+              Unlock
+            </button>
+          </div>
+        )
+      )}
+    </div>
+  );
+}
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+  </script>
+</body>
+</html>
