@@ -920,6 +920,7 @@ function App() {
   // ── Firebase real-time sync ────────────────────────────────────
   const lastSaveTime = useRef(0);
   const hasLoadedFromFirebase = useRef(false);
+  const [fbStatus, setFbStatus] = useState("connecting");
   const [fbDebug, setFbDebug] = useState("");
 
   useEffect(()=>{
