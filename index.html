@@ -935,7 +935,15 @@ function App() {
       const msSinceSave = Date.now() - lastSaveTime.current;
       if(hasLoadedFromFirebase.current && msSinceSave < 8000) return;
       hasLoadedFromFirebase.current = true;
-      setFbStatus("loaded");
+      // Debug: show what Firebase returned
+      const resultKeys = Object.keys(p.results||{});
+      const firstWeek = resultKeys[0];
+      const firstMatch = firstWeek ? Object.keys((p.results||{})[firstWeek]||{})[0] : null;
+      const firstRec = firstMatch ? (p.results||{})[firstWeek][firstMatch] : null;
+      const debugMsg = firstRec 
+        ? `W${firstWeek} ${firstMatch}: t1=${JSON.stringify(firstRec.t1scores).slice(0,40)}`
+        : `weeks=${JSON.stringify(resultKeys)}`;
+      setFbStatus("loaded:"+debugMsg);
       setLeague(prev=>{
         // Decode scores: "4,3,4,5,4,3,4,5,4|5,4,3,6,4,3,5,5,5" -> [[4,3,...],[5,4,...]]
         const decodeScores = (s) => {
@@ -1270,10 +1278,11 @@ Use 0 for missing/unreadable scores.`;
           </button>
         </div>
       )}
-      {fbStatus==="test-ok"&&(
-        <div style={{background:"#e6f5ea",borderBottom:"2px solid #2a7a3a",padding:"10px 18px",
-          fontSize:"13px",color:"#1a5a2a",display:"flex",alignItems:"center",gap:"8px"}}>
-          <span>✓</span> Firebase write succeeded! Reload the page.
+      {fbStatus.startsWith("loaded:")&&(
+        <div style={{background:"#e6f5ea",borderBottom:"2px solid #2a7a3a",padding:"8px 18px",
+          fontSize:"11px",color:"#1a5a2a",wordBreak:"break-all"}}>
+          🔍 Firebase data: {fbStatus.replace("loaded:","")}<br/>
+          <span style={{opacity:0.7}}>If you see scores above, decode is working. If blank, scores aren't saving correctly.</span>
         </div>
       )}
       {(fbStatus.startsWith("test-fail")||fbStatus.startsWith("error")||fbStatus.startsWith("save-error"))&&(
@@ -1295,7 +1304,7 @@ Use 0 for missing/unreadable scores.`;
           <div>
             <div style={{fontFamily:FD,fontSize:"20px",color:"#0f2a14",letterSpacing:"0.02em",fontWeight:700}}>PVGC 2026 League</div>
             <div style={{fontSize:"11px",color:"#3a5a3a",marginTop:"1px",letterSpacing:"0.1em",textTransform:"uppercase",fontWeight:500}}>
-              Pickering Valley · 18 Teams · Stableford · <span style={{color:GOLD}}>v1.3</span>
+              Pickering Valley · 18 Teams · Stableford · <span style={{color:GOLD}}>v1.4</span>
             </div>
           </div>
           {!confirmReset ? (
