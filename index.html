@@ -920,7 +920,7 @@ function App() {
   // ── Firebase real-time sync ────────────────────────────────────
   const lastSaveTime = useRef(0);
   const hasLoadedFromFirebase = useRef(false);
-  const [fbStatus, setFbStatus] = useState("connecting");
+  const [fbDebug, setFbDebug] = useState("");
 
   useEffect(()=>{
     const unsub = LEAGUE_DOC.onSnapshot((snap)=>{
@@ -935,6 +935,13 @@ function App() {
       if(hasLoadedFromFirebase.current && msSinceSave < 8000) return;
       hasLoadedFromFirebase.current = true;
       setFbStatus("loaded");
+      // Capture debug info
+      const keys = Object.keys(p||{});
+      const resKeys = Object.keys(p.results||{}).slice(0,3);
+      const firstWeek = resKeys[0];
+      const firstMatchKey = firstWeek ? Object.keys((p.results||{})[firstWeek]||{}).slice(0,1)[0] : null;
+      const firstMatch = firstMatchKey ? (p.results||{})[firstWeek][firstMatchKey] : null;
+      setFbDebug(`docKeys:${keys.join(',')} | resultWeeks:${resKeys.join(',')} | firstMatch(${firstMatchKey}):${JSON.stringify(firstMatch).slice(0,80)}`);
       setLeague(prev=>{
         // Normalize a match record from any storage format to internal format
         const normalizeMatch = (raw) => {
@@ -1251,7 +1258,13 @@ Use 0 for missing/unreadable scores.`;
           <span>⏳</span> Connecting to database…
         </div>
       )}
-      {(fbStatus.startsWith("error")||fbStatus.startsWith("save-error")||fbStatus.startsWith("test-fail"))&&(
+      {fbDebug&&(
+        <div style={{background:"#e8f0ff",borderBottom:"2px solid #4060c0",padding:"8px 18px",
+          fontSize:"10px",color:"#204080",wordBreak:"break-all",lineHeight:1.4}}>
+          🔍 {fbDebug}
+        </div>
+      )}
+      {(fbStatus.startsWith("error")||fbStatus.startsWith("save-error"))&&(
         <div style={{background:"#fff0f0",borderBottom:"2px solid #e04040",padding:"10px 18px",
           fontSize:"13px",color:"#900",display:"flex",alignItems:"center",gap:"8px",flexWrap:"wrap"}}>
           <span>⚠️</span>
@@ -1270,7 +1283,7 @@ Use 0 for missing/unreadable scores.`;
           <div>
             <div style={{fontFamily:FD,fontSize:"20px",color:"#0f2a14",letterSpacing:"0.02em",fontWeight:700}}>PVGC 2026 League</div>
             <div style={{fontSize:"11px",color:"#3a5a3a",marginTop:"1px",letterSpacing:"0.1em",textTransform:"uppercase",fontWeight:500}}>
-              Pickering Valley · 18 Teams · Stableford · <span style={{color:GOLD}}>v1.8</span>
+              Pickering Valley · 18 Teams · Stableford · <span style={{color:GOLD}}>v1.9</span>
             </div>
           </div>
           {!confirmReset ? (
