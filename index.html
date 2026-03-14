@@ -920,35 +920,47 @@ function App() {
   // ── Firebase real-time sync ────────────────────────────────────
   const lastSaveTime = useRef(0);
   const hasLoadedFromFirebase = useRef(false);
-  const [fbStatus, setFbStatus] = useState("connecting"); // connecting | loaded | error
+  const [fbStatus, setFbStatus] = useState("connecting");
 
   useEffect(()=>{
     const unsub = LEAGUE_DOC.onSnapshot((snap)=>{
       if(!snap.exists()){
-        setFbStatus("loaded"); // doc doesn't exist yet, that's fine
+        setFbStatus("loaded");
         hasLoadedFromFirebase.current = true;
         return;
       }
       const p = snap.data();
-      // Always apply the first snapshot (initial load).
-      // After that, suppress our own echoes for 8s but always let other users through.
+      // Always apply first snapshot; after that suppress our own saves for 8s
       const msSinceSave = Date.now() - lastSaveTime.current;
       if(hasLoadedFromFirebase.current && msSinceSave < 8000) return;
       hasLoadedFromFirebase.current = true;
       setFbStatus("loaded");
       setLeague(prev=>{
+        // Normalize a match record from any storage format to internal format
+        const normalizeMatch = (raw) => {
+          if (!raw) return raw;
+          // JSON string format (v1.5+)
+          let rec = raw;
+          if (typeof raw === 'string') { try { rec = JSON.parse(raw); } catch(e) { return raw; } }
+          // Normalize t1scores/t2scores from {p0:[],p1:[]} to [[],[]]
+          const norm = {...rec};
+          const normScores = (s) => {
+            if (Array.isArray(s)) return s; // already correct
+            if (s && typeof s === 'object' && s.p0 !== undefined) return [s.p0||[], s.p1||[]];
+            return [[],[]];
+          };
+          norm.t1scores = normScores(rec.t1scores);
+          norm.t2scores = normScores(rec.t2scores);
+          return norm;
+        };
+        // Only use the nested results map (ignore dot-notation fields like "results.1.1-1-5")
         const savedResults = p.results||{};
         const mergedResults = {};
         for(const w of Object.keys(savedResults)){
+          if (typeof savedResults[w] !== 'object' || savedResults[w] === null) continue;
           mergedResults[w] = {};
-          for(const mk of Object.keys(savedResults[w]||{})){
-            const raw = savedResults[w][mk];
-            // Each match is stored as a JSON string
-            try {
-              mergedResults[w][mk] = typeof raw === 'string' ? JSON.parse(raw) : raw;
-            } catch(e) {
-              mergedResults[w][mk] = raw;
-            }
+          for(const mk of Object.keys(savedResults[w])){
+            mergedResults[w][mk] = normalizeMatch(savedResults[w][mk]);
           }
         }
         mergedResults[1] = {...WEEK1_RESULTS, ...(mergedResults[1]||{})};
@@ -966,7 +978,7 @@ function App() {
     setLeague(next);
     lastSaveTime.current = Date.now();
     try{
-      // Store each match as a JSON string to avoid all Firestore type restrictions
+      // Store each match as a JSON string — avoids all Firestore nested array restrictions
       const encodedResults = {};
       for(const w of Object.keys(next.results)){
         encodedResults[w] = {};
@@ -974,13 +986,13 @@ function App() {
           encodedResults[w][mk] = JSON.stringify(next.results[w][mk]);
         }
       }
+      // Use set() with merge — works on empty or existing docs
       await LEAGUE_DOC.set({
         handicaps: next.handicaps,
         results: encodedResults,
       }, {merge:true});
       setFbStatus("loaded");
-      // Reset so the next snapshot (our own echo) refreshes state from Firebase
-      lastSaveTime.current = 0;
+      // Do NOT reset lastSaveTime here — keep suppression active to avoid echo loop
     }catch(e){
       console.warn("Save error:",e);
       setFbStatus("save-error:"+e.code+":"+e.message);
@@ -1253,7 +1265,7 @@ Use 0 for missing/unreadable scores.`;
           <div>
             <div style={{fontFamily:FD,fontSize:"20px",color:"#0f2a14",letterSpacing:"0.02em",fontWeight:700}}>PVGC 2026 League</div>
             <div style={{fontSize:"11px",color:"#3a5a3a",marginTop:"1px",letterSpacing:"0.1em",textTransform:"uppercase",fontWeight:500}}>
-              Pickering Valley · 18 Teams · Stableford · <span style={{color:GOLD}}>v1.6</span>
+              Pickering Valley · 18 Teams · Stableford · <span style={{color:GOLD}}>v1.7</span>
             </div>
           </div>
           {!confirmReset ? (
