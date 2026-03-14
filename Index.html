@@ -959,8 +959,7 @@ function App() {
     setLeague(next);
     lastSaveTime.current = Date.now();
     try{
-      // Use dot-notation field paths so Firestore does a true deep merge.
-      // This means saving week 3 never touches week 5's data, etc.
+      // Build flat dot-notation updates for safe deep merge
       const updates = {};
       updates["handicaps"] = next.handicaps;
       for(const w of Object.keys(next.results)){
@@ -968,14 +967,13 @@ function App() {
           updates[`results.${w}.${mk}`] = next.results[w][mk];
         }
       }
-      await LEAGUE_DOC.update(updates);
+      // setDoc with merge works on both new and existing docs
+      await LEAGUE_DOC.set(updates, {merge:true});
     }catch(e){
-      // If doc doesn't exist yet, fall back to set()
-      if(e.code==="not-found"){
-        try{ await LEAGUE_DOC.set(next); }catch(e2){console.warn("Save error:",e2);}
-      } else {
-        console.warn("Save error:",e);
-      }
+      console.warn("Save error:",e);
+      setFbStatus("error:"+e.code);
+    }
+  }
     }
   }
 
