@@ -1223,24 +1223,34 @@ Use 0 for missing/unreadable scores.`;
       {/* Firebase status banner */}
       {fbStatus==="connecting"&&(
         <div style={{background:"#fffbe6",borderBottom:"2px solid #f0c040",padding:"10px 18px",
-          fontSize:"13px",color:"#7a5a00",display:"flex",alignItems:"center",gap:"8px"}}>
-          <span>⏳</span> Connecting to database…
+          fontSize:"13px",color:"#7a5a00",display:"flex",alignItems:"center",gap:"8px",flexWrap:"wrap"}}>
+          <span>⏳</span>
+          <span>Connecting to database…</span>
+          <button onClick={async()=>{
+            try{
+              await LEAGUE_DOC.set({test:"ping"},{merge:true});
+              setFbStatus("test-ok");
+            }catch(e){
+              setFbStatus("test-fail:"+e.code+": "+e.message);
+            }
+          }} style={{marginLeft:"8px",padding:"4px 10px",background:"#f0c040",border:"none",
+            borderRadius:"5px",cursor:"pointer",fontSize:"12px",fontWeight:700}}>
+            Test Connection
+          </button>
         </div>
       )}
-      {fbStatus.startsWith("error")&&(
+      {fbStatus==="test-ok"&&(
+        <div style={{background:"#e6f5ea",borderBottom:"2px solid #2a7a3a",padding:"10px 18px",
+          fontSize:"13px",color:"#1a5a2a",display:"flex",alignItems:"center",gap:"8px"}}>
+          <span>✓</span> Firebase write succeeded! Reload the page.
+        </div>
+      )}
+      {(fbStatus.startsWith("test-fail")||fbStatus.startsWith("error")||fbStatus.startsWith("save-error"))&&(
         <div style={{background:"#fff0f0",borderBottom:"2px solid #e04040",padding:"10px 18px",
           fontSize:"13px",color:"#900",display:"flex",alignItems:"center",gap:"8px",flexWrap:"wrap"}}>
           <span>⚠️</span>
-          <span>Could not connect to database. Scores may not load or save.</span>
-          <span style={{opacity:0.6,fontSize:"11px"}}>{fbStatus}</span>
-        </div>
-      )}
-      {fbStatus.startsWith("save-error")&&(
-        <div style={{background:"#fff0f0",borderBottom:"2px solid #e04040",padding:"10px 18px",
-          fontSize:"13px",color:"#900",display:"flex",alignItems:"center",gap:"8px",flexWrap:"wrap"}}>
-          <span>⚠️</span>
-          <span><strong>Score did not save to database.</strong></span>
-          <span style={{opacity:0.7,fontSize:"11px"}}>{fbStatus.replace("save-error:","")}</span>
+          <span><strong>Firebase error:</strong></span>
+          <span style={{fontSize:"12px"}}>{fbStatus}</span>
         </div>
       )}
 
