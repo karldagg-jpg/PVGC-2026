@@ -969,9 +969,10 @@ function App() {
       }
       // setDoc with merge works on both new and existing docs
       await LEAGUE_DOC.set(updates, {merge:true});
+      setFbStatus("loaded");
     }catch(e){
       console.warn("Save error:",e);
-      setFbStatus("error:"+e.code);
+      setFbStatus("save-error:"+e.code+":"+e.message);
     }
   }
     }
@@ -1232,6 +1233,14 @@ Use 0 for missing/unreadable scores.`;
           <span>⚠️</span>
           <span>Could not connect to database. Scores may not load or save.</span>
           <span style={{opacity:0.6,fontSize:"11px"}}>{fbStatus}</span>
+        </div>
+      )}
+      {fbStatus.startsWith("save-error")&&(
+        <div style={{background:"#fff0f0",borderBottom:"2px solid #e04040",padding:"10px 18px",
+          fontSize:"13px",color:"#900",display:"flex",alignItems:"center",gap:"8px",flexWrap:"wrap"}}>
+          <span>⚠️</span>
+          <span><strong>Score did not save to database.</strong></span>
+          <span style={{opacity:0.7,fontSize:"11px"}}>{fbStatus.replace("save-error:","")}</span>
         </div>
       )}
 
