@@ -1298,7 +1298,7 @@ Use 0 for missing/unreadable scores.`;
           <div>
             <div style={{fontFamily:FD,fontSize:"20px",color:"#0f2a14",letterSpacing:"0.02em",fontWeight:700}}>PVGC 2026 League</div>
             <div style={{fontSize:"11px",color:"#3a5a3a",marginTop:"1px",letterSpacing:"0.1em",textTransform:"uppercase",fontWeight:500}}>
-              Pickering Valley · 18 Teams · Stableford · <span style={{color:GOLD}}>v2.6</span>
+              Pickering Valley · 18 Teams · Stableford · <span style={{color:GOLD}}>v2.7</span>
             </div>
           </div>
           {!confirmReset ? (
@@ -2174,7 +2174,7 @@ Use 0 for missing/unreadable scores.`;
             {/* ══ HANDICAPS ══ */}
       {screen==="hcp"&&(
         hcpUnlocked ? (
-        <div style={{maxWidth:"860px",margin:"0 auto",padding:"22px 14px"}}>
+        <div style={{maxWidth:"720px",margin:"0 auto",padding:"22px 14px"}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"4px"}}>
             <div style={{fontFamily:FD,fontSize:"28px",fontWeight:600,color:CREAM}}>Handicaps</div>
             <button onClick={()=>setHcpUnlocked(false)}
@@ -2183,7 +2183,7 @@ Use 0 for missing/unreadable scores.`;
                 fontFamily:FB,cursor:"pointer",letterSpacing:"0.08em"}}>🔒 Lock</button>
           </div>
           <div style={{color:M,fontSize:"14px",marginBottom:"20px"}}>
-            9-hole handicaps · Auto-calculated from scores · Override per week as needed
+            9-hole handicaps · Auto-calculated from gross scores
           </div>
 
           {/* Search */}
@@ -2193,7 +2193,7 @@ Use 0 for missing/unreadable scores.`;
               background:"rgba(255,255,255,0.95)",border:`1px solid ${GOLD}44`,
               color:CREAM,fontFamily:FB,fontSize:"14px",outline:"none"}}/>
 
-          <div style={{display:"grid",gap:"20px"}}>
+          <div style={{display:"grid",gap:"12px"}}>
             {Object.entries(TEAMS)
               .filter(([tid,t])=>{
                 if(!hcpSearch) return true;
@@ -2204,165 +2204,88 @@ Use 0 for missing/unreadable scores.`;
               .map(([tidStr,team])=>{
                 const tid=parseInt(tidStr);
                 const hcps=league.handicaps[tid]||[0,0];
+                const sugHcps=calcSuggestedHcps(league.results, selWeek);
                 return(
-                  <div key={tid} style={{background:CARD2,border:`1px solid ${GOLD}22`,borderRadius:"14px",overflow:"hidden"}}>
-                    {/* Team header */}
-                    <div style={{background:"rgba(26,61,36,0.06)",padding:"12px 16px",
-                      borderBottom:`1px solid ${GOLD}22`,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-                      <div style={{fontSize:"15px",fontWeight:700,color:CREAM}}>T{tid} · {team.name}</div>
-                      <div style={{display:"flex",gap:"16px"}}>
-                        {[0,1].map(pi=>(
-                          <div key={pi} style={{textAlign:"center"}}>
-                            <div style={{fontSize:"11px",color:M,textTransform:"uppercase",letterSpacing:"0.08em"}}>{pi===0?team.p1:team.p2}</div>
-                            <div style={{fontSize:"20px",fontWeight:700,color:G}}>{hcps[pi]||0}</div>
-                            <div style={{fontSize:"10px",color:M}}>Current HCP</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Week by week table */}
-                    <div style={{overflowX:"auto"}}>
-                      <table style={{width:"100%",borderCollapse:"collapse",fontSize:"13px",minWidth:"500px"}}>
-                        <thead>
-                          <tr style={{borderBottom:`1px solid ${GOLD}22`,background:"rgba(26,61,36,0.03)"}}>
-                            <td style={{padding:"8px 12px",color:M,fontSize:"11px",letterSpacing:"0.08em",textTransform:"uppercase"}}>Week</td>
-                            <td style={{padding:"8px 12px",color:M,fontSize:"11px",letterSpacing:"0.08em",textTransform:"uppercase"}}>Date</td>
-                            {[0,1].map(pi=>(
-                              <td key={pi} colSpan={2} style={{padding:"8px 12px",color:M,fontSize:"11px",
-                                letterSpacing:"0.08em",textTransform:"uppercase",textAlign:"center",
-                                borderLeft:`1px solid ${GOLD}22`}}>
-                                {pi===0?team.p1:team.p2}
-                              </td>
-                            ))}
-                          </tr>
-                          <tr style={{borderBottom:`1px solid ${GOLD}22`,background:"rgba(26,61,36,0.02)"}}>
-                            <td colSpan={2}/>
-                            {[0,1].map(pi=>(
-                              <React.Fragment key={pi}>
-                                <td style={{padding:"4px 12px",color:M,fontSize:"11px",textAlign:"center",
-                                  borderLeft:`1px solid ${GOLD}22`}}>Auto</td>
-                                <td style={{padding:"4px 12px",color:M,fontSize:"11px",textAlign:"center"}}>Override</td>
-                              </React.Fragment>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {Array.from({length:17},(_,i)=>i+1).map(w=>{
-                            const wDate = SCHEDULE[w]?.date;
-                            // Check if this team played this week
-                            const opp = getOpponent(tid, w);
-                            const played = opp && !!league.results[w]?.[matchKey(w,Math.min(tid,opp),Math.max(tid,opp))];
-                            return(
-                              <tr key={w} style={{borderBottom:`1px solid ${GOLD}11`,
-                                background:played?"rgba(26,107,58,0.04)":"transparent",
-                                opacity:played?1:0.5}}>
-                                <td style={{padding:"7px 12px",fontWeight:600,color:played?G:M}}>W{w}</td>
-                                <td style={{padding:"7px 12px",color:M,fontSize:"12px"}}>{fmtDate(wDate)}</td>
-                                {[0,1].map(pi=>{
-                                  const autoHcp = getEffectiveHcp(tid, pi, w, league.results, league.handicaps, {});
-                                  const overrideKey = `${tid}-${pi}-${w}`;
-                                  const override = (league.hcpOverrides||{})[overrideKey];
-                                  return(
-                                    <React.Fragment key={pi}>
-                                      <td style={{padding:"7px 12px",textAlign:"center",color:M,
-                                        borderLeft:`1px solid ${GOLD}22`,fontWeight:500}}>{autoHcp}</td>
-                                      <td style={{padding:"4px 8px",textAlign:"center"}}>
-                                        <input type="number" min="-9" max="36"
-                                          placeholder="—"
-                                          value={override !== undefined ? override : ""}
-                                          onChange={e=>{
-                                            const v = e.target.value;
-                                            const next = {...league,
-                                              hcpOverrides: {...(league.hcpOverrides||{})}};
-                                            if(v===""||v===null) {
-                                              delete next.hcpOverrides[overrideKey];
-                                            } else {
-                                              next.hcpOverrides[overrideKey] = parseInt(v)||0;
-                                            }
-                                            saveLeague(next);
-                                          }}
-                                          style={{width:"48px",padding:"3px 5px",textAlign:"center",
-                                            background:override!==undefined?"#fff8e6":"rgba(255,255,255,0.7)",
-                                            border:`1px solid ${override!==undefined?GOLD+"88":GOLD+"33"}`,
-                                            borderRadius:"5px",color:override!==undefined?GOLD:M,
-                                            fontFamily:FB,fontSize:"13px",fontWeight:override!==undefined?700:400,
-                                            outline:"none",MozAppearance:"textfield",appearance:"textfield"}}/>
-                                      </td>
-                                    </React.Fragment>
-                                  );
-                                })}
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {/* Current handicap editors */}
-                    <div style={{padding:"12px 16px",borderTop:`1px solid ${GOLD}22`,
-                      display:"flex",gap:"16px",flexWrap:"wrap",alignItems:"center"}}>
-                      <span style={{fontSize:"13px",color:M,fontWeight:600}}>Set Current HCP:</span>
+                  <div key={tid} style={{background:CARD2,border:`1px solid ${GOLD}22`,
+                    borderRadius:"12px",padding:"12px 16px"}}>
+                    <div style={{fontSize:"12px",letterSpacing:"0.1em",textTransform:"uppercase",
+                      color:M,marginBottom:"10px",fontWeight:600}}>T{tid} · {team.name}</div>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px"}}>
                       {[0,1].map(pi=>{
+                        const pname=pi===0?team.p1:team.p2;
                         const hcp=hcps[pi]||0;
+                        const isLow=hcps[0]<=hcps[1]?pi===0:pi===1;
                         const newMember=isNewMember(tid,pi);
                         const startHcp=(DEFAULT_HCP[tid]||[0,0])[pi];
                         const cap=newMember?999:startHcp+2;
                         const atCap=!newMember&&hcp>=cap;
-                        const sugHcps=calcSuggestedHcps(league.results, selWeek);
-                        const sug=sugHcps[tid]?.[pi];
+                        const sug=(sugHcps[tid]||[0,0])[pi];
                         const hasSug=sug!==undefined&&sug!==hcp;
+                        const sugDiff=sug-hcp;
                         return(
-                          <div key={pi} style={{display:"flex",alignItems:"center",gap:"6px"}}>
-                            <span style={{fontSize:"13px",color:CREAM}}>{pi===0?team.p1:team.p2}:</span>
-                            <button onClick={()=>{
-                                const next={...league,handicaps:{...league.handicaps,[tid]:[...hcps]}};
-                                next.handicaps[tid][pi]=Math.max(-9,hcp-1);
-                                saveLeague(next);
-                              }}
-                              style={{width:"28px",height:"28px",borderRadius:"6px 0 0 6px",
-                                border:`1px solid ${GOLD}44`,borderRight:"none",
-                                background:"rgba(26,61,36,0.08)",color:CREAM,fontSize:"16px",
-                                cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
-                            <input type="number" step="1" min="-9" max={cap} value={hcp}
-                              onChange={e=>{
-                                const v=parseInt(e.target.value);
-                                if(isNaN(v)) return;
-                                const next={...league,handicaps:{...league.handicaps,[tid]:[...hcps]}};
-                                next.handicaps[tid][pi]=Math.min(cap,Math.max(-9,v));
-                                saveLeague(next);
-                              }}
-                              style={{width:"50px",height:"28px",border:`1px solid ${GOLD}44`,
-                                background:"rgba(255,255,255,0.95)",color:atCap?R:G,
-                                fontWeight:700,fontSize:"14px",textAlign:"center",outline:"none",
-                                fontFamily:FB,MozAppearance:"textfield",appearance:"textfield"}}/>
-                            <button onClick={()=>{
-                                if(atCap) return;
-                                const next={...league,handicaps:{...league.handicaps,[tid]:[...hcps]}};
-                                next.handicaps[tid][pi]=Math.min(cap,hcp+1);
-                                saveLeague(next);
-                              }}
-                              disabled={atCap}
-                              style={{width:"28px",height:"28px",borderRadius:"0 6px 6px 0",
-                                border:`1px solid ${GOLD}44`,borderLeft:"none",
-                                background:atCap?"rgba(26,61,36,0.04)":"rgba(255,255,255,0.95)",
-                                color:atCap?"#aaa":CREAM,fontSize:"16px",
-                                cursor:atCap?"not-allowed":"pointer",
-                                display:"flex",alignItems:"center",justifyContent:"center",
-                                opacity:atCap?0.4:1}}>+</button>
-                            {hasSug&&(
+                          <div key={pi} style={{background:"rgba(26,61,36,0.04)",
+                            borderRadius:"8px",padding:"10px 12px",
+                            border:`1px solid ${atCap?R+"44":GOLD+"22"}`}}>
+                            {/* Name + tags */}
+                            <div style={{display:"flex",alignItems:"center",gap:"6px",marginBottom:"8px",flexWrap:"wrap"}}>
+                              <span style={{fontSize:"14px",fontWeight:600,color:CREAM}}>{pname}</span>
+                              <Tag color={isLow?"#4db8f0":"#b97df5"}>{isLow?"Low":"High"}</Tag>
+                              {newMember&&<Tag color="#f0a050">New</Tag>}
+                              {atCap&&<Tag color={R}>Cap {cap}</Tag>}
+                            </div>
+                            {/* HCP stepper */}
+                            <div style={{display:"flex",alignItems:"center",gap:"0px",marginBottom:hasSug?"8px":"0"}}>
                               <button onClick={()=>{
                                   const next={...league,handicaps:{...league.handicaps,[tid]:[...hcps]}};
-                                  next.handicaps[tid][pi]=sug;
+                                  next.handicaps[tid][pi]=Math.max(-9,hcp-1);
                                   saveLeague(next);
                                 }}
-                                style={{fontSize:"11px",padding:"3px 8px",borderRadius:"4px",
-                                  border:`1px solid ${sug>hcp?R+"99":G+"99"}`,
-                                  background:sug>hcp?R+"18":G+"18",
-                                  color:sug>hcp?R:G,cursor:"pointer",fontFamily:FB,whiteSpace:"nowrap"}}>
-                                Auto → {sug}
-                              </button>
-                            )}
+                                style={{width:"32px",height:"36px",borderRadius:"6px 0 0 6px",
+                                  border:`1px solid ${GOLD}44`,borderRight:"none",
+                                  background:"rgba(26,61,36,0.08)",color:CREAM,fontSize:"18px",
+                                  cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
+                              <input type="number" step="1" min="-9" max={cap} value={hcp}
+                                onChange={e=>{
+                                  const v=parseInt(e.target.value);
+                                  if(isNaN(v)) return;
+                                  const next={...league,handicaps:{...league.handicaps,[tid]:[...hcps]}};
+                                  next.handicaps[tid][pi]=Math.min(cap,Math.max(-9,v));
+                                  saveLeague(next);
+                                }}
+                                style={{width:"52px",height:"36px",border:`1px solid ${GOLD}44`,
+                                  background:"#fff",color:atCap?R:G,fontWeight:700,fontSize:"16px",
+                                  textAlign:"center",outline:"none",fontFamily:FB,
+                                  MozAppearance:"textfield",appearance:"textfield"}}/>
+                              <button onClick={()=>{
+                                  if(atCap) return;
+                                  const next={...league,handicaps:{...league.handicaps,[tid]:[...hcps]}};
+                                  next.handicaps[tid][pi]=Math.min(cap,hcp+1);
+                                  saveLeague(next);
+                                }}
+                                disabled={atCap}
+                                style={{width:"32px",height:"36px",borderRadius:"0 6px 6px 0",
+                                  border:`1px solid ${GOLD}44`,borderLeft:"none",
+                                  background:atCap?"rgba(26,61,36,0.04)":"#fff",
+                                  color:atCap?"#aaa":CREAM,fontSize:"18px",
+                                  cursor:atCap?"not-allowed":"pointer",
+                                  display:"flex",alignItems:"center",justifyContent:"center",
+                                  opacity:atCap?0.4:1}}>+</button>
+                              {/* Suggested badge inline */}
+                              {hasSug&&(
+                                <button onClick={()=>{
+                                    const next={...league,handicaps:{...league.handicaps,[tid]:[...hcps]}};
+                                    next.handicaps[tid][pi]=sug;
+                                    saveLeague(next);
+                                  }}
+                                  style={{marginLeft:"8px",fontSize:"12px",padding:"4px 10px",
+                                    borderRadius:"6px",border:`1px solid ${sugDiff>0?R+"66":G+"66"}`,
+                                    background:sugDiff>0?R+"12":G+"12",
+                                    color:sugDiff>0?R:G,cursor:"pointer",fontFamily:FB,
+                                    fontWeight:600,whiteSpace:"nowrap"}}>
+                                  → {sug} ({sugDiff>0?"+":""}{sugDiff})
+                                </button>
+                              )}
+                            </div>
                           </div>
                         );
                       })}
