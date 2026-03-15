@@ -471,9 +471,8 @@ function calcAutoHcp(grossRounds, startHcp, isNew) {
 }
 
 // Build per-player gross round history from all saved results up to (not including) a given week.
-// Returns: { [tid]: [[p1_grosses...], [p2_grosses...]] }
+// Returns: { [tid]: [p1_grosses[], p2_grosses[]] }
 function buildGrossHistory(results, upToWeek) {
-  // Collect gross totals per player per team
   const history = {};
   for (let t = 1; t <= 18; t++) history[t] = [[], []];
 
@@ -481,21 +480,26 @@ function buildGrossHistory(results, upToWeek) {
     const weekResults = results[w] || {};
     for (const [key, rec] of Object.entries(weekResults)) {
       if (!rec || rec.rainout) continue;
-      // Skip w1stab records — no real gross scores stored
       if (rec.w1stab) continue;
       const parts = key.split('-');
       const tlow = parseInt(parts[1]);
       const thigh = parseInt(parts[2]);
 
-      // t1 = tlow, t2 = thigh
       [[tlow, rec.t1scores, rec.t1types], [thigh, rec.t2scores, rec.t2types]].forEach(([tid, scores, types]) => {
         if (!scores || !history[tid]) return;
-        for (let pi = 0; pi < 2; pi++) {
-          const type = (types || [])[pi] || 'normal';
-          if (type !== 'normal') continue; // skip subs/phantoms
-          const gross = (scores[pi] || []).reduce((s, g) => s + (g || 0), 0);
+        // scores[0] = Low HCP player, scores[1] = High HCP player
+        // We need to map back to p1/p2 order using current handicaps
+        const [h0,h1] = (DEFAULT_HCP[tid]||[0,0]);
+        // lowPi = which player index (0 or 1) is the Low HCP player
+        const lowPi = h0 <= h1 ? 0 : 1;
+        const highPi = 1 - lowPi;
+        // scores[0] belongs to lowPi, scores[1] belongs to highPi
+        [[0, lowPi], [1, highPi]].forEach(([scoreIdx, pi]) => {
+          const type = (types || [])[scoreIdx] || 'normal';
+          if (type !== 'normal') continue;
+          const gross = (scores[scoreIdx] || []).reduce((s, g) => s + (g || 0), 0);
           if (gross > 0) history[tid][pi].push(gross);
-        }
+        });
       });
     }
   }
@@ -1278,7 +1282,7 @@ Use 0 for missing/unreadable scores.`;
           <div>
             <div style={{fontFamily:FD,fontSize:"20px",color:"#0f2a14",letterSpacing:"0.02em",fontWeight:700}}>PVGC 2026 League</div>
             <div style={{fontSize:"11px",color:"#3a5a3a",marginTop:"1px",letterSpacing:"0.1em",textTransform:"uppercase",fontWeight:500}}>
-              Pickering Valley · 18 Teams · Stableford · <span style={{color:GOLD}}>v3.1</span>
+              Pickering Valley · 18 Teams · Stableford · <span style={{color:GOLD}}>v3.2</span>
             </div>
           </div>
           {!confirmReset ? (
