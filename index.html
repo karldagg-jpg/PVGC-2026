@@ -204,24 +204,30 @@ function getOpponent(teamId, week, dynamicPairs=null) {
 function matchKey(w,ta,tb) { return `${w}-${Math.min(ta,tb)}-${Math.max(ta,tb)}`; }
 
 // ── Scoring logic ──────────────────────────────────────────────
+function hcpStr(hcp, si) {
+  const h = Math.floor(parseFloat(hcp)||0);
+  if (h < 0) return si <= Math.abs(h) ? -1 : 0;
+  const full = Math.floor(h / 9);
+  const remainder = h % 9;
+  return full + (si <= remainder ? 1 : 0);
+}
+
+// Max gross score on a hole = par + 2 (net double bogey) + strokes received
+function maxGross(par, strokes) {
+  return par + 2 + strokes;
+}
+
+// Stableford points — gross is capped at net double bogey before calculation
 function stabPts(gross, par, strokes) {
   if (!gross) return null;
-  const diff = par - (gross - strokes);
+  const cappedGross = Math.min(gross, maxGross(par, strokes));
+  const diff = par - (cappedGross - strokes);
   if (diff >= 3) return 5;
   if (diff === 2) return 4;
   if (diff === 1) return 3;
   if (diff === 0) return 1;
   if (diff === -1) return 0;
   return -1;
-}
-function hcpStr(hcp, si) {
-  const h = Math.floor(parseFloat(hcp)||0); // truncate to whole number for stroke allocation
-  if (h < 0) return si <= Math.abs(h) ? -1 : 0;
-  // Each full 9 holes = 1 extra stroke on every hole
-  // Remainder strokes apply to holes where SI <= remainder
-  const full = Math.floor(h / 9);  // strokes every hole gets
-  const remainder = h % 9;          // extra strokes on SI 1..remainder
-  return full + (si <= remainder ? 1 : 0);
 }
 
 // ── Compute team total from a saved match record ───────────────
@@ -507,7 +513,13 @@ function buildGrossHistory(results, upToWeek) {
         [[0, lowPi], [1, highPi]].forEach(([scoreIdx, pi]) => {
           const type = (types || [])[scoreIdx] || 'normal';
           if (type !== 'normal') return; // skip subs/phantoms
-          const gross = (scores[scoreIdx] || []).reduce((s, g) => s + (g || 0), 0);
+          // Sum gross with per-hole cap (net double bogey max) using player's handicap
+          const hcp = (DEFAULT_HCP[tid]||[0,0])[pi] || 0;
+          const gross = (scores[scoreIdx] || []).reduce((s, g, hi) => {
+            if (!g) return s;
+            const strokes = hcpStr(hcp, SI[hi]);
+            return s + Math.min(g, maxGross(PAR[hi], strokes));
+          }, 0);
           if (gross > 0) history[tid][pi].push(gross);
         });
       });
@@ -852,17 +864,20 @@ function EntryTab({league, saveLeague, entryWeek, setEntryWeek, entryTeam, setEn
                 </div>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(9,1fr)",gap:"5px"}}>
                   {holes.map(({gross,pts},hi)=>{
+                    const strokes = hcpStr(hcp, SI[hi]);
+                    const grossMax = maxGross(PAR[hi], strokes);
+                    const isCapped = gross > 0 && gross >= grossMax;
                     const ptColor=pts===null?M:pts>=3?G:pts===1?GOLD:pts===0?M:R;
                     const bgColor=gross?(pts>=3?"#e6f5ea":pts===1?"#fdf6e0":pts===0?"#ffffff":R+"18"):"#ffffff";
-                    const bdColor=gross?(pts>=3?G:pts===1?GOLD:pts===0?"#999":R):"#999";
+                    const bdColor=isCapped?GO:gross?(pts>=3?G:pts===1?GOLD:pts===0?"#999":R):"#999";
                     return (
                       <div key={hi} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"3px"}}>
                         <input
                           ref={el=>cellRefs.current[`${rowIdx}-${hi}`]=el}
-                          type="number" min="1" max="15"
+                          type="number" min="1" max={grossMax}
                           value={gross||""}
                           placeholder={String(PAR[hi])}
-                          onChange={e=>{const v=parseInt(e.target.value);setEntry(p.tIdx,p.pi,hi,isNaN(v)||v<1?0:Math.min(15,v));}}
+                          onChange={e=>{const v=parseInt(e.target.value);setEntry(p.tIdx,p.pi,hi,isNaN(v)||v<1?0:Math.min(grossMax,v));}}
                           onKeyDown={e=>handleKeyDown(e,rowIdx,hi)}
                           onFocus={e=>e.target.select()}
                           style={{width:"100%",height:"48px",background:bgColor,
@@ -872,8 +887,8 @@ function EntryTab({league, saveLeague, entryWeek, setEntryWeek, entryTeam, setEn
                             MozAppearance:"textfield",appearance:"textfield"}}
                         />
                         {gross>0&&pts!==null&&(
-                          <span style={{fontSize:"12px",fontWeight:700,color:ptColor}}>
-                            {pts>0?"+"+pts:pts}
+                          <span style={{fontSize:"12px",fontWeight:700,color:isCapped?GO:ptColor}}>
+                            {isCapped?"max":pts>0?"+"+pts:pts}
                           </span>
                         )}
                       </div>
@@ -1292,7 +1307,7 @@ Use 0 for missing/unreadable scores.`;
           <div>
             <div style={{fontFamily:FD,fontSize:"20px",color:"#0f2a14",letterSpacing:"0.02em",fontWeight:700}}>PVGC 2026 League</div>
             <div style={{fontSize:"11px",color:"#3a5a3a",marginTop:"1px",letterSpacing:"0.1em",textTransform:"uppercase",fontWeight:500}}>
-              Pickering Valley · 18 Teams · Stableford · <span style={{color:GOLD}}>v3.5</span>
+              Pickering Valley · 18 Teams · Stableford · <span style={{color:GOLD}}>v3.7</span>
             </div>
           </div>
           {!confirmReset ? (
