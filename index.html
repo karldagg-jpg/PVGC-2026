@@ -415,26 +415,7 @@ const DEFAULT_HCP = {
 };
 
 
-// ── Pre-loaded Week 1 results ──────────────────────────────────
-const WEEK1_RESULTS = {
-  // Real scores: Charles/Dagg vs Carickhoff/Celenza (T5 scores still needed)
-  "1-1-5": {
-    t1scores:[[4,4,4,6,3,3,5,5,5],[5,5,4,6,4,4,5,5,6]],
-    t2scores:[[4,3,4,5,4,3,4,5,4],[4,3,4,5,4,3,4,5,4]],
-    t1types:["normal","normal"], t2types:["normal","normal"],
-    rainout:false, holesPlayed:9
-  },
-  // Real scores: Mulvey/Nelson vs West/Herman (T11 scores still needed)
-  "1-10-11": {
-    t1scores:[[4,4,4,7,5,5,4,4,4],[4,3,4,6,5,4,5,5,5]],
-    t2scores:[[4,3,4,5,4,3,4,5,4],[4,3,4,5,4,3,4,5,4]],
-    t1types:["normal","normal"], t2types:["normal","normal"],
-    rainout:false, holesPlayed:9
-  },
-};
-
 // ── New members (2026) — keyed by "tid-pi" ─────────────────────
-// New members use 60% all season, no +2 cap, start HCP from round 1.
 const NEW_MEMBERS = {
   "6-1": true,  // Mark Adler (Team 6, player 2)
 };
@@ -446,8 +427,7 @@ function isNewMember(tid, pi) {
 function initLeague() {
   const handicaps={}, results={};
   for (let t=1;t<=18;t++) handicaps[t]=[...DEFAULT_HCP[t]];
-  for (let w=1;w<=18;w++) results[w]={};
-  results[1] = {...WEEK1_RESULTS};
+  for (let w=1;w<=21;w++) results[w]={};
   return {handicaps, results, hcpOverrides:{}};
 }
 
@@ -969,7 +949,7 @@ function App() {
         mergedResults[w][mk] = normalizeMatch(savedResults[w][mk]);
       }
     }
-    mergedResults[1] = {...WEEK1_RESULTS, ...(mergedResults[1]||{})};
+    mergedResults[1] = mergedResults[1]||{};
     setLeague(prev=>({
       ...prev,
       handicaps: {...DEFAULT_HCP, ...(p.handicaps||{})},
@@ -1298,7 +1278,7 @@ Use 0 for missing/unreadable scores.`;
           <div>
             <div style={{fontFamily:FD,fontSize:"20px",color:"#0f2a14",letterSpacing:"0.02em",fontWeight:700}}>PVGC 2026 League</div>
             <div style={{fontSize:"11px",color:"#3a5a3a",marginTop:"1px",letterSpacing:"0.1em",textTransform:"uppercase",fontWeight:500}}>
-              Pickering Valley · 18 Teams · Stableford · <span style={{color:GOLD}}>v2.7</span>
+              Pickering Valley · 18 Teams · Stableford · <span style={{color:GOLD}}>v2.8</span>
             </div>
           </div>
           {!confirmReset ? (
