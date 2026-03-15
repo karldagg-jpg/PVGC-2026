@@ -959,7 +959,7 @@ function App() {
       setFbStatus("loaded");
     }).catch((err)=>{
       console.warn("Firebase load error:", err);
-      setFbStatus("error:"+err.code);
+      setFbStatus("error:"+(err.code||err.message||String(err)));
     });
   };
 
@@ -1260,7 +1260,7 @@ Use 0 for missing/unreadable scores.`;
           <div>
             <div style={{fontFamily:FD,fontSize:"20px",color:"#0f2a14",letterSpacing:"0.02em",fontWeight:700}}>PVGC 2026 League</div>
             <div style={{fontSize:"11px",color:"#3a5a3a",marginTop:"1px",letterSpacing:"0.1em",textTransform:"uppercase",fontWeight:500}}>
-              Pickering Valley · 18 Teams · Stableford · <span style={{color:GOLD}}>v2.1</span>
+              Pickering Valley · 18 Teams · Stableford · <span style={{color:GOLD}}>v2.2</span>
             </div>
           </div>
           {!confirmReset ? (
