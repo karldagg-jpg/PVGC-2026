@@ -1278,7 +1278,7 @@ Use 0 for missing/unreadable scores.`;
           <div>
             <div style={{fontFamily:FD,fontSize:"20px",color:"#0f2a14",letterSpacing:"0.02em",fontWeight:700}}>PVGC 2026 League</div>
             <div style={{fontSize:"11px",color:"#3a5a3a",marginTop:"1px",letterSpacing:"0.1em",textTransform:"uppercase",fontWeight:500}}>
-              Pickering Valley · 18 Teams · Stableford · <span style={{color:GOLD}}>v2.9</span>
+              Pickering Valley · 18 Teams · Stableford · <span style={{color:GOLD}}>v3.1</span>
             </div>
           </div>
           {!confirmReset ? (
@@ -2217,33 +2217,56 @@ Use 0 for missing/unreadable scores.`;
                         const overrideKey = `${tid}-${pi}-${w}`;
                         const override = (league.hcpOverrides||{})[overrideKey];
                         const displayVal = override!==undefined ? override : autoHcp;
-                        // Has a score been played this week?
+                        // Get match record for this week
                         const opp = getOpponent(tid,w);
-                        const played = opp&&!!league.results[w]?.[matchKey(w,Math.min(tid,opp),Math.max(tid,opp))];
+                        const mk_ = opp ? matchKey(w,Math.min(tid,opp),Math.max(tid,opp)) : null;
+                        const rec = mk_ ? league.results[w]?.[mk_] : null;
+                        const played = !!rec;
+                        const isRainout = rec?.rainout;
+                        // Get gross score for this player
+                        const tIdx = opp && tid < opp ? 0 : 1;
+                        const scores = rec ? (tIdx===0 ? rec.t1scores : rec.t2scores) : null;
+                        const gross = scores ? (scores[pi]||[]).reduce((s,v)=>s+(v||0),0) : 0;
+                        // Show HCP for week 1 always, or if this/prev week played
+                        const prevPlayed = w===1 || (()=>{
+                          const prevOpp=getOpponent(tid,w-1);
+                          return prevOpp&&!!league.results[w-1]?.[matchKey(w-1,Math.min(tid,prevOpp),Math.max(tid,prevOpp))];
+                        })();
+                        const showHcp = w===1 || played || prevPlayed;
                         return(
-                          <td key={w} style={{padding:"4px 4px",textAlign:"center",
+                          <td key={w} style={{padding:"3px 4px",textAlign:"center",verticalAlign:"middle",
                             borderRight:w===18?`2px solid ${GOLD}44`:`1px solid ${GOLD}11`}}>
-                            {played ? (
-                              isLocked ? (
-                                <span style={{fontWeight:600,color:G,fontSize:"13px"}}>{displayVal}</span>
-                              ) : (
-                                <input
-                                  type="number" min="-9" max={isNew?99:startHcp+2}
-                                  value={override!==undefined ? override : autoHcp}
-                                  onChange={e=>{
-                                    const v=e.target.value;
-                                    const next={...league,hcpOverrides:{...(league.hcpOverrides||{})}};
-                                    if(v===""){ delete next.hcpOverrides[overrideKey]; }
-                                    else { next.hcpOverrides[overrideKey]=parseInt(v)||0; }
-                                    saveLeague(next);
-                                  }}
-                                  style={{width:"36px",height:"28px",textAlign:"center",
-                                    background:override!==undefined?"#fff8e6":"transparent",
-                                    border:override!==undefined?`1px solid ${GOLD}88`:"1px solid transparent",
-                                    borderRadius:"4px",color:override!==undefined?GOLD:G,
-                                    fontWeight:600,fontSize:"13px",fontFamily:FB,outline:"none",
-                                    MozAppearance:"textfield",appearance:"textfield"}}/>
-                              )
+                            {showHcp ? (
+                              <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"1px"}}>
+                                {isLocked ? (
+                                  <span style={{fontWeight:600,color:G,fontSize:"13px"}}>{displayVal}</span>
+                                ) : (
+                                  <input
+                                    type="number" min="-9" max={isNew?99:startHcp+2}
+                                    value={override!==undefined ? override : autoHcp}
+                                    onChange={e=>{
+                                      const v=e.target.value;
+                                      const next={...league,hcpOverrides:{...(league.hcpOverrides||{})}};
+                                      if(v===""){ delete next.hcpOverrides[overrideKey]; }
+                                      else { next.hcpOverrides[overrideKey]=parseInt(v)||0; }
+                                      saveLeague(next);
+                                    }}
+                                    style={{width:"36px",height:"26px",textAlign:"center",
+                                      background:override!==undefined?"#fff8e6":"transparent",
+                                      border:override!==undefined?`1px solid ${GOLD}88`:"1px solid transparent",
+                                      borderRadius:"4px",color:override!==undefined?GOLD:G,
+                                      fontWeight:600,fontSize:"13px",fontFamily:FB,outline:"none",
+                                      MozAppearance:"textfield",appearance:"textfield"}}/>
+                                )}
+                                {/* Gross score / rainout below */}
+                                {played && (
+                                  isRainout
+                                    ? <span style={{fontSize:"9px",color:GO,fontWeight:600,letterSpacing:"0.04em"}}>R</span>
+                                    : gross > 0
+                                      ? <span style={{fontSize:"10px",color:M}}>{gross}</span>
+                                      : null
+                                )}
+                              </div>
                             ) : (
                               <span style={{color:"#ccc",fontSize:"12px"}}>—</span>
                             )}
@@ -2257,9 +2280,11 @@ Use 0 for missing/unreadable scores.`;
             </table>
           </div>
           <div style={{marginTop:"10px",fontSize:"12px",color:M,display:"flex",gap:"16px",flexWrap:"wrap"}}>
-            <span><span style={{color:G,fontWeight:700}}>Green</span> = auto-calculated</span>
-            <span><span style={{color:GOLD,fontWeight:700}}>Gold</span> = manually overridden</span>
-            <span><span style={{color:"#ccc"}}>—</span> = not yet played</span>
+            <span><span style={{color:G,fontWeight:700}}>Green</span> = auto HCP</span>
+            <span><span style={{color:GOLD,fontWeight:700}}>Gold</span> = overridden</span>
+            <span>Small number = gross score shot</span>
+            <span><span style={{color:GO,fontWeight:700}}>R</span> = rainout</span>
+            <span><span style={{color:"#ccc"}}>—</span> = not yet reached</span>
           </div>
         </div>
         ) : (
