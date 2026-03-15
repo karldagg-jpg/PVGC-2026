@@ -488,15 +488,13 @@ function buildGrossHistory(results, upToWeek) {
       [[tlow, rec.t1scores, rec.t1types], [thigh, rec.t2scores, rec.t2types]].forEach(([tid, scores, types]) => {
         if (!scores || !history[tid]) return;
         // scores[0] = Low HCP player, scores[1] = High HCP player
-        // We need to map back to p1/p2 order using current handicaps
+        // We need to map back to p1/p2 order using starting handicaps
         const [h0,h1] = (DEFAULT_HCP[tid]||[0,0]);
-        // lowPi = which player index (0 or 1) is the Low HCP player
         const lowPi = h0 <= h1 ? 0 : 1;
         const highPi = 1 - lowPi;
-        // scores[0] belongs to lowPi, scores[1] belongs to highPi
         [[0, lowPi], [1, highPi]].forEach(([scoreIdx, pi]) => {
           const type = (types || [])[scoreIdx] || 'normal';
-          if (type !== 'normal') continue;
+          if (type !== 'normal') return; // skip subs/phantoms
           const gross = (scores[scoreIdx] || []).reduce((s, g) => s + (g || 0), 0);
           if (gross > 0) history[tid][pi].push(gross);
         });
