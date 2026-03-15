@@ -936,34 +936,46 @@ function App() {
     return norm;
   };
 
+  const applySnapshot = (snap) => {
+    if(!snap.exists){ setFbStatus("loaded"); return; }
+    const p = snap.data();
+    const savedResults = p.results||{};
+    const mergedResults = {};
+    for(const w of Object.keys(savedResults)){
+      if (typeof savedResults[w] !== 'object' || savedResults[w] === null) continue;
+      mergedResults[w] = {};
+      for(const mk of Object.keys(savedResults[w])){
+        mergedResults[w][mk] = normalizeMatch(savedResults[w][mk]);
+      }
+    }
+    mergedResults[1] = {...WEEK1_RESULTS, ...(mergedResults[1]||{})};
+    setLeague(prev=>({
+      ...prev,
+      handicaps: {...DEFAULT_HCP, ...(p.handicaps||{})},
+      results: mergedResults,
+    }));
+    setFbStatus("loaded");
+  };
+
   const loadFromFirebase = () => {
     setFbStatus("connecting");
-    LEAGUE_DOC.get().then((snap)=>{
-      if(!snap.exists){ setFbStatus("loaded"); return; }
-      const p = snap.data();
-      const savedResults = p.results||{};
-      const mergedResults = {};
-      for(const w of Object.keys(savedResults)){
-        if (typeof savedResults[w] !== 'object' || savedResults[w] === null) continue;
-        mergedResults[w] = {};
-        for(const mk of Object.keys(savedResults[w])){
-          mergedResults[w][mk] = normalizeMatch(savedResults[w][mk]);
-        }
-      }
-      mergedResults[1] = {...WEEK1_RESULTS, ...(mergedResults[1]||{})};
-      setLeague(prev=>({
-        ...prev,
-        handicaps: {...DEFAULT_HCP, ...(p.handicaps||{})},
-        results: mergedResults,
-      }));
-      setFbStatus("loaded");
-    }).catch((err)=>{
+    LEAGUE_DOC.get().then(applySnapshot).catch((err)=>{
       console.warn("Firebase load error:", err);
       setFbStatus("error:"+(err.code||err.message||String(err)));
     });
   };
 
-  useEffect(()=>{ loadFromFirebase(); },[]);
+  useEffect(()=>{
+    // Initial load
+    loadFromFirebase();
+    // Real-time listener for other users' updates
+    const unsub = LEAGUE_DOC.onSnapshot((snap)=>{
+      const msSinceSave = Date.now() - lastSaveTime.current;
+      if(msSinceSave < 8000) return; // ignore our own echo
+      applySnapshot(snap);
+    }, (err)=>console.warn("Snapshot error:", err));
+    return ()=>unsub();
+  },[]);
 
   async function saveLeague(next){
     setLeague(next);
@@ -1260,7 +1272,7 @@ Use 0 for missing/unreadable scores.`;
           <div>
             <div style={{fontFamily:FD,fontSize:"20px",color:"#0f2a14",letterSpacing:"0.02em",fontWeight:700}}>PVGC 2026 League</div>
             <div style={{fontSize:"11px",color:"#3a5a3a",marginTop:"1px",letterSpacing:"0.1em",textTransform:"uppercase",fontWeight:500}}>
-              Pickering Valley · 18 Teams · Stableford · <span style={{color:GOLD}}>v2.3</span>
+              Pickering Valley · 18 Teams · Stableford · <span style={{color:GOLD}}>v2.4</span>
             </div>
           </div>
           {!confirmReset ? (
