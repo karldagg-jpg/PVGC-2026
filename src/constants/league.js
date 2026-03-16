@@ -80,7 +80,7 @@ const SCHEDULE = buildSchedule();
 
 
 const DEFAULT_HCP = {
-  1:  [6,6],   // Brian Charles (6), Karl Dagg (6)    ← real Week 1
+  1:  [5,4],   // Brian Charles (6), Karl Dagg (6)    ← real Week 1
   2:  [6,10],  // Steve Brosius, Mike Albano
   3:  [6,7],   // Baz Mistry, Sanjay Reddy
   4:  [9,11],  // Scot Pineno, Scott MacKenzie
