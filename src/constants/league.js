@@ -85,11 +85,11 @@ const DEFAULT_HCP = {
   3:  [6,7],   // Baz Mistry, Sanjay Reddy
   4:  [9,11],  // Scot Pineno, Scott MacKenzie
   5:  [2,6],   // Jack Carickhoff (2), Tracy Schantz (6)
-  6:  [3,0],   // Jacob Deshaies (3), Mark Adler (new member — no prior HCP)
+  6:  [13,0],   // Scott Glascott (13), Mark Adler (new member — no prior HCP)
   7:  [10,9],  // John Harvey, Jeff Rowles
   8:  [8,10],  // Bob Saenz, Dennis Huston
   9:  [7,0],   // Chris Fahey (7), Berry Wzorek (TBD — update when known)
-  10: [7,4],   // Tom Mulvey (7), Chris Nelson (4)    ← real Week 1
+  10: [5,3],   // Tom Mulvey (7), Chris Nelson (4)    ← real Week 1
   11: [11,16], // Jack West, Ron Herman
   12: [13,3],  // Gabe Lorenz, Jake Huckestein
   13: [16,11], // Betsy Wagner, Gordon Hammond
