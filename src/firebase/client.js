@@ -1,5 +1,6 @@
 import firebase from "firebase/compat/app";
 import "firebase/compat/firestore";
+import { SEASON_YEAR } from "../constants/league";
 
 const firebaseConfig = {
   apiKey: "AIzaSyA0ubEbHoYbfCSjfNxHUkt_fr_6WMb3t5Y",
@@ -15,6 +16,7 @@ if (!firebase.apps.length) {
 }
 
 const db = firebase.firestore();
-const LEAGUE_DOC = db.collection("pvgc").doc("league-2026");
+const LEAGUE_DOC_ID = `league-${SEASON_YEAR}`;
+const LEAGUE_DOC = db.collection("pvgc").doc(LEAGUE_DOC_ID);
 
-export { firebase, db, LEAGUE_DOC };
+export { firebase, db, LEAGUE_DOC, LEAGUE_DOC_ID };
