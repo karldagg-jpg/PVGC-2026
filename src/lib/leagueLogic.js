@@ -68,7 +68,7 @@ function getFinalPairs(seeds, results) {
   return {championship:[w[0],w[1]], thirdPlace:[l[0],l[1]]};
 }
 
-function getOpponent(teamId, week, dynamicPairs=null) {
+function getOpponent(teamId, week, dynamicPairs=null, schedule=SCHEDULE) {
   if(dynamicPairs) {
     for(const [a,b] of dynamicPairs) {
       if(a===teamId) return b;
@@ -76,7 +76,7 @@ function getOpponent(teamId, week, dynamicPairs=null) {
     }
     return null;
   }
-  const w = SCHEDULE[week];
+  const w = schedule[week];
   if (!w?.pairs) return null;
   for (const [a,b] of w.pairs) {
     if (a===teamId) return b;
@@ -124,6 +124,7 @@ function computeTeamTotal(rec, tIdx, tid, handicaps) {
   for (let pi=0; pi<2; pi++) {
     const type = (types||[])[pi]||"normal";
     if (type==="sub") { total+=6; continue; }
+    if (type==="phantom") { total+=2; continue; }
     for (let hi=0; hi<9; hi++) {
       const effHi = (rec.rainout && hi>=rec.holesPlayed && RAINOUT_SUB[hi]!==undefined) ? RAINOUT_SUB[hi] : hi;
       const gross = (scores||[[],[]])[pi]?.[effHi]||0;
@@ -141,6 +142,7 @@ function computePlayerTotal(rec, tIdx, pi, tid, handicaps) {
   const scores = tIdx===0 ? rec.t1scores : rec.t2scores;
   const type = (types||[])[pi]||"normal";
   if (type==="sub") return 6;
+  if (type==="phantom") return 2;
   let total = 0;
   const snap = rec.hcpSnapshot;
   for (let hi=0; hi<9; hi++) {
@@ -155,8 +157,8 @@ function computePlayerTotal(rec, tIdx, pi, tid, handicaps) {
 
 // ── Bonus points: rank all 9 team totals in a week ─────────────
 // Returns {teamId: bonusPts} — only if ALL 9 matches scored
-function calcWeekBonus(week, results, handicaps) {
-  const w = SCHEDULE[week];
+function calcWeekBonus(week, results, handicaps, schedule=SCHEDULE) {
+  const w = schedule[week];
   if (!w?.pairs?.length) return null;
   const totals = [];
   for (const [ta,tb] of w.pairs) {
@@ -170,38 +172,52 @@ function calcWeekBonus(week, results, handicaps) {
   // Sort descending by total
   totals.sort((a,b)=>b.total-a.total);
   const bonus = {};
-  // 8/6/4/2 for pairs: rank 1-2 get 8, 3-4 get 6, 5-6 get 4, 7-8 get 2, 9-10 (if tie) also 2
-  // Handle ties: if teams tie, they share the same bracket
-  const pts = [8,8,6,6,4,4,2,2,2,2];
-  // Group tied teams at same bonus level
-  let i=0;
+  const bucketPts = [8, 6, 4, 2];
+  let bucketIdx = 0;
+  let groupsInBucket = 0;
+  let i = 0;
+
+  // Award by score groups (distinct totals): top 2 groups get 8, next 2 groups get 6, etc.
   while (i < totals.length) {
-    let j=i;
-    while (j<totals.length && totals[j].total===totals[i].total) j++;
-    // teams i..j-1 are tied — average their bonus levels
-    const avgPts = pts.slice(i,j).reduce((s,p)=>s+p,0)/(j-i);
-    for (let k=i;k<j;k++) bonus[totals[k].tid] = Math.round(avgPts);
-    i=j;
+    let j = i + 1;
+    while (j < totals.length && totals[j].total === totals[i].total) j++;
+    const pts = bucketIdx < bucketPts.length ? bucketPts[bucketIdx] : 0;
+    for (let k = i; k < j; k++) bonus[totals[k].tid] = pts;
+    groupsInBucket++;
+    if (groupsInBucket === 2) {
+      groupsInBucket = 0;
+      bucketIdx++;
+    }
+    i = j;
   }
   return bonus;
 }
 
 // ── Full league stats ──────────────────────────────────────────
-function calcLeagueStats(results, handicaps, maxWeek=17) {
+function calcLeagueStats(results, handicaps, maxWeek=17, schedule=SCHEDULE, allPlayers=ALL_PLAYERS, teams=TEAMS) {
   // Team stats: matchPts, bonusPts, totalPts, stab, wins, losses, ties, played
   const teamStats = {};
   for (let t=1;t<=18;t++) teamStats[t] = {matchPts:0,bonusPts:0,totalPts:0,stab:0,wins:0,losses:0,ties:0,played:0};
 
   // Player stats: rounds[], total (drop 3 lowest at end)
   const playerStats = {};
-  ALL_PLAYERS.forEach(p => { playerStats[`${p.tid}-${p.pi}`] = {rounds:[],name:p.name,team:TEAMS[p.tid]?.name,tid:p.tid,pi:p.pi}; });
+  allPlayers.forEach(p => {
+    playerStats[`${p.tid}-${p.pi}`] = {
+      rounds: [],
+      name: p.name,
+      team: teams[p.tid]?.name || p.team,
+      tid: p.tid,
+      pi: p.pi,
+      playerId: p.playerId,
+    };
+  });
 
   for (let w=1; w<=maxWeek; w++) {
-    const week = SCHEDULE[w];
+    const week = schedule[w];
     if (!week?.pairs?.length) continue;
 
     // Bonus pts for week (null if not all scored)
-    const bonus = calcWeekBonus(w, results, handicaps);
+    const bonus = calcWeekBonus(w, results, handicaps, schedule);
 
     for (const pair of week.pairs) {
       if (!Array.isArray(pair)) continue;
@@ -234,8 +250,8 @@ function calcLeagueStats(results, handicaps, maxWeek=17) {
         else            { teamStats[tlow].matchPts+=1; teamStats[thigh].matchPts+=1; }
       }
       // Team match result (4 for win, 2 each for tie)
-      if (winsA>winsB)      { teamStats[tlow].matchPts+=4;  teamStats[tlow].wins++;  teamStats[thigh].losses++; }
-      else if (winsB>winsA) { teamStats[thigh].matchPts+=4; teamStats[thigh].wins++; teamStats[tlow].losses++; }
+      if (totA>totB)      { teamStats[tlow].matchPts+=4;  teamStats[tlow].wins++;  teamStats[thigh].losses++; }
+      else if (totB>totA) { teamStats[thigh].matchPts+=4; teamStats[thigh].wins++; teamStats[tlow].losses++; }
       else                  { teamStats[tlow].matchPts+=2;  teamStats[thigh].matchPts+=2; teamStats[tlow].ties++; teamStats[thigh].ties++; }
 
       // Bonus pts
@@ -275,10 +291,10 @@ function calcLeagueStats(results, handicaps, maxWeek=17) {
   for (let w=1;w<=17;w++) {
     let best = -Infinity;
     let winners = [];
-    ALL_PLAYERS.forEach(p => {
-      const key = matchKey(w, p.tid, getOpponent(p.tid,w)||0);
+    allPlayers.forEach(p => {
+      const key = matchKey(w, p.tid, getOpponent(p.tid,w,null,schedule)||0);
       // Find which tIdx this player is
-      const opp = getOpponent(p.tid, w);
+      const opp = getOpponent(p.tid, w, null, schedule);
       if (!opp) return;
       const [tlow,thigh] = p.tid<opp?[p.tid,opp]:[opp,p.tid];
       const tIdx = p.tid===tlow?0:1;
@@ -341,7 +357,7 @@ function calcAutoHcp(grossRounds, startHcp, isNew) {
 
 // Build per-player gross round history from all saved results up to (not including) a given week.
 // Returns: { [tid]: [p1_grosses[], p2_grosses[]] }
-function buildGrossHistory(results, upToWeek) {
+function buildGrossHistory(results, upToWeek, defaultHcp=DEFAULT_HCP) {
   const history = {};
   for (let t = 1; t <= 18; t++) history[t] = [[], []];
 
@@ -356,20 +372,13 @@ function buildGrossHistory(results, upToWeek) {
 
       [[tlow, rec.t1scores, rec.t1types], [thigh, rec.t2scores, rec.t2types]].forEach(([tid, scores, types]) => {
         if (!scores || !history[tid]) return;
-        // scores[0] = Low HCP player, scores[1] = High HCP player
-        // We need to map back to p1/p2 order using starting handicaps
-        const [h0,h1] = (DEFAULT_HCP[tid]||[0,0]);
-        const lowPi = h0 <= h1 ? 0 : 1;
-        const highPi = 1 - lowPi;
-        [[0, lowPi], [1, highPi]].forEach(([scoreIdx, pi]) => {
-          const type = (types || [])[scoreIdx] || 'normal';
+        [0,1].forEach((pi) => {
+          const type = (types || [])[pi] || 'normal';
           if (type !== 'normal') return; // skip subs/phantoms
-          // Sum gross with per-hole cap (net double bogey max) using player's handicap
-          const hcp = (DEFAULT_HCP[tid]||[0,0])[pi] || 0;
-          const gross = (scores[scoreIdx] || []).reduce((s, g, hi) => {
+          // Handicap history uses raw gross totals (not Stableford-capped gross).
+          const gross = (scores[pi] || []).reduce((s, g, hi) => {
             if (!g) return s;
-            const strokes = hcpStr(hcp, SI[hi]);
-            return s + Math.min(g, maxGross(PAR[hi], strokes));
+            return s + g;
           }, 0);
           if (gross > 0) history[tid][pi].push(gross);
         });
@@ -383,21 +392,21 @@ function buildGrossHistory(results, upToWeek) {
 // Returns: { [tid]: [p1hcp, p2hcp] } — same shape as league.handicaps
 // Get effective handicap for a player at a given week
 // Priority: match hcpSnapshot > hcpOverrides > auto-calc > current handicap
-function getEffectiveHcp(tid, pi, week, results, handicaps, hcpOverrides) {
+function getEffectiveHcp(tid, pi, week, results, handicaps, hcpOverrides, defaultHcp=DEFAULT_HCP, newMemberFn=isNewMember) {
   const overrideKey = `${tid}-${pi}-${week}`;
   if (hcpOverrides && hcpOverrides[overrideKey] !== undefined) return hcpOverrides[overrideKey];
-  const history = buildGrossHistory(results, week);
-  const startHcp = (DEFAULT_HCP[tid]||[0,0])[pi];
-  return calcAutoHcp(history[tid][pi], startHcp, isNewMember(tid, pi));
+  const history = buildGrossHistory(results, week, defaultHcp);
+  const startHcp = (defaultHcp[tid]||[0,0])[pi];
+  return calcAutoHcp(history[tid][pi], startHcp, newMemberFn(tid, pi));
 }
 
-function calcSuggestedHcps(results, currentWeek) {
-  const history = buildGrossHistory(results, currentWeek);
+function calcSuggestedHcps(results, currentWeek, defaultHcp=DEFAULT_HCP, newMemberFn=isNewMember) {
+  const history = buildGrossHistory(results, currentWeek, defaultHcp);
   const suggested = {};
   for (let t = 1; t <= 18; t++) {
-    const startHcps = DEFAULT_HCP[t] || [0, 0];
+    const startHcps = defaultHcp[t] || [0, 0];
     suggested[t] = [0, 1].map(pi =>
-      calcAutoHcp(history[t][pi], startHcps[pi], isNewMember(t, pi))
+      calcAutoHcp(history[t][pi], startHcps[pi], newMemberFn(t, pi))
     );
   }
   return suggested;
