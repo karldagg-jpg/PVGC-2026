@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
-import { LEAGUE_DOC } from "./firebase/client";
+import { LEAGUE_DOC, LEAGUE_DOC_ID } from "./firebase/client";
 import {
   PAR,
   RAINOUT_SUB,
   TEAMS,
   DEFAULT_HCP,
+  AVAILABLE_SEASONS,
+  SEASON_YEAR,
+  setSeasonYear,
 } from "./constants/league";
 import { G, R, M, BG, CREAM, GOLD, FD, FB } from "./constants/theme";
 import { NavBtn } from "./components/ui";
@@ -27,6 +30,7 @@ import {
   initLeague,
   initMatch,
 } from "./lib/leagueLogic";
+import { encodeResults, applySnapshotToLeague } from "./lib/persistence";
 
 function App() {
   const [screen,  setScreen]  = useState("schedule");
@@ -56,45 +60,21 @@ function App() {
   const [entryScores, setEntryScores] = useState({});
   const [entrySaved, setEntrySaved] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [seasonYear] = useState(SEASON_YEAR);
+
+  function changeSeason(year) {
+    if (!setSeasonYear(year)) return;
+    window.location.reload();
+  }
 
   // ── Firebase sync ────────────────────────────────────────────
   const lastSaveTime = useRef(0);
   const [fbStatus, setFbStatus] = useState("connecting");
 
-  const normalizeMatch = (raw) => {
-    if (!raw) return raw;
-    let rec = raw;
-    if (typeof raw === 'string') { try { rec = JSON.parse(raw); } catch(e) { return raw; } }
-    const norm = {...rec};
-    const normScores = (s) => {
-      if (Array.isArray(s)) return s;
-      if (s && typeof s === 'object' && s.p0 !== undefined) return [s.p0||[], s.p1||[]];
-      return [[],[]];
-    };
-    norm.t1scores = normScores(rec.t1scores);
-    norm.t2scores = normScores(rec.t2scores);
-    return norm;
-  };
-
   const applySnapshot = (snap) => {
     if(!snap.exists){ setFbStatus("loaded"); return; }
     const p = snap.data();
-    const savedResults = p.results||{};
-    const mergedResults = {};
-    for(const w of Object.keys(savedResults)){
-      if (typeof savedResults[w] !== 'object' || savedResults[w] === null) continue;
-      mergedResults[w] = {};
-      for(const mk of Object.keys(savedResults[w])){
-        mergedResults[w][mk] = normalizeMatch(savedResults[w][mk]);
-      }
-    }
-    mergedResults[1] = mergedResults[1]||{};
-    setLeague(prev=>({
-      ...prev,
-      handicaps: {...DEFAULT_HCP, ...(p.handicaps||{})},
-      results: mergedResults,
-      hcpOverrides: p.hcpOverrides||{},
-    }));
+    setLeague(prev => applySnapshotToLeague(prev, p, DEFAULT_HCP));
     setFbStatus("loaded");
   };
 
@@ -123,13 +103,7 @@ function App() {
     lastSaveTime.current = Date.now();
     try{
       // Store each match as a JSON string — avoids all Firestore nested array restrictions
-      const encodedResults = {};
-      for(const w of Object.keys(next.results)){
-        encodedResults[w] = {};
-        for(const mk of Object.keys(next.results[w]||{})){
-          encodedResults[w][mk] = JSON.stringify(next.results[w][mk]);
-        }
-      }
+      const encodedResults = encodeResults(next.results);
       // Use set() with merge — works on empty or existing docs
       await LEAGUE_DOC.set({
         handicaps: next.handicaps,
@@ -341,10 +315,23 @@ Use 0 for missing/unreadable scores.`;
         boxShadow:"0 3px 10px rgba(26,61,36,0.12)"}}>
         <div style={{display:"flex",alignItems:"center",gap:"13px",paddingBottom:"12px"}}>
           <div>
-            <div style={{fontFamily:FD,fontSize:"20px",color:"#0f2a14",letterSpacing:"0.02em",fontWeight:700}}>PVGC 2026 League</div>
+            <div style={{fontFamily:FD,fontSize:"20px",color:"#0f2a14",letterSpacing:"0.02em",fontWeight:700}}>PVGC {seasonYear} League</div>
             <div style={{fontSize:"11px",color:"#3a5a3a",marginTop:"1px",letterSpacing:"0.1em",textTransform:"uppercase",fontWeight:500}}>
-              Pickering Valley · 18 Teams · Stableford · <span style={{color:GOLD}}>v3.7</span>
+              Pickering Valley · 18 Teams · Stableford · <span style={{color:GOLD}}>v3.7</span> · <span style={{color:"#2f5a3a"}}>{LEAGUE_DOC_ID}</span>
             </div>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:"6px"}}>
+            <span style={{fontSize:"11px",color:"#3a5a3a",letterSpacing:"0.08em",textTransform:"uppercase"}}>Season</span>
+            <select
+              value={seasonYear}
+              onChange={(e)=>changeSeason(parseInt(e.target.value, 10))}
+              style={{
+                background:"rgba(255,255,255,0.95)", border:`1px solid ${GOLD}44`,
+                borderRadius:"7px", color:"#0f2a14", fontFamily:FB, fontSize:"13px",
+                padding:"4px 8px", cursor:"pointer", outline:"none"
+              }}>
+              {AVAILABLE_SEASONS.map((y)=><option key={y} value={y}>{y}</option>)}
+            </select>
           </div>
           {!confirmReset ? (
             <button onClick={()=>setConfirmReset(true)}
