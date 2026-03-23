@@ -1,16 +1,16 @@
 import React, { useRef, useState } from "react";
-import { TEAMS, PAR, SI, SCHEDULE } from "../constants/league";
-import { getOpponent, matchKey, initMatch, stabPts, hcpStr, maxGross } from "../lib/leagueLogic";
+import { TEAMS, PAR, SI, SCHEDULE, HCP_PCT } from "../constants/league";
+import { getOpponent, matchKey, initMatch, stabPts, hcpStr, maxGross, getEffectiveHcp, getEffectiveHcpRaw } from "../lib/leagueLogic";
 import { fmtDate } from "../lib/format";
 import { G, GO, R, M, CREAM, GOLD, FB, FD } from "../constants/theme";
 import { Tag } from "./ui";
 
 function EntryTab({league, saveLeague, entryWeek, setEntryWeek, entryTeam, setEntryTeam,
                    entryScores, setEntryScores, entrySaved, setEntrySaved,
-                   userName, setUserName,
-                   knockdownPairs, qfPairs, sfPairs, finalPairs}) {
+                   knockdownPairs, qfPairs, sfPairs, finalPairs,
+                   cancelledWeeks, toggleCancelWeek}) {
   const cellRefs = useRef({});
-  const [showNamePrompt, setShowNamePrompt] = useState(false);
+  const [draftTypes, setDraftTypes] = useState({});
 
   const entDynPairs = entryWeek===18?(knockdownPairs||null):entryWeek===19?(qfPairs||null):entryWeek===20?(sfPairs||null):entryWeek===21?(finalPairs?[finalPairs.championship,finalPairs.thirdPlace]:null):null;
   const entOpp = getOpponent(entryTeam, entryWeek, entDynPairs);
@@ -20,8 +20,25 @@ function EntryTab({league, saveLeague, entryWeek, setEntryWeek, entryTeam, setEn
   const savedRec = mk ? league.results[entryWeek]?.[mk] : null;
 
   const getOrd = (tid) => {
-    const [h0,h1] = (league.handicaps[tid]||[0,0]);
-    return h0 <= h1 ? [0,1] : [1,0];
+    const loHiKey = `${tid}-${entryWeek}`;
+    const loHiOv = (league.loHiOverrides || {})[loHiKey];
+    if (loHiOv !== undefined) return loHiOv === 0 ? [0,1] : [1,0];
+    const r0 = getEffectiveHcpRaw(tid, 0, entryWeek, league.results, league.handicaps, league.hcpOverrides||{});
+    const r1 = getEffectiveHcpRaw(tid, 1, entryWeek, league.results, league.handicaps, league.hcpOverrides||{});
+    return r0 <= r1 ? [0,1] : [1,0];
+  };
+
+  const toggleLoHi = (tid) => {
+    const loHiKey = `${tid}-${entryWeek}`;
+    const overrides = league.loHiOverrides || {};
+    const next = { ...league, loHiOverrides: { ...overrides } };
+    if (overrides[loHiKey] !== undefined) {
+      delete next.loHiOverrides[loHiKey];
+    } else {
+      const [naturalLow] = getOrd(tid);
+      next.loHiOverrides[loHiKey] = naturalLow === 0 ? 1 : 0;
+    }
+    saveLeague(next);
   };
 
   const players = entT1id && entT2id ? (()=>{
@@ -74,6 +91,30 @@ function EntryTab({league, saveLeague, entryWeek, setEntryWeek, entryTeam, setEn
     setEntrySaved(false);
   };
 
+  const getEntryType = (tIdx, pi) => {
+    const draft = draftTypes[draftKey];
+    if (draft) return draft[tIdx][pi] || "normal";
+    if (!savedRec) return "normal";
+    const types = tIdx === 0
+      ? (entT1id < entT2id ? savedRec.t1types : savedRec.t2types)
+      : (entT1id < entT2id ? savedRec.t2types : savedRec.t1types);
+    return types?.[pi] || "normal";
+  };
+
+  const setEntryType = (tIdx, pi, val) => {
+    setDraftTypes(prev => {
+      const cur = prev[draftKey] || { 0: ["normal","normal"], 1: ["normal","normal"] };
+      return { ...prev, [draftKey]: { ...cur, [tIdx]: cur[tIdx].map((v,i) => i===pi ? val : v) } };
+    });
+    if (val === "phantom" || val === "sub") {
+      setEntryScores(prev => {
+        const cur = prev[draftKey] || initDraft();
+        return { ...prev, [draftKey]: { ...cur, [tIdx]: cur[tIdx].map((row,i) => i===pi ? Array(9).fill(0) : [...row]) } };
+      });
+    }
+    setEntrySaved(false);
+  };
+
   const saveEntry = async () => {
     if (!mk || !entT1id || !entT2id) return;
     const draft = entryScores[draftKey] || initDraft();
@@ -83,22 +124,25 @@ function EntryTab({league, saveLeague, entryWeek, setEntryWeek, entryTeam, setEn
     const existing = savedRec || {};
     const [tlow, thigh] = entT1id < entT2id ? [entT1id, entT2id] : [entT2id, entT1id];
     const hcpSnapshot = {
-      [tlow]: [...(league.handicaps[tlow]||[0,0])],
-      [thigh]: [...(league.handicaps[thigh]||[0,0])],
+      [tlow]: [0,1].map(pi => getEffectiveHcp(tlow, pi, entryWeek, league.results, league.handicaps, league.hcpOverrides||{})),
+      [thigh]: [0,1].map(pi => getEffectiveHcp(thigh, pi, entryWeek, league.results, league.handicaps, league.hcpOverrides||{})),
     };
+    const dt = draftTypes[draftKey];
+    const t1types_draft = isSwapped ? (dt?.[1] || existing.t2types || ["normal","normal"]) : (dt?.[0] || existing.t1types || ["normal","normal"]);
+    const t2types_draft = isSwapped ? (dt?.[0] || existing.t2types || ["normal","normal"]) : (dt?.[1] || existing.t2types || ["normal","normal"]);
     const toSave = {
       ...initMatch(), ...existing,
       t1scores: t1s, t2scores: t2s,
-      t1types: existing.t1types || ["normal","normal"],
-      t2types: existing.t2types || ["normal","normal"],
+      t1types: t1types_draft,
+      t2types: t2types_draft,
       hcpSnapshot,
-      updatedBy: userName || "scorer",
       updatedAt: new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}),
     };
     const next = {...league, results: {...league.results,
       [entryWeek]: {...league.results[entryWeek], [mk]: toSave}}};
     await saveLeague(next);
     setEntryScores(prev => { const n={...prev}; delete n[draftKey]; return n; });
+    setDraftTypes(prev => { const n={...prev}; delete n[draftKey]; return n; });
     setEntrySaved(true);
     setTimeout(() => setEntrySaved(false), 2500);
   };
@@ -108,13 +152,15 @@ function EntryTab({league, saveLeague, entryWeek, setEntryWeek, entryTeam, setEn
     if (el) { el.focus(); el.select(); }
   };
   const handleKeyDown = (e, row, col) => {
-    if (e.key === "Tab" || e.key === "Enter") {
+    if (e.key === "ArrowRight" || e.key === "Tab" && !e.shiftKey || e.key === "Enter") {
       e.preventDefault();
       if (col < 8) focusCell(row, col+1);
       else if (row < 3) focusCell(row+1, 0);
-    } else if (e.key === "ArrowRight") { e.preventDefault(); focusCell(row, Math.min(8,col+1)); }
-    else if (e.key === "ArrowLeft")  { e.preventDefault(); focusCell(row, Math.max(0,col-1)); }
-    else if (e.key === "ArrowDown")  { e.preventDefault(); focusCell(Math.min(3,row+1), col); }
+    } else if (e.key === "ArrowLeft" || e.key === "Tab" && e.shiftKey) {
+      e.preventDefault();
+      if (col > 0) focusCell(row, col-1);
+      else if (row > 0) focusCell(row-1, 8);
+    } else if (e.key === "ArrowDown") { e.preventDefault(); focusCell(Math.min(3,row+1), col); }
     else if (e.key === "ArrowUp")    { e.preventDefault(); focusCell(Math.max(0,row-1), col); }
   };
 
@@ -127,33 +173,8 @@ function EntryTab({league, saveLeague, entryWeek, setEntryWeek, entryTeam, setEn
   return (
     <div style={{maxWidth:"860px",margin:"0 auto",padding:"20px 14px"}}>
 
-      {/* Title + scorer name */}
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"18px"}}>
-        <div style={{fontFamily:FD,fontSize:"30px",fontWeight:700,color:CREAM}}>Score Entry</div>
-        <button onClick={()=>setShowNamePrompt(v=>!v)}
-          style={{padding:"9px 16px",background:userName?G+"18":"#fff",
-            border:`2px solid ${G}`,borderRadius:"8px",color:G,
-            fontFamily:FB,fontSize:"14px",fontWeight:600,cursor:"pointer"}}>
-          {userName ? `✎ ${userName}` : "Set Your Name"}
-        </button>
-      </div>
-
-      {/* Name prompt */}
-      {showNamePrompt&&(
-        <div style={{background:"#fff",border:`2px solid ${G}`,borderRadius:"12px",
-          padding:"16px",marginBottom:"16px",display:"flex",gap:"13px",flexWrap:"wrap",alignItems:"center"}}>
-          <span style={{fontSize:"15px",color:CREAM,fontWeight:500}}>Your name:</span>
-          <input type="text" placeholder="e.g. Karl Dagg" defaultValue={userName}
-            onKeyDown={e=>{if(e.key==="Enter"){const v=e.target.value.trim();setUserName(v);localStorage.setItem("pvgc_user",v);setShowNamePrompt(false);}}}
-            style={{flex:1,minWidth:"160px",background:"#f8f8f4",border:`2px solid ${G}66`,
-              borderRadius:"8px",color:CREAM,fontFamily:FB,fontSize:"16px",padding:"10px 12px",outline:"none"}}
-            autoFocus
-          />
-          <button onClick={e=>{const v=e.target.closest("div").querySelector("input").value.trim();setUserName(v);localStorage.setItem("pvgc_user",v);setShowNamePrompt(false);}}
-            style={{padding:"10px 20px",background:G,border:"none",borderRadius:"8px",
-              color:"#fff",fontFamily:FB,fontSize:"15px",fontWeight:700,cursor:"pointer"}}>Save</button>
-        </div>
-      )}
+      {/* Title */}
+      <div style={{fontFamily:FD,fontSize:"30px",fontWeight:700,color:CREAM,marginBottom:"18px"}}>Score Entry</div>
 
       {/* Week + Team selectors */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px",marginBottom:"14px"}}>
@@ -161,7 +182,7 @@ function EntryTab({league, saveLeague, entryWeek, setEntryWeek, entryTeam, setEn
           <div style={LBL}>Week</div>
           <select value={entryWeek} onChange={e=>{setEntryWeek(parseInt(e.target.value));setEntrySaved(false);}} style={SEL}>
             {Array.from({length:21},(_,i)=>i+1).map(w=>(
-              <option key={w} value={w}>Week {w} — {fmtDate(SCHEDULE[w]?.date)}</option>
+              <option key={w} value={w}>Week {w}{cancelledWeeks?.has(w) ? " ⛈" : ""} — {fmtDate(SCHEDULE[w]?.date)}</option>
             ))}
           </select>
         </div>
@@ -175,31 +196,82 @@ function EntryTab({league, saveLeague, entryWeek, setEntryWeek, entryTeam, setEn
         </div>
       </div>
 
-      {/* Opponent banner */}
-      {entOpp
-        ? <div style={{background:"#fff",border:`2px solid ${G}`,borderRadius:"13px",
-            padding:"12px 16px",marginBottom:"16px",display:"flex",alignItems:"center",gap:"12px",flexWrap:"wrap"}}>
-            <span style={{fontSize:"15px",color:M}}>vs</span>
-            <span style={{fontSize:"18px",fontWeight:700,color:G}}>{TEAMS[entOpp]?.name}</span>
-            <span style={{fontSize:"14px",color:M}}>Team {entOpp}</span>
-            {savedRec?.updatedBy&&(
-              <span style={{marginLeft:"auto",fontSize:"13px",color:GOLD,fontWeight:500}}>
-                ✎ last saved by {savedRec.updatedBy}{savedRec.updatedAt?" at "+savedRec.updatedAt:""}
-              </span>
+      {/* Cancel Week button + cancelled banner */}
+      {(() => {
+        const isCancelled = cancelledWeeks?.has(entryWeek);
+        return (
+          <div style={{marginBottom:"14px"}}>
+            {isCancelled ? (
+              <div style={{background:"#fff3cd",border:"2px solid #e6a817",borderRadius:"13px",
+                padding:"14px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:"12px"}}>
+                <div>
+                  <div style={{fontWeight:700,color:"#7a4f00",fontSize:"15px"}}>⛈ Week {entryWeek} — Cancelled</div>
+                  <div style={{color:"#8a6000",fontSize:"13px",marginTop:"2px"}}>No points awarded. Scores move to the following week.</div>
+                </div>
+                <button onClick={()=>toggleCancelWeek?.(entryWeek)}
+                  style={{padding:"8px 16px",background:"#fff",border:"2px solid #e6a817",borderRadius:"8px",
+                    color:"#7a4f00",fontFamily:FB,fontSize:"13px",fontWeight:600,cursor:"pointer",whiteSpace:"nowrap"}}>
+                  Restore Week
+                </button>
+              </div>
+            ) : (
+              <div style={{display:"flex",justifyContent:"flex-end"}}>
+                <button onClick={()=>toggleCancelWeek?.(entryWeek)}
+                  style={{padding:"7px 16px",background:"transparent",border:`1px solid ${GOLD}55`,borderRadius:"8px",
+                    color:M,fontFamily:FB,fontSize:"12px",fontWeight:600,cursor:"pointer",letterSpacing:"0.06em",
+                    textTransform:"uppercase"}}>
+                  ⛈ Cancel Week
+                </button>
+              </div>
             )}
           </div>
-        : <div style={{background:"#fff3f3",border:`2px solid ${R}55`,borderRadius:"13px",
-            padding:"12px 16px",marginBottom:"16px",fontSize:"16px",color:R,fontWeight:600}}>
-            No match scheduled for Week {entryWeek}
-          </div>
-      }
+        );
+      })()}
 
-      {entOpp&&(<>
+      {/* Opponent banner — hidden when week is cancelled */}
+      {!cancelledWeeks?.has(entryWeek) && (
+        entOpp
+          ? <div style={{background:"#fff",border:`2px solid ${G}`,borderRadius:"13px",
+              padding:"12px 16px",marginBottom:"16px",display:"flex",alignItems:"center",gap:"12px",flexWrap:"wrap"}}>
+              <span style={{fontSize:"15px",color:M}}>vs</span>
+              <span style={{fontSize:"18px",fontWeight:700,color:G}}>{TEAMS[entOpp]?.name}</span>
+              <span style={{fontSize:"14px",color:M}}>Team {entOpp}</span>
+              {savedRec?.updatedAt&&(
+                <span style={{marginLeft:"auto",fontSize:"13px",color:GOLD,fontWeight:500}}>
+                  ✎ last saved {savedRec.updatedAt}
+                </span>
+              )}
+            </div>
+          : <div style={{background:"#fff3f3",border:`2px solid ${R}55`,borderRadius:"13px",
+              padding:"12px 16px",marginBottom:"16px",fontSize:"16px",color:R,fontWeight:600}}>
+              No match scheduled for Week {entryWeek}
+            </div>
+      )}
+
+      {entOpp && !cancelledWeeks?.has(entryWeek) && (<>
         {/* One card per player */}
         {players.map((p, rowIdx) => {
           const pname = TEAMS[p.tid]?.[p.pi===0?"p1":"p2"] || "";
-          const hcp = (league.handicaps[p.tid]||[0,0])[p.pi] || 0;
+          const hcp = getEffectiveHcp(p.tid, p.pi, entryWeek, league.results, league.handicaps, league.hcpOverrides||{});
           const teamColor = p.tIdx===0 ? G : GO;
+          const ptype = getEntryType(p.tIdx, p.pi);
+          const roundCount = (() => {
+            let c = 0;
+            for (let w = 1; w < entryWeek; w++) {
+              for (const [k, rec] of Object.entries(league.results[w] || {})) {
+                if (!rec || rec.rainout || rec.w1stab) continue;
+                const [, tlow, thigh] = k.split('-').map(Number);
+                if (tlow !== p.tid && thigh !== p.tid) continue;
+                const tIdx = p.tid === tlow ? 0 : 1;
+                const scores = (tIdx === 0 ? rec.t1scores : rec.t2scores) || [];
+                const types = (tIdx === 0 ? rec.t1types : rec.t2types) || [];
+                if ((types[p.pi] || 'normal') !== 'normal') continue;
+                if ((scores[p.pi] || []).reduce((s, g) => s + (g||0), 0) > 0) c++;
+              }
+            }
+            return c;
+          })();
+          const hcpPct = roundCount <= 0 ? null : Math.round((roundCount <= 4 ? (HCP_PCT[roundCount] || 0) : 0.90) * 100);
           let grossTotal=0, stabTotal=0;
           const holes = Array(9).fill(0).map((_,hi)=>{
             const gross=getEntry(p.tIdx,p.pi,hi);
@@ -215,13 +287,39 @@ function EntryTab({league, saveLeague, entryWeek, setEntryWeek, entryTeam, setEn
               <div style={{background:teamColor+"20",padding:"12px 16px",
                 display:"flex",alignItems:"center",justifyContent:"space-between",
                 borderBottom:`2px solid ${teamColor}44`}}>
-                <div style={{display:"flex",alignItems:"center",gap:"13px"}}>
+                <div style={{display:"flex",alignItems:"center",gap:"10px",flex:1,minWidth:0,flexWrap:"wrap"}}>
                   <div style={{width:"12px",height:"12px",borderRadius:"50%",background:teamColor,flexShrink:0}}/>
                   <span style={{fontSize:"18px",fontWeight:700,color:"#1a2e1a"}}>{pname}</span>
-                  <span style={{fontSize:"14px",color:M,fontWeight:500}}>HCP {hcp}</span>
+                  <span style={{fontSize:"13px",color:M,fontWeight:500}}>
+                    HCP {hcp}{hcpPct !== null ? <span style={{color:M,fontWeight:400}}> · {hcpPct}%</span> : ""}
+                  </span>
+                  <span style={{fontSize:"11px",color:M,fontWeight:600,letterSpacing:"0.04em",textTransform:"uppercase"}}>
+                    {p.label}
+                  </span>
+                  {(rowIdx === 0 || rowIdx === 2) && (() => {
+                    const loHiActive = (league.loHiOverrides||{})[`${p.tid}-${entryWeek}`] !== undefined;
+                    return (
+                      <button onClick={() => toggleLoHi(p.tid)}
+                        title={loHiActive ? "Clear low/high override" : "Swap low/high order"}
+                        style={{padding:"3px 8px",fontSize:"11px",fontWeight:700,fontFamily:FB,
+                          background: loHiActive ? GOLD+"22" : "transparent",
+                          border: `1px solid ${loHiActive ? GOLD : teamColor+"66"}`,
+                          borderRadius:"5px", color: loHiActive ? GOLD : M,
+                          cursor:"pointer", flexShrink:0}}>
+                        {loHiActive ? "⇅ Swapped" : "⇅ Swap"}
+                      </button>
+                    );
+                  })()}
+                  <select value={ptype} onChange={e=>setEntryType(p.tIdx,p.pi,e.target.value)}
+                    style={{background:"#fff",border:`1px solid ${teamColor}66`,borderRadius:"7px",
+                      color:CREAM,fontFamily:FB,fontSize:"13px",padding:"5px 8px",cursor:"pointer",outline:"none",flexShrink:0}}>
+                    <option value="normal">Regular</option>
+                    <option value="sub">Sub</option>
+                    <option value="phantom">Phantom</option>
+                  </select>
                 </div>
-                {grossTotal>0&&(
-                  <div style={{display:"flex",gap:"20px",alignItems:"center"}}>
+                {ptype==="normal"&&grossTotal>0&&(
+                  <div style={{display:"flex",gap:"20px",alignItems:"center",marginLeft:"12px"}}>
                     <div style={{textAlign:"center"}}>
                       <div style={{fontSize:"14px",color:M,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase"}}>Gross</div>
                       <div style={{fontSize:"24px",fontWeight:700,color:CREAM,lineHeight:1.1}}>{grossTotal}</div>
@@ -233,7 +331,12 @@ function EntryTab({league, saveLeague, entryWeek, setEntryWeek, entryTeam, setEn
                   </div>
                 )}
               </div>
-              {/* Hole inputs */}
+              {/* Hole inputs or flat-points display */}
+              {(ptype==="phantom"||ptype==="sub") ? (
+                <div style={{padding:"20px 16px",textAlign:"center",color:ptype==="phantom"?R:GO,fontSize:"16px",fontWeight:600}}>
+                  {ptype==="phantom" ? "Phantom — 2 pts" : "Sub — 6 pts"}
+                </div>
+              ) : (
               <div style={{padding:"12px"}}>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(9,1fr)",gap:"5px",marginBottom:"5px"}}>
                   {PAR.map((par,hi)=>(
@@ -268,15 +371,23 @@ function EntryTab({league, saveLeague, entryWeek, setEntryWeek, entryTeam, setEn
                             MozAppearance:"textfield",appearance:"textfield"}}
                         />
                         {gross>0&&pts!==null&&(
-                          <span style={{fontSize:"12px",fontWeight:700,color:isCapped?GO:ptColor}}>
-                            {isCapped?"max":pts>0?"+"+pts:pts}
-                          </span>
+                          isCapped ? (
+                            <div style={{display:"flex",flexDirection:"column",alignItems:"center",lineHeight:1,gap:"1px"}}>
+                              <span style={{fontSize:"12px",fontWeight:700,color:R}}>Max</span>
+                              <span style={{fontSize:"12px",fontWeight:700,color:R}}>-1</span>
+                            </div>
+                          ) : (
+                            <span style={{fontSize:"12px",fontWeight:700,color:ptColor}}>
+                              {pts>0?"+"+pts:pts}
+                            </span>
+                          )
                         )}
                       </div>
                     );
                   })}
                 </div>
               </div>
+              )}
             </div>
           );
         })}
@@ -289,7 +400,7 @@ function EntryTab({league, saveLeague, entryWeek, setEntryWeek, entryTeam, setEn
             color:entrySaved?"#fff":G,fontFamily:FB,fontSize:"17px",
             letterSpacing:"0.06em",textTransform:"uppercase",cursor:"pointer",
             fontWeight:700,transition:"all 0.2s"}}>
-          {entrySaved ? "✓ Saved!" : userName ? "Save Scores" : "Save Scores (set your name first)"}
+          {entrySaved ? "✓ Saved!" : "Save Scores"}
         </button>
       </>)}
     </div>

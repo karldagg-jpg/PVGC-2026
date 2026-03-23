@@ -7,11 +7,14 @@ import {
   TEAMS,
   DEFAULT_HCP,
   HCP_PCT,
+  HCP_CAP,
+  HCP_ROUNDS,
+  NEW_MEMBER_HCP_PCT,
   isNewMember,
 } from "../constants/league";
 
 function getPlayoffSeeds(results, handicaps) {
-  const {teamStats} = calcLeagueStats(results, handicaps, 17);
+  const {teamStats} = calcLeagueStats(results, handicaps, null, 17);
   return Object.entries(teamStats)
     .map(([id,s])=>({id:parseInt(id),...s}))
     .sort((a,b)=>b.totalPts-a.totalPts||b.stab-a.stab)
@@ -193,8 +196,20 @@ function calcWeekBonus(week, results, handicaps, schedule=SCHEDULE) {
   return bonus;
 }
 
+// Returns true if an entire week was cancelled (all player slots are phantom)
+function isWeekCancelled(weekResults) {
+  if (!weekResults) return false;
+  const recs = Object.values(weekResults);
+  if (!recs.length) return false;
+  return recs.every(rec =>
+    [rec.t1types, rec.t2types].every(types =>
+      [0, 1].every(pi => (types || [])[pi] === 'phantom')
+    )
+  );
+}
+
 // ── Full league stats ──────────────────────────────────────────
-function calcLeagueStats(results, handicaps, maxWeek=17, schedule=SCHEDULE, allPlayers=ALL_PLAYERS, teams=TEAMS) {
+function calcLeagueStats(results, handicaps, cancelledWeeksIn=null, maxWeek=17, schedule=SCHEDULE, allPlayers=ALL_PLAYERS, teams=TEAMS) {
   // Team stats: matchPts, bonusPts, totalPts, stab, wins, losses, ties, played
   const teamStats = {};
   for (let t=1;t<=18;t++) teamStats[t] = {matchPts:0,bonusPts:0,totalPts:0,stab:0,wins:0,losses:0,ties:0,played:0};
@@ -215,6 +230,7 @@ function calcLeagueStats(results, handicaps, maxWeek=17, schedule=SCHEDULE, allP
   for (let w=1; w<=maxWeek; w++) {
     const week = schedule[w];
     if (!week?.pairs?.length) continue;
+    if (isWeekCancelled(results[w]) || cancelledWeeksIn?.has(w)) continue; // weather cancellation — no pts
 
     // Bonus pts for week (null if not all scored)
     const bonus = calcWeekBonus(w, results, handicaps, schedule);
@@ -275,12 +291,10 @@ function calcLeagueStats(results, handicaps, maxWeek=17, schedule=SCHEDULE, allP
     teamStats[t].totalPts = teamStats[t].matchPts + teamStats[t].bonusPts;
   }
 
-  // Finalize POTY: drop 3 lowest rounds
+  // Finalize POTY: drop 2 lowest rounds
   const potyList = Object.values(playerStats).map(p => {
     const sorted = [...p.rounds].sort((a,b)=>a.pts-b.pts);
-    const dropCount = Math.max(0, sorted.length - Math.max(sorted.length - 3, 0)) ;
-    // Only drop if player has played more than 3 rounds
-    const toDrop = sorted.length > 3 ? 3 : 0;
+    const toDrop = sorted.length > 2 ? 2 : 0;
     const kept   = sorted.slice(toDrop);
     const total  = kept.reduce((s,r)=>s+r.pts,0);
     return {...p, total, keptRounds:kept.length, droppedRounds:sorted.slice(0,toDrop)};
@@ -289,6 +303,7 @@ function calcLeagueStats(results, handicaps, maxWeek=17, schedule=SCHEDULE, allP
   // Weekly POTY: highest individual score per week across all players
   const weeklyPoty = {};
   for (let w=1;w<=17;w++) {
+    if (isWeekCancelled(results[w]) || cancelledWeeksIn?.has(w)) continue; // no weekly winner for cancelled weeks
     let best = -Infinity;
     let winners = [];
     allPlayers.forEach(p => {
@@ -307,7 +322,12 @@ function calcLeagueStats(results, handicaps, maxWeek=17, schedule=SCHEDULE, allP
     if (winners.length) weeklyPoty[w] = {pts:best, winners};
   }
 
-  return {teamStats, potyList, weeklyPoty};
+  const cancelledWeeks = new Set(cancelledWeeksIn || []);
+  for (let w = 1; w <= maxWeek; w++) {
+    if (isWeekCancelled(results[w])) cancelledWeeks.add(w);
+  }
+
+  return {teamStats, potyList, weeklyPoty, cancelledWeeks};
 }
 
 // ── Default handicaps ──────────────────────────────────────────
@@ -315,7 +335,7 @@ function initLeague() {
   const handicaps={}, results={};
   for (let t=1;t<=18;t++) handicaps[t]=[...DEFAULT_HCP[t]];
   for (let w=1;w<=21;w++) results[w]={};
-  return {handicaps, results, hcpOverrides:{}};
+  return {handicaps, results, hcpOverrides:{}, loHiOverrides:{}, cancelledWeeks: new Set()};
 }
 
 // ── Auto-handicap calculation ─────────────────────────────────
@@ -331,9 +351,14 @@ function calcAutoHcp(grossRounds, startHcp, isNew) {
   let avgGross, PCT;
 
   if (isNew) {
-    // New members: always 60%, always average all rounds, no cap
-    PCT = 0.60;
-    avgGross = grossRounds.reduce((s, g) => s + g, 0) / n;
+    // New members: NEW_MEMBER_HCP_PCT, best HCP_ROUNDS if set (else all rounds), no cap
+    PCT = NEW_MEMBER_HCP_PCT;
+    if (HCP_ROUNDS && n > HCP_ROUNDS) {
+      const sorted = [...grossRounds].sort((a, b) => a - b);
+      avgGross = sorted.slice(0, HCP_ROUNDS).reduce((s, g) => s + g, 0) / HCP_ROUNDS;
+    } else {
+      avgGross = grossRounds.reduce((s, g) => s + g, 0) / n;
+    }
     return Math.round(PCT * (avgGross - 36));
   }
 
@@ -342,17 +367,18 @@ function calcAutoHcp(grossRounds, startHcp, isNew) {
 
   if (n <= 4) {
     avgGross = grossRounds.reduce((s, g) => s + g, 0) / n;
-  } else {
-    // Average of lowest 7 gross scores out of all rounds
+  } else if (HCP_ROUNDS) {
     const sorted = [...grossRounds].sort((a, b) => a - b);
-    const best7 = sorted.slice(0, Math.min(7, n));
-    avgGross = best7.reduce((s, g) => s + g, 0) / best7.length;
+    const best = sorted.slice(0, Math.min(HCP_ROUNDS, n));
+    avgGross = best.reduce((s, g) => s + g, 0) / best.length;
+  } else {
+    // Average ALL rounds
+    avgGross = grossRounds.reduce((s, g) => s + g, 0) / n;
   }
 
   const raw = PCT * (avgGross - 36);
   const rounded = Math.round(raw);
-  // Cap: cannot exceed startHcp + 2, no floor (negatives allowed)
-  return Math.min(rounded, startHcp + 2);
+  return HCP_CAP !== null ? Math.min(rounded, startHcp + HCP_CAP) : rounded;
 }
 
 // Build per-player gross round history from all saved results up to (not including) a given week.
@@ -364,7 +390,7 @@ function buildGrossHistory(results, upToWeek, defaultHcp=DEFAULT_HCP) {
   for (let w = 1; w < upToWeek; w++) {
     const weekResults = results[w] || {};
     for (const [key, rec] of Object.entries(weekResults)) {
-      if (!rec || rec.rainout) continue;
+      if (!rec) continue;
       if (rec.w1stab) continue;
       const parts = key.split('-');
       const tlow = parseInt(parts[1]);
@@ -375,17 +401,59 @@ function buildGrossHistory(results, upToWeek, defaultHcp=DEFAULT_HCP) {
         [0,1].forEach((pi) => {
           const type = (types || [])[pi] || 'normal';
           if (type !== 'normal') return; // skip subs/phantoms
-          // Handicap history uses raw gross totals (not Stableford-capped gross).
-          const gross = (scores[pi] || []).reduce((s, g, hi) => {
-            if (!g) return s;
-            return s + g;
-          }, 0);
+          // Rainout: substitute unplayed holes with earlier hole scores (same as scoring).
+          // Cancelled weeks have no records, so they are naturally excluded.
+          let gross = 0;
+          for (let hi = 0; hi < 9; hi++) {
+            const effHi = (rec.rainout && hi >= rec.holesPlayed && RAINOUT_SUB[hi] !== undefined)
+              ? RAINOUT_SUB[hi]
+              : hi;
+            gross += (scores[pi] || [])[effHi] || 0;
+          }
           if (gross > 0) history[tid][pi].push(gross);
         });
       });
     }
   }
   return history;
+}
+
+// Returns the raw (unrounded) auto handicap — used for tie-breaking low/high order
+function calcAutoHcpRaw(grossRounds, startHcp, isNew) {
+  const n = grossRounds.length;
+  if (n === 0) return isNew ? 0 : startHcp;
+  let avgGross, PCT;
+  if (isNew) {
+    PCT = NEW_MEMBER_HCP_PCT;
+    if (HCP_ROUNDS && n > HCP_ROUNDS) {
+      const sorted = [...grossRounds].sort((a, b) => a - b);
+      avgGross = sorted.slice(0, HCP_ROUNDS).reduce((s, g) => s + g, 0) / HCP_ROUNDS;
+    } else {
+      avgGross = grossRounds.reduce((s, g) => s + g, 0) / n;
+    }
+    return PCT * (avgGross - 36);
+  }
+  PCT = n <= 4 ? HCP_PCT[n] : 0.90;
+  if (n <= 4) {
+    avgGross = grossRounds.reduce((s, g) => s + g, 0) / n;
+  } else if (HCP_ROUNDS) {
+    const sorted = [...grossRounds].sort((a, b) => a - b);
+    const best = sorted.slice(0, Math.min(HCP_ROUNDS, n));
+    avgGross = best.reduce((s, g) => s + g, 0) / best.length;
+  } else {
+    avgGross = grossRounds.reduce((s, g) => s + g, 0) / n;
+  }
+  const raw = PCT * (avgGross - 36);
+  return HCP_CAP !== null ? Math.min(raw, startHcp + HCP_CAP) : raw;
+}
+
+// Like getEffectiveHcp but returns unrounded float for tie-breaking
+function getEffectiveHcpRaw(tid, pi, week, results, handicaps, hcpOverrides, defaultHcp=DEFAULT_HCP, newMemberFn=isNewMember) {
+  const overrideKey = `${tid}-${pi}-${week}`;
+  if (hcpOverrides && hcpOverrides[overrideKey] !== undefined) return hcpOverrides[overrideKey];
+  const history = buildGrossHistory(results, week, defaultHcp);
+  const startHcp = (defaultHcp[tid]||[0,0])[pi];
+  return calcAutoHcpRaw(history[tid][pi], startHcp, newMemberFn(tid, pi));
 }
 
 // Returns suggested handicaps for all players for a given week (based on prior weeks' scores).
@@ -442,6 +510,8 @@ export {
   calcAutoHcp,
   buildGrossHistory,
   getEffectiveHcp,
+  getEffectiveHcpRaw,
   calcSuggestedHcps,
   initMatch,
+  isWeekCancelled,
 };

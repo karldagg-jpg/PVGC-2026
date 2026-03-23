@@ -94,7 +94,11 @@ const DEFAULT_HCP = {
 };
 
 const NEW_MEMBERS = {};
-const HCP_PCT = [0, 0.60, 0.70, 0.75, 0.80];
+const HCP_PCT = [0, 0.90, 0.90, 0.90, 0.90]; // veterans: flat 90% for all rounds
+const HCP_CAP = 2;
+const HCP_ROUNDS = 7;
+const NEW_MEMBER_HCP_PCT = 0.65; // new members: 65%, all rounds, no cap
+const PLAYOFF_START_WEEK = 18;
 
 export {
   PAR,
@@ -111,6 +115,10 @@ export {
   DEFAULT_HCP,
   NEW_MEMBERS,
   HCP_PCT,
+  HCP_CAP,
+  HCP_ROUNDS,
+  NEW_MEMBER_HCP_PCT,
+  PLAYOFF_START_WEEK,
 };
 
 export function isNewMember(tid, pi) {

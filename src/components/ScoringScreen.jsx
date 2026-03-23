@@ -1,6 +1,6 @@
 import { PAR, SI, RAINOUT_SUB, TEAMS, SCHEDULE } from "../constants/league";
-import { stabPts, hcpStr } from "../lib/leagueLogic";
-import { BG, CARD, CARD2, CREAM, FB, FD, G, GO, GOLD, M, R, FM } from "../constants/theme";
+import { stabPts, hcpStr, maxGross, getEffectiveHcp, getEffectiveHcpRaw } from "../lib/leagueLogic";
+import { BG, CARD, CARD2, CREAM, FB, FD, G, GO, GOLD, M, R } from "../constants/theme";
 import { fmtDate } from "../lib/format";
 import { Tag, PtsBadge } from "./ui";
 
@@ -19,9 +19,8 @@ function ScoringScreen({
   league,
   saveLeague,
   weekBonus,
-  scanState,
-  scanMsg,
-  scanCard,
+  cancelledWeeks,
+  toggleCancelWeek,
 }) {
   const effH = (hi) =>
     match.rainout && hi >= match.holesPlayed && RAINOUT_SUB[hi] !== undefined
@@ -41,12 +40,16 @@ function ScoringScreen({
 
   function setTypeVal(tIdx, pi, val) {
     setMatch((prev) => {
-      const n = { ...prev, t1types: [...prev.t1types], t2types: [...prev.t2types] };
+      const n = {
+        ...prev,
+        t1types: [...(Array.isArray(prev.t1types) ? prev.t1types : ["normal","normal"])],
+        t2types: [...(Array.isArray(prev.t2types) ? prev.t2types : ["normal","normal"])],
+      };
       if (tIdx === 0) n.t1types[pi] = val;
       else n.t2types[pi] = val;
-      if (val === "phantom") {
+      if (val === "phantom" || val === "sub") {
         const sc = tIdx === 0 ? prev.t1scores.map((a) => [...a]) : prev.t2scores.map((a) => [...a]);
-        for (let h = 0; h < 9; h++) sc[pi][h] = PAR[h] + 2;
+        for (let h = 0; h < 9; h++) sc[pi][h] = 0;
         if (tIdx === 0) n.t1scores = sc;
         else n.t2scores = sc;
       }
@@ -82,14 +85,17 @@ function ScoringScreen({
           ))}
         </select>
       </div>
-      {opp
-        ? <div style={{ marginLeft: "auto", fontSize: "14px", color: M, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "2px" }}>
-          <span>vs <span style={{ color: GO }}>{TEAMS[opp]?.name}</span></span>
-          {match.updatedBy && <span style={{ fontSize: "12px", color: GOLD, fontFamily: FB }}>
-            ✎ {match.updatedBy}{match.updatedAt ? " · " + match.updatedAt : ""}
-          </span>}
-        </div>
-        : <div style={{ marginLeft: "auto", fontSize: "13px", color: R }}>No match this week</div>}
+      {cancelledWeeks?.has(selWeek)
+        ? <div style={{ marginLeft: "auto", fontSize: "13px", color: "#e6a817", fontWeight: 700 }}>⛈ Cancelled</div>
+        : opp
+          ? <div style={{ marginLeft: "auto", fontSize: "14px", color: M, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "2px" }}>
+              <span>vs <span style={{ color: GO }}>{TEAMS[opp]?.name}</span></span>
+              {match.updatedBy && <span style={{ fontSize: "12px", color: GOLD, fontFamily: FB }}>
+                ✎ {match.updatedBy}{match.updatedAt ? " · " + match.updatedAt : ""}
+              </span>}
+            </div>
+          : <div style={{ marginLeft: "auto", fontSize: "13px", color: R }}>No match this week</div>
+      }
     </div>
 
     {!opp ? (
@@ -135,8 +141,12 @@ function ScoringScreen({
         // Build the 4 players in match order
         // Low hcp = pi with smaller hcp, High hcp = other pi
         const getOrder = (tid) => {
-          const [h0, h1] = (league.handicaps[tid] || [0, 0]);
-          return h0 <= h1 ? { low: 0, high: 1 } : { low: 1, high: 0 };
+          const loHiKey = `${tid}-${selWeek}`;
+          const loHiOv = (league.loHiOverrides || {})[loHiKey];
+          if (loHiOv !== undefined) return loHiOv === 0 ? { low: 0, high: 1 } : { low: 1, high: 0 };
+          const r0 = getEffectiveHcpRaw(tid, 0, selWeek, league.results, league.handicaps, league.hcpOverrides||{});
+          const r1 = getEffectiveHcpRaw(tid, 1, selWeek, league.results, league.handicaps, league.hcpOverrides||{});
+          return r0 <= r1 ? { low: 0, high: 1 } : { low: 1, high: 0 };
         };
         const o1 = getOrder(t1id), o2 = getOrder(t2id);
 
@@ -172,7 +182,7 @@ function ScoringScreen({
           return s + g - hcpStr(getHcp(tid, pi), SI[h]);
         }, 0);
         const getType = (tIdx, pi) => (tIdx === 0 ? match.t1types : match.t2types)[pi] || "normal";
-        const getHcp = (tid, pi) => (league.handicaps[tid] || [0, 0])[pi] || 0;
+        const getHcp = (tid, pi) => getEffectiveHcp(tid, pi, selWeek, league.results, league.handicaps, league.hcpOverrides||{});
 
         const getPtsFor = (tIdx, pi, tid, hi) => {
           const type = getType(tIdx, pi);
@@ -185,6 +195,7 @@ function ScoringScreen({
         const getRunTotal = (tIdx, pi, tid) => {
           const type = getType(tIdx, pi);
           if (type === "sub") return 6;
+          if (type === "phantom") return 2;
           let t = 0;
           for (let h = 0; h < 9; h++) t += getPtsFor(tIdx, pi, tid, h) || 0;
           return t;
@@ -273,11 +284,13 @@ function ScoringScreen({
               const pname = TEAMS[r.tid]?.[r.pi === 0 ? "p1" : "p2"] || "";
               const isSep = ri === 1; // separator between low/high pairs
 
+              const cap = maxGross(PAR[effH(hole)], strokes);
               const adjGross = (delta) => {
                 const cur = getGross(r.tIdx, r.pi, effH(hole));
-                const next = Math.max(1, Math.min(15, (cur || PAR[hole]) + delta));
+                const next = Math.max(1, Math.min(cap, (cur || PAR[hole]) + delta));
                 setScoreVal(r.tIdx, r.pi, effH(hole), next);
               };
+              const atMax = gross > 0 && gross >= cap;
 
               const ptColor = pts === null ? M : pts >= 3 ? G : pts === 1 ? "#c0a060" : pts === 0 ? M : R;
 
@@ -327,51 +340,50 @@ function ScoringScreen({
                     </select>
 
                     {/* +/- Score entry + net + stab */}
-                    {type === "sub" ? (
+                    {(type === "sub" || type === "phantom") ? (
                       <div style={{
                         display: "flex", flexDirection: "column", alignItems: "center",
                         minWidth: "90px", gap: "2px"
                       }}>
-                        <span style={{ fontSize: "13px", color: GO }}>6 pts fixed</span>
-                        <span style={{ fontSize: "12px", color: M }}>Sub</span>
+                        <span style={{ fontSize: "13px", color: type === "phantom" ? R : GO }}>
+                          {type === "phantom" ? "2 pts fixed" : "6 pts fixed"}
+                        </span>
+                        <span style={{ fontSize: "12px", color: M }}>
+                          {type === "phantom" ? "Phantom" : "Sub"}
+                        </span>
                       </div>
                     ) : (
                       <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
                         {/* −/+ stepper */}
                         <div style={{ display: "flex", alignItems: "center" }}>
-                          <button onClick={() => adjGross(-1)} disabled={type === "phantom"}
+                          <button onClick={() => adjGross(-1)}
                             style={{
                               width: "42px", height: "52px", borderRadius: "9px 0 0 9px",
                               border: `1px solid ${GOLD}44`, borderRight: "none",
                               background: "rgba(26,61,36,0.08)", color: CREAM, fontSize: "22px",
-                              cursor: type === "phantom" ? "not-allowed" : "pointer",
-                              display: "flex", alignItems: "center", justifyContent: "center",
-                              opacity: type === "phantom" ? 0.3 : 1, userSelect: "none", touchAction: "manipulation"
+                              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                              userSelect: "none", touchAction: "manipulation"
                             }}>−</button>
                           <div style={{
-                            width: "52px", height: "52px", border: `1px solid ${GOLD}44`,
-                            background: "rgba(26,61,36,0.08)", display: "flex", flexDirection: "column",
+                            width: "52px", height: "52px", border: `1px solid ${atMax ? R + "88" : GOLD + "44"}`,
+                            background: atMax ? R + "18" : "rgba(26,61,36,0.08)", display: "flex", flexDirection: "column",
                             alignItems: "center", justifyContent: "center", gap: "1px"
                           }}>
-                            <span style={{
-                              fontSize: "20px", fontWeight: 700,
-                              color: gross ? ptColor : M, lineHeight: 1
-                            }}>{gross || PAR[hole]}</span>
-                            <span style={{
-                              fontSize: "8px", lineHeight: 1,
-                              color: gross ? ptColor : M, letterSpacing: "0.02em"
-                            }}>
-                              {gross ? scoreName(gross, PAR[hole]) : "tap −/+"}
+                            <span style={{ fontSize: "20px", fontWeight: 700, color: gross ? ptColor : M, lineHeight: 1 }}>
+                              {gross || PAR[hole]}
+                            </span>
+                            <span style={{ fontSize: "10px", lineHeight: 1, color: gross ? ptColor : M }}>
+                              {!gross ? "tap −/+" : scoreName(gross, PAR[hole])}
                             </span>
                           </div>
-                          <button onClick={() => adjGross(+1)} disabled={type === "phantom"}
+                          <button onClick={() => adjGross(+1)} disabled={atMax}
                             style={{
                               width: "42px", height: "52px", borderRadius: "0 9px 9px 0",
                               border: `1px solid ${GOLD}44`, borderLeft: "none",
                               background: "rgba(26,61,36,0.08)", color: CREAM, fontSize: "22px",
-                              cursor: type === "phantom" ? "not-allowed" : "pointer",
+                              cursor: atMax ? "not-allowed" : "pointer",
                               display: "flex", alignItems: "center", justifyContent: "center",
-                              opacity: type === "phantom" ? 0.3 : 1, userSelect: "none", touchAction: "manipulation"
+                              opacity: atMax ? 0.3 : 1, userSelect: "none", touchAction: "manipulation"
                             }}>+</button>
                         </div>
                         {/* Net + stab column */}
@@ -384,9 +396,7 @@ function ScoringScreen({
                             <PtsBadge pts={pts} />
                           </div>
                         )}
-                        {!gross && (
-                          <div style={{ width: "36px" }} />
-                        )}
+                        {!gross && <div style={{ width: "36px" }} />}
                       </div>
                     )}
                   </div>
@@ -404,8 +414,8 @@ function ScoringScreen({
             {rows.map((r, ri) => {
               const type = getType(r.tIdx, r.pi);
               const pname = TEAMS[r.tid]?.[r.pi === 0 ? "p1" : "p2"] || "";
-              const gross = type === "sub" ? null : getGrossTotal(r.tIdx, r.pi);
-              const net = type === "sub" ? null : getNetTotal(r.tIdx, r.pi, r.tid);
+              const gross = (type === "sub" || type === "phantom") ? null : getGrossTotal(r.tIdx, r.pi);
+              const net = (type === "sub" || type === "phantom") ? null : getNetTotal(r.tIdx, r.pi, r.tid);
               const stab = getRunTotal(r.tIdx, r.pi, r.tid);
               const rivalStab = getRunTotal(r.rivalTIdx, r.rivalPi, ri < 2 ? t2id : t1id);
               const winning = stab > rivalStab, losing = stab < rivalStab;
@@ -422,7 +432,7 @@ function ScoringScreen({
                     <span style={{
                       fontSize: "13px", fontWeight: 600, color: CREAM,
                       overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
-                    }}>{pname}</span>
+                    }}>{pname}{type === "phantom" ? " (P)" : type === "sub" ? " (S)" : ""}</span>
                     {winning && <span style={{ marginLeft: "auto", fontSize: "12px", color: r.color }}>▲ leading</span>}
                     {losing && <span style={{ marginLeft: "auto", fontSize: "12px", color: R }}>▼ trailing</span>}
                   </div>
@@ -430,13 +440,13 @@ function ScoringScreen({
                     <div style={{ textAlign: "center" }}>
                       <div style={{ fontSize: "12px", color: M, letterSpacing: "0.04em" }}>GROSS</div>
                       <div style={{ fontSize: "16px", fontWeight: 700, color: CREAM, lineHeight: 1.1 }}>
-                        {type === "sub" ? "—" : gross || "—"}
+                        {(type === "sub" || type === "phantom") ? "—" : gross || "—"}
                       </div>
                     </div>
                     <div style={{ textAlign: "center" }}>
                       <div style={{ fontSize: "12px", color: M, letterSpacing: "0.04em" }}>NET</div>
                       <div style={{ fontSize: "16px", fontWeight: 700, color: "#c8d4c0", lineHeight: 1.1 }}>
-                        {type === "sub" ? "—" : net || "—"}
+                        {(type === "sub" || type === "phantom") ? "—" : net || "—"}
                       </div>
                     </div>
                     <div style={{ textAlign: "center" }}>
@@ -523,8 +533,12 @@ function ScoringScreen({
                           </div>
                         </td>
                         {Array(9).fill(0).map((_, h) => {
+                          const strokesH = hcpStr(getHcp(r.tid, r.pi), SI[h]);
                           if (type === "sub") return (
                             <td key={h} style={{ padding: "7px 4px", textAlign: "center", color: GO, fontSize: "13px" }}>S</td>
+                          );
+                          if (type === "phantom") return (
+                            <td key={h} style={{ padding: "7px 4px", textAlign: "center", color: R, fontSize: "13px" }}>P</td>
                           );
                           const pts = getPtsFor(r.tIdx, r.pi, r.tid, h);
                           const gross = getGross(r.tIdx, r.pi, effH(h));
@@ -536,25 +550,27 @@ function ScoringScreen({
                                 background: h === hole ? "rgba(184,150,46,0.05)" : "transparent",
                                 minWidth: "28px"
                               }}>
-                              {gross > 0 ? (
-                                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1px" }}>
+                              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1px" }}>
+                                {strokesH > 0 && <span style={{ fontSize: "9px", color: G, fontWeight: 700, lineHeight: 1 }}>{"•".repeat(strokesH)}</span>}
+                                {gross > 0 ? (<>
                                   <span style={{ fontSize: "14px", fontWeight: 600, color: CREAM }}>{gross}</span>
+                                  <span style={{ fontSize: "11px", color: "#c8d4c0" }}>{getNet(r.tIdx, r.pi, r.tid, h)}</span>
                                   <span style={{ fontSize: "12px", fontWeight: pts !== null && pts >= 3 ? 700 : 400, color: ptColor2 }}>
                                     {pts !== null ? pts : "?"}
                                   </span>
-                                </div>
-                              ) : (
-                                <span style={{ color: CREAM, fontSize: "14px" }}>–</span>
-                              )}
+                                </>) : (
+                                  <span style={{ color: CREAM, fontSize: "14px" }}>–</span>
+                                )}
+                              </div>
                             </td>
                           );
                         })}
                         <td style={{ padding: "4px 8px", textAlign: "center", whiteSpace: "nowrap" }}>
                           <div style={{ fontSize: "14px", fontWeight: 700, color: CREAM }}>
-                            {type === "sub" ? "—" : getGrossTotal(r.tIdx, r.pi) || "—"}
+                            {(type === "sub" || type === "phantom") ? "—" : getGrossTotal(r.tIdx, r.pi) || "—"}
                           </div>
                           <div style={{ fontSize: "14px", fontWeight: 600, color: "#c8d4c0" }}>
-                            {type === "sub" ? "—" : getNetTotal(r.tIdx, r.pi, r.tid) || "—"}
+                            {(type === "sub" || type === "phantom") ? "—" : getNetTotal(r.tIdx, r.pi, r.tid) || "—"}
                           </div>
                           <div style={{ fontSize: "14px", fontWeight: 700, color: winning ? r.color : losing ? R : G }}>
                             {total}
@@ -654,61 +670,6 @@ function ScoringScreen({
         </div>
       )}
 
-      {/* Handicaps */}
-      <div style={{ background: CARD2, border: `1px solid ${GOLD}22`, borderRadius: "14px", padding: "11px 14px", marginBottom: "12px" }}>
-        <div style={{ fontSize: "12px", letterSpacing: "0.1em", textTransform: "uppercase", color: M, marginBottom: "12px" }}>Handicaps (9-hole)</div>
-        <div style={{ display: "flex", gap: "13px", flexWrap: "wrap" }}>
-          {[{ tIdx: 0, tid: t1id, color: G }, { tIdx: 1, tid: t2id, color: GO }].map(({ tIdx, tid, color }) => (
-            <div key={tIdx} style={{ flex: "1 1 180px" }}>
-              <div style={{ fontSize: "13px", color, marginBottom: "5px" }}>{TEAMS[tid]?.name}</div>
-              {[0, 1].map(pi => {
-                const pname = TEAMS[tid]?.[pi === 0 ? "p1" : "p2"] || "";
-                const hcp = (league.handicaps[tid] || [0, 0])[pi] || 0;
-                return (
-                  <div key={pi} style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: pi === 0 ? "4px" : 0 }}>
-                    <span style={{ fontSize: "13px", flex: 1, color: CREAM }}>{pname}</span>
-                    <input type="number" min="-9" max="36" value={hcp}
-                      onChange={e => {
-                        const val = parseInt(e.target.value) || 0;
-                        const next = { ...league, handicaps: { ...league.handicaps, [tid]: [...(league.handicaps[tid] || [0, 0])] } };
-                        next.handicaps[tid][pi] = val;
-                        saveLeague(next);
-                      }}
-                      style={{
-                        width: "46px", background: "rgba(255,255,255,0.95)", border: `1px solid ${GOLD}33`,
-                        borderRadius: "5px", color: CREAM, fontFamily: FB, fontSize: "14px",
-                        padding: "3px 5px", textAlign: "center", outline: "none"
-                      }} />
-                  </div>
-                );
-              })}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Scan scorecard */}
-      <div style={{
-        background: CARD, border: `1px solid ${scanState === "done" ? G + "44" : scanState === "error" ? R + "44" : "rgba(255,255,255,0.95)"}`,
-        borderRadius: "14px", padding: "12px 14px", marginBottom: "12px"
-      }}>
-        <div style={{ fontSize: "12px", letterSpacing: "0.1em", textTransform: "uppercase", color: M, marginBottom: "8px" }}>📷 Scan Scorecard</div>
-        <div style={{ fontSize: "13px", color: M, marginBottom: "8px" }}>Upload a photo and Claude will auto-fill all scores.</div>
-        <label style={{
-          padding: "7px 13px", borderRadius: "7px", border: `1px solid ${G}44`,
-          background: GOLD + "18", color: GOLD, fontFamily: FM || FB, fontSize: "13px", letterSpacing: "0.06em",
-          textTransform: "uppercase", cursor: scanState === "loading" ? "not-allowed" : "pointer",
-          opacity: scanState === "loading" ? 0.5 : 1, display: "inline-block"
-        }}>
-          {scanState === "loading" ? "Scanning..." : "Upload Photo"}
-          <input type="file" accept="image/*" capture="environment" style={{ display: "none" }}
-            disabled={scanState === "loading"}
-            onChange={e => { if (e.target.files[0]) scanCard(e.target.files[0]); e.target.value = ""; }} />
-        </label>
-        {scanMsg && (
-          <div style={{ marginTop: "8px", fontSize: "13px", color: scanState === "done" ? G : scanState === "error" ? R : M }}>{scanMsg}</div>
-        )}
-      </div>
 
       {/* Save */}
       {/* Auto-saves on score change */}
