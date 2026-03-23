@@ -14,6 +14,8 @@ function ScheduleScreen({
   qfPairs,
   sfPairs,
   finalPairs,
+  cancelledWeeks,
+  toggleCancelWeek,
 }) {
   return (
     <div style={{ maxWidth: "900px", margin: "0 auto", padding: "22px 14px" }}>
@@ -57,12 +59,13 @@ function ScheduleScreen({
             !isKnockdown && !isPlayoff && allDone
               ? calcWeekBonus(week, league.results, league.handicaps)
               : null;
+          const isCancelled = cancelledWeeks?.has(week);
           return (
             <div
               key={week}
               style={{
-                background: CARD,
-                border: `1px solid ${week === selWeek ? G + "55" : "rgba(26,61,36,0.06)"}`,
+                background: isCancelled ? "rgba(230,168,23,0.06)" : CARD,
+                border: `1px solid ${isCancelled ? "#e6a81755" : week === selWeek ? G + "55" : "rgba(26,61,36,0.06)"}`,
                 borderRadius: "13px",
                 overflow: "hidden",
               }}
@@ -131,28 +134,51 @@ function ScheduleScreen({
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
-                  {scored > 0 && <Tag color={allDone ? G : GO}>{scored}/{cleanPairs.length}</Tag>}
+                  {isCancelled
+                    ? <Tag color="#e6a817">⛈ Cancelled</Tag>
+                    : scored > 0 && <Tag color={allDone ? G : GO}>{scored}/{cleanPairs.length}</Tag>
+                  }
+                  {!isCancelled && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setWeek(week);
+                        if (dynPairs && dynPairs.length > 0) setTeam(dynPairs[0][0]);
+                        setScreen("scoring");
+                      }}
+                      style={{
+                        padding: "4px 10px",
+                        borderRadius: "6px",
+                        border: `1px solid ${G}44`,
+                        background: GOLD + "18",
+                        color: GOLD,
+                        fontFamily: FM || FB,
+                        fontSize: "13px",
+                        letterSpacing: "0.06em",
+                        textTransform: "uppercase",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Score →
+                    </button>
+                  )}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      setWeek(week);
-                      if (dynPairs && dynPairs.length > 0) setTeam(dynPairs[0][0]);
-                      setScreen("scoring");
+                      toggleCancelWeek?.(week);
                     }}
+                    title={isCancelled ? "Restore week" : "Cancel week — weather"}
                     style={{
-                      padding: "4px 10px",
+                      padding: "4px 8px",
                       borderRadius: "6px",
-                      border: `1px solid ${G}44`,
-                      background: GOLD + "18",
-                      color: GOLD,
-                      fontFamily: FM || FB,
+                      border: `1px solid ${isCancelled ? "#e6a817" : GOLD + "33"}`,
+                      background: isCancelled ? "#fff3cd" : "transparent",
+                      color: isCancelled ? "#7a4f00" : M,
                       fontSize: "13px",
-                      letterSpacing: "0.06em",
-                      textTransform: "uppercase",
                       cursor: "pointer",
                     }}
                   >
-                    Score →
+                    {isCancelled ? "↩ Restore" : "⛈"}
                   </button>
                 </div>
               </div>

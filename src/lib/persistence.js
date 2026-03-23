@@ -54,6 +54,8 @@ function applySnapshotToLeague(prevLeague, payload, defaultHcp) {
     handicaps: { ...(defaultHcp || {}), ...(p.handicaps || {}) },
     results: decoded,
     hcpOverrides: p.hcpOverrides || {},
+    loHiOverrides: p.loHiOverrides || {},
+    cancelledWeeks: new Set(p.cancelledWeeks || []),
   };
 }
 

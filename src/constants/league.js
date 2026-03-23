@@ -1,8 +1,9 @@
+import * as L2024 from "./league_2024";
 import * as L2025 from "./league_2025";
 import * as L2026 from "./league_2026";
 
 const STORAGE_KEY = "pvgc_season_year";
-const AVAILABLE_SEASONS = [2025, 2026];
+const AVAILABLE_SEASONS = [2024, 2025, 2026];
 
 function readSeasonYear() {
   if (typeof window === "undefined") return 2026;
@@ -17,7 +18,7 @@ function writeSeasonYear(year) {
 }
 
 const SEASON_YEAR = readSeasonYear();
-const ACTIVE = SEASON_YEAR === 2025 ? L2025 : L2026;
+const ACTIVE = SEASON_YEAR === 2024 ? L2024 : SEASON_YEAR === 2025 ? L2025 : L2026;
 
 const {
   PAR,
@@ -34,6 +35,10 @@ const {
   DEFAULT_HCP,
   NEW_MEMBERS,
   HCP_PCT,
+  HCP_CAP,
+  HCP_ROUNDS,
+  NEW_MEMBER_HCP_PCT,
+  PLAYOFF_START_WEEK,
 } = ACTIVE;
 
 function setSeasonYear(year) {
@@ -62,6 +67,10 @@ export {
   DEFAULT_HCP,
   NEW_MEMBERS,
   HCP_PCT,
+  HCP_CAP,
+  HCP_ROUNDS,
+  NEW_MEMBER_HCP_PCT,
+  PLAYOFF_START_WEEK,
   AVAILABLE_SEASONS,
   SEASON_YEAR,
   setSeasonYear,

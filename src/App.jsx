@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { LEAGUE_DOC, LEAGUE_DOC_ID } from "./firebase/client";
 import {
-  PAR,
-  RAINOUT_SUB,
-  TEAMS,
   DEFAULT_HCP,
   AVAILABLE_SEASONS,
   SEASON_YEAR,
+  PLAYOFF_START_WEEK,
   setSeasonYear,
 } from "./constants/league";
 import { G, R, M, BG, CREAM, GOLD, FD, FB } from "./constants/theme";
@@ -17,6 +15,7 @@ import ScoringScreen from "./components/ScoringScreen";
 import StandingsScreen from "./components/StandingsScreen";
 import PotyScreen from "./components/PotyScreen";
 import HandicapScreen from "./components/HandicapScreen";
+import VerifyScreen from "./components/VerifyScreen";
 import {
   getPlayoffSeeds,
   getKnockdownPairs,
@@ -29,6 +28,7 @@ import {
   calcLeagueStats,
   initLeague,
   initMatch,
+  getEffectiveHcp,
 } from "./lib/leagueLogic";
 import { encodeResults, applySnapshotToLeague } from "./lib/persistence";
 
@@ -38,25 +38,16 @@ function App() {
   const [selWeek, setWeek]    = useState(1);
   const [selTeam, setTeam]    = useState(1);
   const [match,   setMatch]   = useState(initMatch());
+  const matchDirty = useRef(false); // true only when user edits, not when loading from Firebase
   const [hole,    setHole]    = useState(0);
-  const [scanState, setScan]  = useState("idle");
-  const [scanMsg,  setScanMsg]= useState("");
   const [potyTab, setPotyTab] = useState("season"); // season | weekly
-  const [entryWeek, setEntryWeek] = useState(1);
-  const [entryTeam, setEntryTeam] = useState(1);
-  // User identity for score attribution
-  const [userName, setUserName] = useState(()=>localStorage.getItem("pvgc_user")||"");
-  // Handicap PIN gate
-  const [hcpUnlocked, setHcpUnlocked] = useState(false);
   // Playoff seeds (computed from week 17 standings)
   const playoffSeeds = React.useMemo(()=>getPlayoffSeeds(league.results,league.handicaps),[league]);
   const knockdownPairs = React.useMemo(()=>getKnockdownPairs(playoffSeeds),[playoffSeeds]);
   const qfPairs = React.useMemo(()=>getQFPairs(playoffSeeds),[playoffSeeds]);
   const sfPairs = React.useMemo(()=>getSFPairs(playoffSeeds,league.results),[playoffSeeds,league.results]);
   const finalPairs = React.useMemo(()=>getFinalPairs(playoffSeeds,league.results),[playoffSeeds,league.results]);
-  const [hcpPin, setHcpPin] = useState("");
-  const [hcpPinErr, setHcpPinErr] = useState(false);
-  // entryScores: { [tid]: [[9 holes], [9 holes]] } — local draft before save
+  const [entryTeam, setEntryTeam] = useState(1);
   const [entryScores, setEntryScores] = useState({});
   const [entrySaved, setEntrySaved] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -80,7 +71,7 @@ function App() {
 
   const loadFromFirebase = () => {
     setFbStatus("connecting");
-    LEAGUE_DOC.get().then(applySnapshot).catch((err)=>{
+    LEAGUE_DOC.get({ source: 'server' }).then(applySnapshot).catch((err)=>{
       console.warn("Firebase load error:", err);
       setFbStatus("error:"+(err.code||err.message||String(err)));
     });
@@ -109,6 +100,8 @@ function App() {
         handicaps: next.handicaps,
         results: encodedResults,
         hcpOverrides: next.hcpOverrides||{},
+        loHiOverrides: next.loHiOverrides||{},
+        cancelledWeeks: [...(next.cancelledWeeks || [])],
       }, {merge:true});
       setFbStatus("loaded");
     }catch(e){
@@ -127,10 +120,10 @@ function App() {
   // Reload match when week/team/league changes
   const prevWeekTeam = useRef({week:null,team:null});
   useEffect(()=>{
-    const selDynPairs = selWeek===18 ? knockdownPairs
-                    : selWeek===19 ? qfPairs
-                    : selWeek===20 ? (sfPairs||null)
-                    : selWeek===21 ? (finalPairs?[finalPairs.championship,finalPairs.thirdPlace]:null)
+    const selDynPairs = selWeek===PLAYOFF_START_WEEK ? knockdownPairs
+                    : selWeek===PLAYOFF_START_WEEK+1 ? qfPairs
+                    : selWeek===PLAYOFF_START_WEEK+2 ? (sfPairs||null)
+                    : selWeek===PLAYOFF_START_WEEK+3 ? (finalPairs?[finalPairs.championship,finalPairs.thirdPlace]:null)
                     : null;
     const opp=getOpponent(selTeam,selWeek,selDynPairs);
     if(!opp){setMatch(initMatch());return;}
@@ -139,10 +132,13 @@ function App() {
     if(!saved){setMatch(initMatch());return;}
     const display = selTeam===tlow ? {...initMatch(),...saved} : {
       ...initMatch(),...saved,
-      t1scores:saved.t2scores, t1types:saved.t2types,
-      t2scores:saved.t1scores, t2types:saved.t1types,
+      t1scores: saved.t2scores || initMatch().t1scores,
+      t1types:  saved.t2types  || ["normal","normal"],
+      t2scores: saved.t1scores || initMatch().t2scores,
+      t2types:  saved.t1types  || ["normal","normal"],
     };
     setMatch(display);
+    matchDirty.current = false; // loading from Firebase — don't auto-save
     // Only reset hole when switching to a different match, not on every league update
     const prev = prevWeekTeam.current;
     if(prev.week !== selWeek || prev.team !== selTeam){
@@ -152,16 +148,20 @@ function App() {
   },[selWeek,selTeam,league.results]);
 
   // Dynamic pairs for current selected week
-  const selDynPairs = selWeek===18 ? knockdownPairs
-                    : selWeek===19 ? qfPairs
-                    : selWeek===20 ? (sfPairs||null)
-                    : selWeek===21 ? (finalPairs?[finalPairs.championship,finalPairs.thirdPlace]:null)
+  const selDynPairs = selWeek===PLAYOFF_START_WEEK ? knockdownPairs
+                    : selWeek===PLAYOFF_START_WEEK+1 ? qfPairs
+                    : selWeek===PLAYOFF_START_WEEK+2 ? (sfPairs||null)
+                    : selWeek===PLAYOFF_START_WEEK+3 ? (finalPairs?[finalPairs.championship,finalPairs.thirdPlace]:null)
                     : null;
   const opp=getOpponent(selTeam,selWeek,selDynPairs);
-  const [t1id,t2id]=selTeam<(opp||99)?[selTeam,opp||0]:[opp||0,selTeam];
+  const t1id=selTeam, t2id=opp||0;
 
-  // Effective hole (rainout)
-  const effH=(hi)=>(match.rainout&&hi>=match.holesPlayed&&RAINOUT_SUB[hi]!==undefined)?RAINOUT_SUB[hi]:hi;
+  // Wrapper so auto-save only fires on user edits, not on Firebase loads
+  const setMatchUser = React.useCallback((fn) => {
+    matchDirty.current = true;
+    setMatch(fn);
+  }, []);
+
 
   async function saveMatch(matchToSave){
     if(!t1id||!t2id) return;
@@ -170,8 +170,8 @@ function App() {
     const key=matchKey(selWeek,tlow,thigh);
     // Snapshot handicaps at save time so historical scores are protected
     const hcpSnapshot = {
-      [tlow]: [...(league.handicaps[tlow]||[0,0])],
-      [thigh]: [...(league.handicaps[thigh]||[0,0])],
+      [tlow]: [0,1].map(pi => getEffectiveHcp(tlow, pi, selWeek, league.results, league.handicaps, league.hcpOverrides||{})),
+      [thigh]: [0,1].map(pi => getEffectiveHcp(thigh, pi, selWeek, league.results, league.handicaps, league.hcpOverrides||{})),
     };
     const toSave = selTeam===tlow
       ? {...m, hcpSnapshot}
@@ -192,82 +192,15 @@ function App() {
   useEffect(()=>{
     if(!t1id||!t2id) return;
     if(!matchHasScores(match)) return; // don't auto-save empty match on load
+    if(!matchDirty.current) return; // don't auto-save data just loaded from Firebase
     if(autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(()=>saveMatch(match), 5000);
     return ()=>clearTimeout(autoSaveTimer.current);
   },[match]);
 
-  // Auto-advance hole when all 4 players have a score — runs after render, no mid-setState jump
-  // Auto-advance: only fires when match scores change, not when hole changes
-  // Tracks the hole that was complete to avoid re-firing after advance
-  const lastAdvancedHole = useRef(-1);
-  useEffect(()=>{
-    if(!t1id||!t2id) return;
-    // Don't re-check if we already advanced away from this hole
-    if(lastAdvancedHole.current === hole) return;
-    const getOrder=(tid)=>{const[h0,h1]=(league.handicaps[tid]||[0,0]);return h0<=h1?{low:0,high:1}:{low:1,high:0};};
-    const o1=getOrder(t1id), o2=getOrder(t2id);
-    const rows2=[
-      {tIdx:0,pi:o1.low},{tIdx:1,pi:o2.low},
-      {tIdx:0,pi:o1.high},{tIdx:1,pi:o2.high},
-    ];
-    const allScored=rows2.every(row=>{
-      const types=row.tIdx===0?match.t1types:match.t2types;
-      if((types||[])[row.pi]==="sub"||(types||[])[row.pi]==="phantom") return true;
-      const scores=row.tIdx===0?match.t1scores:match.t2scores;
-      return (scores||[[],[]])[row.pi]?.[effH(hole)]>0;
-    });
-    if(allScored && hole<8){
-      lastAdvancedHole.current = hole;
-      setTimeout(()=>setHole(h=>h+1), 500);
-    }
-  },[match]);  // only match, NOT hole — prevents double-fire on advance
-
-  // Scorecard scan
-  async function scanCard(file){
-    if(!file) return;
-    setScan("loading"); setScanMsg("Reading scorecard...");
-    try{
-      const b64=await new Promise((res,rej)=>{
-        const r=new FileReader();
-        r.onload=()=>res(r.result.split(",")[1]);
-        r.onerror=()=>rej(new Error("read failed"));
-        r.readAsDataURL(file);
-      });
-      const p1a=TEAMS[t1id]?.p1||"P1", p2a=TEAMS[t1id]?.p2||"P2";
-      const p1b=TEAMS[t2id]?.p1||"P1", p2b=TEAMS[t2id]?.p2||"P2";
-      const prompt=`This is a golf scorecard from Pickering Valley Golf Course (front 9, pars: ${PAR.join(",")}).
-Two teams are playing:
-- Team A: ${TEAMS[t1id]?.name} — players: ${p1a} (player 1) and ${p2a} (player 2)
-- Team B: ${TEAMS[t2id]?.name} — players: ${p1b} (player 1) and ${p2b} (player 2)
-
-Extract each player's GROSS score (actual strokes) per hole 1-9.
-Return ONLY valid JSON, no explanation:
-{"t1p1":[h1,h2,h3,h4,h5,h6,h7,h8,h9],"t1p2":[...],"t2p1":[...],"t2p2":[...]}
-Use 0 for missing/unreadable scores.`;
-      const resp=await fetch("https://api.anthropic.com/v1/messages",{
-        method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:500,
-          messages:[{role:"user",content:[
-            {type:"image",source:{type:"base64",media_type:file.type||"image/jpeg",data:b64}},
-            {type:"text",text:prompt}
-          ]}]})
-      });
-      const data=await resp.json();
-      const text=(data.content||[]).map(c=>c.text||"").join("").trim();
-      const sc=JSON.parse(text.replace(/```json|```/g,"").trim());
-      const v=arr=>Array.isArray(arr)&&arr.length===9?arr.map(x=>(typeof x==="number"&&x>=0&&x<=15)?x:0):Array(9).fill(0);
-      setMatch(prev=>({...prev,t1scores:[v(sc.t1p1),v(sc.t1p2)],t2scores:[v(sc.t2p1),v(sc.t2p2)]}));
-      const filled=[...(sc.t1p1||[]),...(sc.t1p2||[]),...(sc.t2p1||[]),...(sc.t2p2||[])].filter(x=>x>0).length;
-      setScan("done"); setScanMsg(`✓ Read ${filled}/36 scores — review then save`);
-    }catch(e){
-      console.error(e); setScan("error");
-      setScanMsg("Could not read scorecard — try a clearer photo or enter manually");
-    }
-  }
 
   // Compute full league stats
-  const {teamStats,potyList,weeklyPoty}=calcLeagueStats(league.results,league.handicaps);
+  const {teamStats,potyList,weeklyPoty,cancelledWeeks}=calcLeagueStats(league.results,league.handicaps,league.cancelledWeeks);
   const teamStandings=Object.entries(teamStats)
     .map(([id,s])=>({id:parseInt(id),...s}))
     .sort((a,b)=>b.totalPts-a.totalPts||b.stab-a.stab);
@@ -275,7 +208,7 @@ Use 0 for missing/unreadable scores.`;
   // Check if all matches scored for current week (for bonus display)
   const weekBonus=calcWeekBonus(selWeek,league.results,league.handicaps);
 
-  const TABS=["schedule","scoring","entry","standings","poty","hcp"];
+  const TABS=["schedule","scoring","entry","standings","poty","hcp","verify"];
 
   return(
     <div style={{minHeight:"100vh",background:BG,fontFamily:FB,color:CREAM,paddingBottom:"60px",
@@ -355,7 +288,7 @@ Use 0 for missing/unreadable scores.`;
           )}
         </div>
         <div style={{display:"flex",gap:"0px",flexWrap:"wrap"}}>
-          {TABS.map(t=><NavBtn key={t} active={screen===t} onClick={()=>setScreen(t)}>{t==="poty"?"POTY":t==="hcp"?"HCP":t==="entry"?"Entry":t}</NavBtn>)}
+          {TABS.map(t=><NavBtn key={t} active={screen===t} onClick={()=>setScreen(t)}>{t==="poty"?"POTY":t==="hcp"?"HCP":t==="entry"?"Entry":t==="verify"?"Verify":t}</NavBtn>)}
         </div>
       </div>
 
@@ -372,31 +305,44 @@ Use 0 for missing/unreadable scores.`;
           qfPairs={qfPairs}
           sfPairs={sfPairs}
           finalPairs={finalPairs}
+          cancelledWeeks={cancelledWeeks}
+          toggleCancelWeek={(w) => {
+            const next = { ...league, cancelledWeeks: new Set(league.cancelledWeeks || []) };
+            if (next.cancelledWeeks.has(w)) next.cancelledWeeks.delete(w);
+            else next.cancelledWeeks.add(w);
+            saveLeague(next);
+          }}
         />
       )}
 
       {/* -- SCORING -- */}
-      {screen==="scoring"&&(
-        <ScoringScreen
-          selWeek={selWeek}
-          setWeek={setWeek}
-          selTeam={selTeam}
-          setTeam={setTeam}
-          opp={opp}
-          match={match}
-          setMatch={setMatch}
-          hole={hole}
-          setHole={setHole}
-          t1id={t1id}
-          t2id={t2id}
-          league={league}
-          saveLeague={saveLeague}
-          weekBonus={weekBonus}
-          scanState={scanState}
-          scanMsg={scanMsg}
-          scanCard={scanCard}
-        />
-      )}
+      {screen==="scoring"&&(()=>{
+        return <>
+          <ScoringScreen
+            selWeek={selWeek}
+            setWeek={setWeek}
+            selTeam={selTeam}
+            setTeam={setTeam}
+            opp={opp}
+            match={match}
+            setMatch={setMatchUser}
+            hole={hole}
+            setHole={setHole}
+            t1id={t1id}
+            t2id={t2id}
+            league={league}
+            saveLeague={saveLeague}
+            weekBonus={weekBonus}
+            cancelledWeeks={cancelledWeeks}
+            toggleCancelWeek={(w) => {
+              const next = { ...league, cancelledWeeks: new Set(league.cancelledWeeks || []) };
+              if (next.cancelledWeeks.has(w)) next.cancelledWeeks.delete(w);
+              else next.cancelledWeeks.add(w);
+              saveLeague(next);
+            }}
+          />
+        </>;
+      })()}
       {/* ══ STANDINGS ══ */}
       {/* -- STANDINGS -- */}
       {screen==="standings"&&(
@@ -410,6 +356,7 @@ Use 0 for missing/unreadable scores.`;
           setPotyTab={setPotyTab}
           potyList={potyList}
           weeklyPoty={weeklyPoty}
+          cancelledWeeks={cancelledWeeks}
         />
       )}
 
@@ -417,29 +364,33 @@ Use 0 for missing/unreadable scores.`;
       {screen==="entry"&&(
         <EntryTab
           league={league} saveLeague={saveLeague}
-          entryWeek={entryWeek} setEntryWeek={setEntryWeek}
+          entryWeek={selWeek} setEntryWeek={setWeek}
           entryTeam={entryTeam} setEntryTeam={setEntryTeam}
           entryScores={entryScores} setEntryScores={setEntryScores}
           entrySaved={entrySaved} setEntrySaved={setEntrySaved}
-          userName={userName} setUserName={setUserName}
           knockdownPairs={knockdownPairs} qfPairs={qfPairs}
           sfPairs={sfPairs} finalPairs={finalPairs}
+          cancelledWeeks={cancelledWeeks}
+          toggleCancelWeek={(w) => {
+            const next = { ...league, cancelledWeeks: new Set(league.cancelledWeeks || []) };
+            if (next.cancelledWeeks.has(w)) next.cancelledWeeks.delete(w);
+            else next.cancelledWeeks.add(w);
+            saveLeague(next);
+          }}
         />
       )}
 
-            {/* ══ HANDICAPS ══ */}
+      {/* ══ HANDICAPS ══ */}
       {/* -- HANDICAPS -- */}
       {screen==="hcp"&&(
         <HandicapScreen
-          hcpUnlocked={hcpUnlocked}
-          setHcpUnlocked={setHcpUnlocked}
-          hcpPin={hcpPin}
-          setHcpPin={setHcpPin}
-          hcpPinErr={hcpPinErr}
-          setHcpPinErr={setHcpPinErr}
           league={league}
           saveLeague={saveLeague}
         />
+      )}
+
+      {screen==="verify"&&(
+        <VerifyScreen league={league} />
       )}
     </div>
   );
