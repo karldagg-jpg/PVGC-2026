@@ -1,4 +1,4 @@
-import { SCHEDULE_RAW, TEAMS, getTeeTimes } from "../constants/league";
+import { SCHEDULE_RAW, TEAMS, getTeeTimes, SEASON_YEAR } from "../constants/league";
 import { calcWeekBonus, matchKey } from "../lib/leagueLogic";
 import { CARD, CREAM, G, GO, GOLD, M, FB, FM } from "../constants/theme";
 import { Tag } from "./ui";
@@ -29,7 +29,7 @@ function ScheduleScreen({
           color: CREAM,
         }}
       >
-        2026 Season
+        {SEASON_YEAR} Season
       </div>
       <div style={{ color: M, fontSize: "14px", marginBottom: "20px" }}>
         18 teams · Wednesdays · First tee 4:10pm

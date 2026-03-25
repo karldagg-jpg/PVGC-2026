@@ -10,6 +10,7 @@ import {
 import { G, R, M, BG, CREAM, GOLD, FD, FB } from "./constants/theme";
 import { NavBtn } from "./components/ui";
 import EntryTab from "./components/EntryTab";
+import CasualTab from "./components/CasualTab";
 import ScheduleScreen from "./components/ScheduleScreen";
 import ScoringScreen from "./components/ScoringScreen";
 import StandingsScreen from "./components/StandingsScreen";
@@ -208,7 +209,7 @@ function App() {
   // Check if all matches scored for current week (for bonus display)
   const weekBonus=calcWeekBonus(selWeek,league.results,league.handicaps);
 
-  const TABS=["schedule","scoring","entry","standings","poty","hcp","verify"];
+  const TABS=["schedule","scoring","entry","standings","poty","hcp","verify","casual"];
 
   return(
     <div style={{minHeight:"100vh",background:BG,fontFamily:FB,color:CREAM,paddingBottom:"60px",
@@ -288,7 +289,7 @@ function App() {
           )}
         </div>
         <div style={{display:"flex",gap:"0px",flexWrap:"wrap"}}>
-          {TABS.map(t=><NavBtn key={t} active={screen===t} onClick={()=>setScreen(t)}>{t==="poty"?"POTY":t==="hcp"?"HCP":t==="entry"?"Entry":t==="verify"?"Verify":t}</NavBtn>)}
+          {TABS.map(t=><NavBtn key={t} active={screen===t} onClick={()=>setScreen(t)}>{t==="poty"?"POTY":t==="hcp"?"HCP":t==="entry"?"Entry":t==="verify"?"Verify":t==="casual"?"Casual":t}</NavBtn>)}
         </div>
       </div>
 
@@ -391,6 +392,10 @@ function App() {
 
       {screen==="verify"&&(
         <VerifyScreen league={league} />
+      )}
+
+      {screen==="casual"&&(
+        <CasualTab />
       )}
     </div>
   );
