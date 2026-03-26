@@ -10,11 +10,14 @@ import {
   HCP_CAP,
   HCP_ROUNDS,
   NEW_MEMBER_HCP_PCT,
+  PLAYOFF_START_WEEK,
   isNewMember,
 } from "../constants/league";
 
+const REGULAR_SEASON_MAX_WEEK = PLAYOFF_START_WEEK - 1;
+
 function getPlayoffSeeds(results, handicaps) {
-  const {teamStats} = calcLeagueStats(results, handicaps, null, 17);
+  const {teamStats} = calcLeagueStats(results, handicaps, null, REGULAR_SEASON_MAX_WEEK);
   return Object.entries(teamStats)
     .map(([id,s])=>({id:parseInt(id),...s}))
     .sort((a,b)=>b.totalPts-a.totalPts||b.stab-a.stab)
@@ -209,7 +212,7 @@ function isWeekCancelled(weekResults) {
 }
 
 // ── Full league stats ──────────────────────────────────────────
-function calcLeagueStats(results, handicaps, cancelledWeeksIn=null, maxWeek=17, schedule=SCHEDULE, allPlayers=ALL_PLAYERS, teams=TEAMS) {
+function calcLeagueStats(results, handicaps, cancelledWeeksIn=null, maxWeek=REGULAR_SEASON_MAX_WEEK, schedule=SCHEDULE, allPlayers=ALL_PLAYERS, teams=TEAMS) {
   // Team stats: matchPts, bonusPts, totalPts, stab, wins, losses, ties, played
   const teamStats = {};
   for (let t=1;t<=18;t++) teamStats[t] = {matchPts:0,bonusPts:0,totalPts:0,stab:0,wins:0,losses:0,ties:0,played:0};
