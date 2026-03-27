@@ -184,6 +184,7 @@ function calcWeekBonus(week, results, handicaps, schedule=SCHEDULE) {
   let i = 0;
 
   // Award by score groups (distinct totals): top 2 groups get 8, next 2 groups get 6, etc.
+  // All teams within the same score group always receive the same bonus (ties handled).
   while (i < totals.length) {
     let j = i + 1;
     while (j < totals.length && totals[j].total === totals[i].total) j++;
