@@ -255,8 +255,10 @@ function calcLeagueStats(results, handicaps, cancelledWeeksIn=null, maxWeek=REGU
       teamStats[thigh].played++;
 
       // Points: Low vs Low (2/1), High vs High (2/1), Team match (4/2)
-      const hA = handicaps[tlow]||[0,0];
-      const hB = handicaps[thigh]||[0,0];
+      // Use snapshot handicaps for low/high ordering (same as stab calc) to stay consistent
+      const snap = rec.hcpSnapshot;
+      const hA = (snap?.[tlow]  || handicaps[tlow])  || [0,0];
+      const hB = (snap?.[thigh] || handicaps[thigh]) || [0,0];
       const lowA = hA[0]<=hA[1]?0:1, highA = 1-lowA;
       const lowB = hB[0]<=hB[1]?0:1, highB = 1-lowB;
       const pairings = [{piA:lowA,piB:lowB},{piA:highA,piB:highB}];
