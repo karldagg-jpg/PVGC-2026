@@ -17,6 +17,7 @@ import StandingsScreen from "./components/StandingsScreen";
 import PotyScreen from "./components/PotyScreen";
 import HandicapScreen from "./components/HandicapScreen";
 import VerifyScreen from "./components/VerifyScreen";
+import RulesScreen from "./components/RulesScreen";
 import {
   getPlayoffSeeds,
   getKnockdownPairs,
@@ -53,6 +54,7 @@ function App() {
   const [entrySaved, setEntrySaved] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [seasonYear] = useState(SEASON_YEAR);
+  const [rules, setRules] = useState([]);
 
   function changeSeason(year) {
     if (!setSeasonYear(year)) return;
@@ -67,6 +69,7 @@ function App() {
     if(!snap.exists){ setFbStatus("loaded"); return; }
     const p = snap.data();
     setLeague(prev => applySnapshotToLeague(prev, p, DEFAULT_HCP));
+    if (p.rules) setRules(p.rules);
     setFbStatus("loaded");
   };
 
@@ -108,6 +111,15 @@ function App() {
     }catch(e){
       console.warn("Save error:",e);
       setFbStatus("save-error:"+e.code+":"+e.message);
+    }
+  }
+
+  async function saveRules(next) {
+    setRules(next);
+    try {
+      await LEAGUE_DOC.set({ rules: next }, { merge: true });
+    } catch(e) {
+      console.warn("Rules save error:", e);
     }
   }
 
@@ -209,7 +221,7 @@ function App() {
   // Check if all matches scored for current week (for bonus display)
   const weekBonus=calcWeekBonus(selWeek,league.results,league.handicaps);
 
-  const TABS=["schedule","scoring","entry","standings","poty","hcp","verify","casual"];
+  const TABS=["schedule","scoring","entry","standings","poty","hcp","verify","casual","rules"];
 
   return(
     <div style={{minHeight:"100vh",background:BG,fontFamily:FB,color:CREAM,paddingBottom:"60px",
@@ -289,7 +301,7 @@ function App() {
           )}
         </div>
         <div style={{display:"flex",gap:"0px",flexWrap:"wrap"}}>
-          {TABS.map(t=><NavBtn key={t} active={screen===t} onClick={()=>setScreen(t)}>{t==="poty"?"POTY":t==="hcp"?"HCP":t==="entry"?"Entry":t==="verify"?"Verify":t==="casual"?"Casual":t}</NavBtn>)}
+          {TABS.map(t=><NavBtn key={t} active={screen===t} onClick={()=>setScreen(t)}>{t==="poty"?"POTY":t==="hcp"?"HCP":t==="entry"?"Entry":t==="verify"?"Verify":t==="casual"?"Casual":t==="rules"?"Rules":t}</NavBtn>)}
         </div>
       </div>
 
@@ -396,6 +408,10 @@ function App() {
 
       {screen==="casual"&&(
         <CasualTab />
+      )}
+
+      {screen==="rules"&&(
+        <RulesScreen rules={rules} saveRules={saveRules} />
       )}
     </div>
   );
