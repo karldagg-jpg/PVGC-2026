@@ -142,7 +142,7 @@ schedule = {}   # week → [[tlow, thigh], …]
 
 def detect_pi(raw_row, tid):
     """Read player ID from a raw row and return the correct pi (0 or 1)."""
-    for col in [1, 2, 3, 6, 28, 30]:
+    for col in [2, 3, 6, 28, 30]:
         if col >= len(raw_row):
             continue
         val = raw_row[col]

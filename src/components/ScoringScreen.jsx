@@ -1,5 +1,5 @@
 import { PAR, SI, RAINOUT_SUB, TEAMS, SCHEDULE } from "../constants/league";
-import { stabPts, hcpStr, maxGross, getEffectiveHcp, getEffectiveHcpRaw } from "../lib/leagueLogic";
+import { stabPts, hcpStr, maxGross, getEffectiveHcp, getEffectiveHcpRaw, computeTeamTotal, matchKey } from "../lib/leagueLogic";
 import { BG, CARD, CARD2, CREAM, FB, FD, G, GO, GOLD, M, R } from "../constants/theme";
 import { fmtDate } from "../lib/format";
 import { Tag, PtsBadge } from "./ui";
@@ -57,6 +57,151 @@ function ScoringScreen({
     });
   }
 
+  function printScorecard() {
+    if (!opp) return;
+    const getHcpForPrint = (tid, pi) => getEffectiveHcp(tid, pi, selWeek, league.results, league.handicaps, league.hcpOverrides || {});
+    const getOrderForPrint = (tid) => {
+      const ov = (league.loHiOverrides || {})[`${tid}-${selWeek}`];
+      if (ov !== undefined) return ov === 0 ? { low: 0, high: 1 } : { low: 1, high: 0 };
+      const r0 = getEffectiveHcpRaw(tid, 0, selWeek, league.results, league.handicaps, league.hcpOverrides || {});
+      const r1 = getEffectiveHcpRaw(tid, 1, selWeek, league.results, league.handicaps, league.hcpOverrides || {});
+      return r0 <= r1 ? { low: 0, high: 1 } : { low: 1, high: 0 };
+    };
+    const o1 = getOrderForPrint(t1id), o2 = getOrderForPrint(t2id);
+    const players = [
+      { tid: t1id, tIdx: 0, pi: o1.low,  label: "Low"  },
+      { tid: t1id, tIdx: 0, pi: o1.high, label: "High" },
+      { tid: t2id, tIdx: 1, pi: o2.low,  label: "Low"  },
+      { tid: t2id, tIdx: 1, pi: o2.high, label: "High" },
+    ].map(p => {
+      const hcp = getHcpForPrint(p.tid, p.pi);
+      // strokes per hole (0, 1, or 2)
+      const strokes = Array(9).fill(0).map((_, h) => hcpStr(hcp, SI[h]));
+      return {
+        ...p,
+        hcp,
+        strokes,
+        name: TEAMS[p.tid]?.[p.pi === 0 ? "p1" : "p2"] || "",
+      };
+    });
+
+    const dateStr = fmtDate(SCHEDULE[selWeek]?.date) || "";
+    const t1name = TEAMS[t1id]?.name || `Team ${t1id}`;
+    const t2name = TEAMS[t2id]?.name || `Team ${t2id}`;
+
+    // Stroke indicator: shaded cell bg + small dots at top
+    const scoreCell = (str) => {
+      const bg = str === 2 ? "#c8e6c9" : str === 1 ? "#e8f5e9" : "#fff";
+      const dots = str > 0 ? `<div style="font-size:7px;color:#1a6b3a;line-height:1;margin-bottom:1px">${"●".repeat(str)}</div>` : "";
+      return `<td style="background:${bg};width:36px;height:38px;vertical-align:top;padding-top:3px">${dots}</td>`;
+    };
+
+    const playerRows = players.map((p, pi) => {
+      const isFirst = pi === 0 || pi === 2;
+      const sep = isFirst && pi === 2 ? `<tr><td colspan="12" style="height:6px;background:#e8f0e8;border:none"></td></tr>` : "";
+      return sep + `<tr>
+        <td style="text-align:left;padding:4px 6px;white-space:nowrap;font-size:11px">
+          <strong>${p.name}</strong><br>
+          <span style="color:#666;font-size:10px">HCP ${p.hcp} · ${p.label}</span>
+        </td>
+        ${p.strokes.map(str => scoreCell(str)).join("")}
+        <td style="width:38px;height:38px;background:#f5f5f5"></td>
+      </tr>`;
+    });
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>PVGC Wk ${selWeek}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;color:#111;background:#fff;padding:14px 16px}
+h1{font-size:14px;font-weight:700;text-align:center;margin-bottom:2px}
+.sub{font-size:11px;text-align:center;color:#555;margin-bottom:10px}
+table{width:100%;border-collapse:collapse}
+td,th{border:1px solid #999;text-align:center;vertical-align:middle}
+.hdr th{background:#1e4d2b;color:#fff;font-size:11px;font-weight:600;padding:4px 2px;height:24px}
+.par td{background:#f5f0e0;font-weight:700;font-size:12px;padding:3px 2px}
+.si  td{background:#fafafa;font-size:10px;color:#888;padding:2px}
+.match-section{margin-top:10px;font-size:11px}
+.match-row{display:flex;gap:8px;margin-top:6px;align-items:center}
+.match-box{border:1px solid #bbb;border-radius:4px;padding:5px 10px;flex:1;font-size:11px}
+.match-label{font-weight:700;font-size:10px;color:#555;margin-bottom:3px}
+.score-line{display:flex;justify-content:space-between;align-items:center;gap:6px}
+.score-blank{border-bottom:1px solid #333;width:32px;height:18px;display:inline-block}
+@media print{body{padding:6px};@page{size:portrait;margin:10mm}}
+</style></head><body>
+
+<h1>PVGC Golf League — Week ${selWeek}</h1>
+<div class="sub">${t1name} &nbsp;vs&nbsp; ${t2name}${dateStr ? " &nbsp;·&nbsp; " + dateStr : ""}</div>
+
+<table>
+  <thead>
+    <tr class="hdr">
+      <th style="text-align:left;padding-left:6px;width:130px">Player</th>
+      ${Array(9).fill(0).map((_,h) => `<th style="width:36px">${h+1}</th>`).join("")}
+      <th style="width:38px">Total</th>
+    </tr>
+    <tr class="par">
+      <td style="text-align:left;padding-left:6px">Par</td>
+      ${PAR.map(p => `<td>${p}</td>`).join("")}
+      <td>36</td>
+    </tr>
+    <tr class="si">
+      <td style="text-align:left;padding-left:6px">SI</td>
+      ${SI.map(s => `<td>${s}</td>`).join("")}
+      <td></td>
+    </tr>
+  </thead>
+  <tbody>
+    ${playerRows.join("")}
+  </tbody>
+</table>
+
+<div class="match-section">
+  <div style="font-size:10px;font-weight:700;color:#1e4d2b;margin-bottom:4px;letter-spacing:.06em">MATCH RESULTS</div>
+  <div class="match-row">
+    <div class="match-box">
+      <div class="match-label">LOW vs LOW</div>
+      <div class="score-line">
+        <span>${players[0].name.split(" ").slice(-1)[0]}</span>
+        <span class="score-blank"></span>
+        <span style="color:#999">—</span>
+        <span class="score-blank"></span>
+        <span>${players[2].name.split(" ").slice(-1)[0]}</span>
+      </div>
+    </div>
+    <div class="match-box">
+      <div class="match-label">HIGH vs HIGH</div>
+      <div class="score-line">
+        <span>${players[1].name.split(" ").slice(-1)[0]}</span>
+        <span class="score-blank"></span>
+        <span style="color:#999">—</span>
+        <span class="score-blank"></span>
+        <span>${players[3].name.split(" ").slice(-1)[0]}</span>
+      </div>
+    </div>
+    <div class="match-box" style="flex:0.6">
+      <div class="match-label">MATCH PTS</div>
+      <div class="score-line">
+        <span style="font-size:10px">${t1name.split(" - ")[0]}</span>
+        <span class="score-blank"></span>
+        <span style="color:#999">—</span>
+        <span class="score-blank"></span>
+        <span style="font-size:10px">${t2name.split(" - ")[0]}</span>
+      </div>
+    </div>
+  </div>
+  <div style="font-size:9px;color:#888;margin-top:5px">● = handicap stroke &nbsp;|&nbsp; ●● = 2 strokes &nbsp;|&nbsp; Shaded cells indicate stroke holes</div>
+</div>
+</body></html>`;
+
+    const w = window.open("", "_blank", "width=780,height=600");
+    if (!w) return;
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => w.print(), 300);
+  }
+
   return (<div style={{ maxWidth: "820px", margin: "0 auto", padding: "14px 10px" }}>
 
     {/* Week / Team selectors */}
@@ -85,6 +230,15 @@ function ScoringScreen({
           ))}
         </select>
       </div>
+      {opp && (
+        <button onClick={printScorecard} style={{
+          padding: "6px 12px", borderRadius: "7px", border: `1px solid ${GOLD}44`,
+          background: "rgba(26,61,36,0.06)", color: CREAM, fontFamily: FB, fontSize: "13px",
+          cursor: "pointer", display: "flex", alignItems: "center", gap: "5px"
+        }}>
+          🖨 Print
+        </button>
+      )}
       {cancelledWeeks?.has(selWeek)
         ? <div style={{ marginLeft: "auto", fontSize: "13px", color: "#e6a817", fontWeight: 700 }}>⛈ Cancelled</div>
         : opp
@@ -650,15 +804,30 @@ function ScoringScreen({
             ✓ Week {selWeek} Bonus Points Awarded
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
-            {Object.entries(weekBonus).sort((a, b) => b[1] - a[1]).map(([tid, bp]) => (
-              <div key={tid} style={{
-                padding: "4px 9px", borderRadius: "6px", background: G + "18",
-                border: `1px solid ${G}33`, fontSize: "13px"
-              }}>
-                <span style={{ color: G, fontWeight: 600 }}>+{bp}</span>
-                <span style={{ color: M, marginLeft: "4px" }}>{TEAMS[parseInt(tid)]?.name}</span>
-              </div>
-            ))}
+            {(() => {
+              // Build tid→weekTotal map from match records
+              const weekTotals = {};
+              for (const [ta, tb] of (SCHEDULE[selWeek]?.pairs || [])) {
+                const [tlow, thigh] = ta < tb ? [ta, tb] : [tb, ta];
+                const rec = league.results[selWeek]?.[matchKey(selWeek, tlow, thigh)];
+                if (rec) {
+                  weekTotals[tlow]  = computeTeamTotal(rec, 0, tlow,  league.handicaps);
+                  weekTotals[thigh] = computeTeamTotal(rec, 1, thigh, league.handicaps);
+                }
+              }
+              return Object.entries(weekBonus).sort((a, b) => b[1] - a[1]).map(([tid, bp]) => (
+                <div key={tid} style={{
+                  padding: "4px 9px", borderRadius: "6px", background: G + "18",
+                  border: `1px solid ${G}33`, fontSize: "13px"
+                }}>
+                  <span style={{ color: G, fontWeight: 600 }}>+{bp}</span>
+                  <span style={{ color: M, marginLeft: "4px" }}>{TEAMS[parseInt(tid)]?.name}</span>
+                  {weekTotals[parseInt(tid)] != null && (
+                    <span style={{ color: GOLD, marginLeft: "6px", fontWeight: 600 }}>{weekTotals[parseInt(tid)]}</span>
+                  )}
+                </div>
+              ));
+            })()}
           </div>
         </div>
       ) : (

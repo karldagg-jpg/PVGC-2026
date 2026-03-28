@@ -61,7 +61,7 @@ export const HCP_PCT = [0, 0.90, 0.90, 0.90, 0.90];
 export const HCP_CAP = 2;
 export const HCP_ROUNDS = 7;
 export const NEW_MEMBER_HCP_PCT = 0.65;
-export const PLAYOFF_START_WEEK = 19;
+export const PLAYOFF_START_WEEK = 18;
 
 export const SCHEDULE_RAW = [
   [1, null, [13,17],[14,15],[3,6],[8,9],[2,4],[10,11],[7,12],[1,5],[16,18]],
