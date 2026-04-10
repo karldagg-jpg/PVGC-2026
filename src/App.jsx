@@ -196,7 +196,8 @@ const [seasonYear] = useState(SEASON_YEAR);
   }
 
   function adminUnlock(pin) {
-    if (pin === adminPin) {
+    // If no PIN set yet, any non-empty entry unlocks so you can set one
+    if (!adminPin || pin === adminPin) {
       localStorage.setItem("pvgc_admin", "1");
       setIsAdmin(true);
       return true;
