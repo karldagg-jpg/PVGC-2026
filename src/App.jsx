@@ -54,6 +54,7 @@ function App() {
   const [confirmReset, setConfirmReset] = useState(false);
   const [seasonYear] = useState(SEASON_YEAR);
   const [rules, setRules] = useState([]);
+  const [scanMsg, setScanMsg] = useState("");
 
   function changeSeason(year) {
     if (!setSeasonYear(year)) return;
