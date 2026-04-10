@@ -278,22 +278,38 @@ export default function PlayoffScreen({ league, playoffSeeds, qfSeeds, knockdown
           )}
           {knockdownComplete && <div style={{ fontSize: "11px", color: G, fontWeight: 600 }}>✓ Complete</div>}
         </div>
-        {knockdownPairs.length > 0 ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))", gap: "8px" }}>
-            {knockdownPairs.map(([ta, tb], i) => {
-              const preA = seeds.indexOf(ta) + 1; // pre-knockdown rank (0 = outside top 8)
-              const preB = seeds.indexOf(tb) + 1;
-              return (
-                <MatchCard key={i}
-                  week={18} ta={ta} tb={tb}
-                  seedA={preA || null} seedB={preB || null}
-                  league={league}
-                  label={`Match ${i + 1}`}
-                />
-              );
-            })}
-          </div>
-        ) : (
+        {knockdownPairs.length > 0 ? (() => {
+          const topMatches = knockdownPairs.slice(0, 4);   // seeds 1-8
+          const botMatches = knockdownPairs.slice(4);       // seeds 9-18
+          return (
+            <>
+              <div style={{ fontSize: "11px", color: G, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "6px" }}>
+                Seeds 1–8 · Playoff Bracket
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))", gap: "8px", marginBottom: "14px" }}>
+                {topMatches.map(([ta, tb], i) => (
+                  <MatchCard key={i} week={18} ta={ta} tb={tb}
+                    seedA={seeds.indexOf(ta) + 1} seedB={seeds.indexOf(tb) + 1}
+                    league={league} label={`Match ${i + 1}`} />
+                ))}
+              </div>
+              {botMatches.length > 0 && (
+                <>
+                  <div style={{ fontSize: "11px", color: M, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "6px" }}>
+                    Seeds 9–18 · Non-Playoff
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))", gap: "8px" }}>
+                    {botMatches.map(([ta, tb], i) => (
+                      <MatchCard key={i+4} week={18} ta={ta} tb={tb}
+                        seedA={seeds.indexOf(ta) + 1 || 9 + i*2} seedB={seeds.indexOf(tb) + 1 || 10 + i*2}
+                        league={league} label={`Match ${i + 5}`} dim />
+                    ))}
+                  </div>
+                </>
+              )}
+            </>
+          );
+        })() : (
           <div style={{ fontSize: "13px", color: M }}>Matchups determined by final regular season standings</div>
         )}
       </div>
