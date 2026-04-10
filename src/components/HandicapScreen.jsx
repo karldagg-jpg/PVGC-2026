@@ -140,7 +140,7 @@ function HandicapScreen({ league, saveLeague }) {
                               }}
                             />
                             {override === undefined && (
-                              <span style={{ fontSize: "9px", color: "#aaa", lineHeight: 1 }}>{rawHcp.toFixed(3)}</span>
+                              <span style={{ fontSize: "9px", color: "#aaa", lineHeight: 1 }}>{rawHcp.toFixed(1)}</span>
                             )}
                             {played && (gross > 0 ? (
                               <span style={{ fontSize: "10px", color: isRainout ? GO : M }}>
@@ -270,7 +270,7 @@ function HandicapScreen({ league, saveLeague }) {
                     </td>
                     <td style={{ padding: "7px 8px", textAlign: "center" }}>
                       <span style={{ fontWeight: 700, color: G, fontSize: "15px" }}>{calcHcp}</span>
-                      <div style={{ fontSize: "10px", color: "#aaa" }}>{raw.toFixed(3)}</div>
+                      <div style={{ fontSize: "10px", color: "#aaa" }}>{raw.toFixed(1)}</div>
                     </td>
                   </tr>
                 );
