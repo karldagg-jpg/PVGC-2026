@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { SCHEDULE_RAW, TEAMS, getTeeTimes, SEASON_YEAR } from "../constants/league";
-import { G, M, CREAM, GOLD, CARD, FB, FD } from "../constants/theme";
+import { G, M, CREAM, GOLD, CARD, FB, FD, R } from "../constants/theme";
 import { fmtDate } from "../lib/format";
+import { matchKey } from "../lib/leagueLogic";
 
 function printStarterSheet(week, pairs, teeTimes) {
   const dateStr = fmtDate(SCHEDULE_RAW.find(r => r[0] === week)?.[1]) || "";
@@ -71,7 +72,7 @@ tr{border-bottom:1.5px solid #ccc}
   setTimeout(() => w.print(), 300);
 }
 
-export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, finalPairs }) {
+export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, finalPairs, saveLeague, unlockMatch }) {
   const regularWeeks = SCHEDULE_RAW.filter(([w]) => w < 18).map(([w]) => w);
   const [selWeek, setSelWeek] = useState(regularWeeks[regularWeeks.length - 1] || 1);
 
@@ -84,6 +85,28 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
     : null;
   const pairs = dynPairs || rawPairs;
 
+  const readOnlyWeeks = league?.readOnlyWeeks || [];
+
+  function toggleReadOnly(w) {
+    if (!saveLeague) return;
+    const cur = readOnlyWeeks.includes(w);
+    const next = { ...league, readOnlyWeeks: cur ? readOnlyWeeks.filter(x => x !== w) : [...readOnlyWeeks, w] };
+    saveLeague(next);
+  }
+
+  // Collect locked + confirmed matches
+  const lockedMatches = [];
+  for (const [wStr, weekRecs] of Object.entries(league?.results || {})) {
+    const w = parseInt(wStr);
+    for (const [mk, rec] of Object.entries(weekRecs || {})) {
+      if (!rec) continue;
+      if (rec.locked || (rec.confirmations && Object.keys(rec.confirmations).length > 0)) {
+        lockedMatches.push({ week: w, mk, rec });
+      }
+    }
+  }
+  lockedMatches.sort((a, b) => a.week - b.week);
+
   return (
     <div style={{ maxWidth: "600px", margin: "0 auto", padding: "24px 16px" }}>
       <div style={{ fontFamily: FD, fontSize: "26px", fontWeight: 600, color: CREAM, marginBottom: "20px" }}>
@@ -91,7 +114,7 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
       </div>
 
       {/* ── Print Starter Sheet ──────────────────────────────────── */}
-      <div style={{ background: CARD, border: `1px solid ${GOLD}33`, borderRadius: "14px", padding: "20px" }}>
+      <div style={{ background: CARD, border: `1px solid ${GOLD}33`, borderRadius: "14px", padding: "20px", marginBottom: "16px" }}>
         <div style={{ fontSize: "13px", letterSpacing: "0.1em", textTransform: "uppercase", color: M, marginBottom: "14px", fontWeight: 600 }}>
           Print Starter Sheet
         </div>
@@ -131,6 +154,87 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
           )}
         </div>
       </div>
+
+      {/* ── Read-Only Weeks ──────────────────────────────────────── */}
+      <div style={{ background: CARD, border: `1px solid ${GOLD}33`, borderRadius: "14px", padding: "20px", marginBottom: "16px" }}>
+        <div style={{ fontSize: "13px", letterSpacing: "0.1em", textTransform: "uppercase", color: M, marginBottom: "4px", fontWeight: 600 }}>
+          Read-Only Weeks
+        </div>
+        <div style={{ fontSize: "12px", color: M, marginBottom: "14px" }}>
+          Lock a past week so scores can't be edited by anyone.
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+          {regularWeeks.map(w => {
+            const isRO = readOnlyWeeks.includes(w);
+            return (
+              <button key={w} onClick={() => toggleReadOnly(w)}
+                style={{
+                  padding: "6px 12px", borderRadius: "7px", fontFamily: FB, fontSize: "13px",
+                  fontWeight: isRO ? 700 : 400, cursor: "pointer",
+                  border: isRO ? `2px solid #e6a817` : `1px solid ${GOLD}44`,
+                  background: isRO ? "#fff3cd" : "transparent",
+                  color: isRO ? "#7a4f00" : M,
+                }}>
+                {isRO ? "🔒" : ""} W{w}
+              </button>
+            );
+          })}
+        </div>
+        {readOnlyWeeks.length > 0 && (
+          <div style={{ marginTop: "12px", fontSize: "12px", color: M }}>
+            Locked: {readOnlyWeeks.sort((a,b)=>a-b).map(w => `W${w}`).join(", ")}
+          </div>
+        )}
+      </div>
+
+      {/* ── Confirmed / Locked Matches ───────────────────────────── */}
+      {lockedMatches.length > 0 && (
+        <div style={{ background: CARD, border: `1px solid ${GOLD}33`, borderRadius: "14px", padding: "20px" }}>
+          <div style={{ fontSize: "13px", letterSpacing: "0.1em", textTransform: "uppercase", color: M, marginBottom: "14px", fontWeight: 600 }}>
+            Confirmed Matches
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            {lockedMatches.map(({ week, mk, rec }) => {
+              const parts = mk.split("-");
+              const tlow = parseInt(parts[1]), thigh = parseInt(parts[2]);
+              const confs = rec.confirmations || {};
+              const t1c = confs[tlow], t2c = confs[thigh];
+              return (
+                <div key={`${week}-${mk}`} style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  gap: "8px", padding: "10px 12px", borderRadius: "9px",
+                  background: rec.locked ? G + "0d" : GOLD + "0a",
+                  border: `1px solid ${rec.locked ? G + "33" : GOLD + "33"}`,
+                  flexWrap: "wrap"
+                }}>
+                  <div>
+                    <div style={{ fontSize: "13px", fontWeight: 600, color: CREAM }}>
+                      W{week} — T{tlow} vs T{thigh}
+                      {rec.locked && <span style={{ marginLeft: "8px", color: G, fontSize: "12px" }}>✅ Locked</span>}
+                    </div>
+                    <div style={{ fontSize: "11px", color: M, marginTop: "3px" }}>
+                      {t1c ? <span style={{ color: G }}>T{tlow}: {t1c.confirmedBy} {t1c.confirmedAt}</span> : <span style={{ color: M }}>T{tlow}: pending</span>}
+                      <span style={{ color: M }}> · </span>
+                      {t2c ? <span style={{ color: G }}>T{thigh}: {t2c.confirmedBy} {t2c.confirmedAt}</span> : <span style={{ color: M }}>T{thigh}: pending</span>}
+                    </div>
+                  </div>
+                  {rec.locked && unlockMatch && (
+                    <button onClick={() => unlockMatch(week, mk)}
+                      style={{
+                        padding: "5px 12px", borderRadius: "6px",
+                        border: `1px solid ${R}44`, background: R + "10",
+                        color: R, fontFamily: FB, fontSize: "12px",
+                        fontWeight: 600, cursor: "pointer"
+                      }}>
+                      Unlock
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

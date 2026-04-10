@@ -19,4 +19,6 @@ const db = firebase.firestore();
 const LEAGUE_DOC_ID = `league-${SEASON_YEAR}`;
 const LEAGUE_DOC = db.collection("pvgc").doc(LEAGUE_DOC_ID);
 
-export { firebase, db, LEAGUE_DOC, LEAGUE_DOC_ID };
+const WEEK_SCORES_COL = LEAGUE_DOC.collection("weekScores");
+
+export { firebase, db, LEAGUE_DOC, LEAGUE_DOC_ID, WEEK_SCORES_COL };

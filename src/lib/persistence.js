@@ -44,6 +44,29 @@ function encodeResults(results = {}) {
   return encodedResults;
 }
 
+// Apply a single weekScores subcollection doc into league state
+function applyWeekScoreDoc(prevLeague, docData) {
+  const week = parseInt(docData.week);
+  const mk = docData.matchKey;
+  if (!week || !mk) return prevLeague;
+  const normalized = normalizeMatch(docData);
+  return {
+    ...prevLeague,
+    results: {
+      ...prevLeague.results,
+      [week]: { ...(prevLeague.results[week] || {}), [mk]: normalized },
+    },
+  };
+}
+
+// Remove a single match from league state (doc deleted)
+function removeWeekScoreDoc(prevLeague, week, mk) {
+  if (!week || !mk || !prevLeague.results[week]) return prevLeague;
+  const weekResults = { ...prevLeague.results[week] };
+  delete weekResults[mk];
+  return { ...prevLeague, results: { ...prevLeague.results, [week]: weekResults } };
+}
+
 function applySnapshotToLeague(prevLeague, payload, defaultHcp) {
   const p = payload || {};
   const decoded = decodeResults(p.results || {});
@@ -56,6 +79,7 @@ function applySnapshotToLeague(prevLeague, payload, defaultHcp) {
     hcpOverrides: p.hcpOverrides || {},
     loHiOverrides: p.loHiOverrides || {},
     cancelledWeeks: new Set(p.cancelledWeeks || []),
+    readOnlyWeeks: p.readOnlyWeeks || [],
   };
 }
 
@@ -64,4 +88,6 @@ export {
   decodeResults,
   encodeResults,
   applySnapshotToLeague,
+  applyWeekScoreDoc,
+  removeWeekScoreDoc,
 };

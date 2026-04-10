@@ -5,10 +5,11 @@ import { fmtDate } from "../lib/format";
 import { G, GO, R, M, CREAM, GOLD, FB, FD } from "../constants/theme";
 import { Tag } from "./ui";
 
-function EntryTab({league, saveLeague, entryWeek, setEntryWeek, entryTeam, setEntryTeam,
+function EntryTab({league, saveLeague, saveMatchDoc, entryWeek, setEntryWeek, entryTeam, setEntryTeam,
                    entryScores, setEntryScores, entrySaved, setEntrySaved,
                    knockdownPairs, qfPairs, sfPairs, finalPairs,
                    cancelledWeeks, toggleCancelWeek}) {
+  const isReadOnly = (league.readOnlyWeeks || []).includes(entryWeek);
   const cellRefs = useRef({});
   const [draftTypes, setDraftTypes] = useState({});
 
@@ -117,6 +118,7 @@ function EntryTab({league, saveLeague, entryWeek, setEntryWeek, entryTeam, setEn
 
   const saveEntry = async () => {
     if (!mk || !entT1id || !entT2id) return;
+    if (isReadOnly) return;
     const draft = entryScores[draftKey] || initDraft();
     const isSwapped = entT1id > entT2id;
     const t1s = isSwapped ? draft[1] : draft[0];
@@ -136,11 +138,13 @@ function EntryTab({league, saveLeague, entryWeek, setEntryWeek, entryTeam, setEn
       t1types: t1types_draft,
       t2types: t2types_draft,
       hcpSnapshot,
-      updatedAt: new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}),
     };
-    const next = {...league, results: {...league.results,
-      [entryWeek]: {...league.results[entryWeek], [mk]: toSave}}};
-    await saveLeague(next);
+    if (saveMatchDoc) {
+      await saveMatchDoc(toSave, entryWeek, tlow, thigh);
+    } else {
+      const next = {...league, results: {...league.results, [entryWeek]: {...league.results[entryWeek], [mk]: toSave}}};
+      await saveLeague(next);
+    }
     setEntryScores(prev => { const n={...prev}; delete n[draftKey]; return n; });
     setDraftTypes(prev => { const n={...prev}; delete n[draftKey]; return n; });
     setEntrySaved(true);
@@ -246,6 +250,13 @@ function EntryTab({league, saveLeague, entryWeek, setEntryWeek, entryTeam, setEn
               padding:"12px 16px",marginBottom:"16px",fontSize:"16px",color:R,fontWeight:600}}>
               No match scheduled for Week {entryWeek}
             </div>
+      )}
+
+      {isReadOnly && (
+        <div style={{background:"#fff3cd",border:"2px solid #e6a817",borderRadius:"13px",
+          padding:"12px 16px",marginBottom:"14px",fontSize:"14px",color:"#7a4f00",fontWeight:600}}>
+          🔒 Week {entryWeek} is read-only — editing disabled by admin.
+        </div>
       )}
 
       {entOpp && !cancelledWeeks?.has(entryWeek) && (<>
@@ -394,13 +405,15 @@ function EntryTab({league, saveLeague, entryWeek, setEntryWeek, entryTeam, setEn
 
         {/* Save */}
         <button onClick={saveEntry}
+          disabled={isReadOnly}
           style={{width:"100%",padding:"18px",borderRadius:"12px",marginTop:"4px",
             border:`2px solid ${entrySaved?G:G}`,
-            background:entrySaved?G:"#fff",
-            color:entrySaved?"#fff":G,fontFamily:FB,fontSize:"17px",
-            letterSpacing:"0.06em",textTransform:"uppercase",cursor:"pointer",
+            background:entrySaved?G:isReadOnly?"#eee":"#fff",
+            color:entrySaved?"#fff":isReadOnly?"#999":G,fontFamily:FB,fontSize:"17px",
+            letterSpacing:"0.06em",textTransform:"uppercase",
+            cursor:isReadOnly?"not-allowed":"pointer",
             fontWeight:700,transition:"all 0.2s"}}>
-          {entrySaved ? "✓ Saved!" : "Save Scores"}
+          {entrySaved ? "✓ Saved!" : isReadOnly ? "Read-Only" : "Save Scores"}
         </button>
       </>)}
     </div>
