@@ -516,4 +516,5 @@ export {
   calcSuggestedHcps,
   initMatch,
   isWeekCancelled,
+  getPlayoffWinner,
 };
