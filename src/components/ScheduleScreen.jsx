@@ -1,4 +1,4 @@
-import { SCHEDULE_RAW, TEAMS, SEASON_YEAR } from "../constants/league";
+import { SCHEDULE_RAW, TEAMS, getTeeTimes, SEASON_YEAR } from "../constants/league";
 import { calcWeekBonus, matchKey } from "../lib/leagueLogic";
 import { CARD, CREAM, G, GO, GOLD, M, FB, FM } from "../constants/theme";
 import { Tag } from "./ui";

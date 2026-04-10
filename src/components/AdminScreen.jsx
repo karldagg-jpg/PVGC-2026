@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { SCHEDULE_RAW, TEAMS, getTeeTimes, SEASON_YEAR } from "../constants/league";
-import { matchKey } from "../lib/leagueLogic";
 import { G, M, CREAM, GOLD, CARD, FB, FD } from "../constants/theme";
 import { fmtDate } from "../lib/format";
 
