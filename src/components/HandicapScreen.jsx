@@ -140,7 +140,7 @@ function HandicapScreen({ league, saveLeague }) {
                               }}
                             />
                             {override === undefined && (
-                              <span style={{ fontSize: "9px", color: "#aaa", lineHeight: 1 }}>{rawHcp.toFixed(1)}</span>
+                              <span style={{ fontSize: "9px", color: "#aaa", lineHeight: 1 }}>{rawHcp.toFixed(2)}</span>
                             )}
                             {played && (gross > 0 ? (
                               <span style={{ fontSize: "10px", color: isRainout ? GO : M }}>
@@ -263,14 +263,14 @@ function HandicapScreen({ league, saveLeague }) {
                       {scoresUsed.join(", ")}
                       {HCP_ROUNDS && n > HCP_ROUNDS && <span style={{ color: "#aaa", fontSize: "11px" }}> (best {scoresUsed.length} of {n})</span>}
                     </td>
-                    <td style={{ padding: "7px 8px", textAlign: "center", color: CREAM, fontWeight: 600 }}>{avgGross.toFixed(1)}</td>
+                    <td style={{ padding: "7px 8px", textAlign: "center", color: CREAM, fontWeight: 600 }}>{avgGross.toFixed(2)}</td>
                     <td style={{ padding: "7px 8px", textAlign: "center", color: M, fontSize: "12px", whiteSpace: "nowrap" }}>
-                      {pctLabel} × ({avgGross.toFixed(1)} − 36) = {raw.toFixed(1)}
+                      {pctLabel} × ({avgGross.toFixed(2)} − 36) = {raw.toFixed(2)}
                       {capped && <span style={{ color: GO }}> → capped</span>}
                     </td>
                     <td style={{ padding: "7px 8px", textAlign: "center" }}>
                       <span style={{ fontWeight: 700, color: G, fontSize: "15px" }}>{calcHcp}</span>
-                      <div style={{ fontSize: "10px", color: "#aaa" }}>{raw.toFixed(1)}</div>
+                      <div style={{ fontSize: "10px", color: "#aaa" }}>{raw.toFixed(2)}</div>
                     </td>
                   </tr>
                 );
