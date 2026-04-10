@@ -16,35 +16,51 @@ import {
 
 const REGULAR_SEASON_MAX_WEEK = PLAYOFF_START_WEEK - 1;
 
-// Seeds based on regular season (W1-W17) — used for knockdown display
-function getPlayoffSeeds(results, handicaps) {
+// All 18 teams ranked by regular season (W1-W17)
+function getAllSeeds(results, handicaps) {
   const {teamStats} = calcLeagueStats(results, handicaps, null, REGULAR_SEASON_MAX_WEEK);
   return Object.entries(teamStats)
     .map(([id,s])=>({id:parseInt(id),...s}))
     .sort((a,b)=>b.totalPts-a.totalPts||b.stab-a.stab)
-    .slice(0,8)
     .map(s=>s.id);
 }
 
-// Seeds after knockdown (W18) — top 8 advance to QF
+// Top 8 seeds from regular season — used for display before knockdown
+function getPlayoffSeeds(results, handicaps) {
+  return getAllSeeds(results, handicaps).slice(0, 8);
+}
+
+// All 18 teams ranked after knockdown (W1-W18) — top 8 advance to QF
 function getQFSeeds(results, handicaps) {
   const {teamStats} = calcLeagueStats(results, handicaps, null, PLAYOFF_START_WEEK);
   return Object.entries(teamStats)
     .map(([id,s])=>({id:parseInt(id),...s}))
     .sort((a,b)=>b.totalPts-a.totalPts||b.stab-a.stab)
-    .slice(0,8)
-    .map(s=>s.id);
+    .map(s=>s.id); // return all 18 ranked, QF uses first 8
 }
 
-// Week 18 Knockdown: all 18 teams play their scheduled W18 pairs
-function getKnockdownPairs() {
-  return SCHEDULE[PLAYOFF_START_WEEK]?.pairs || [];
+// Week 18 Knockdown: seeds 1-8 play each other (1v8,2v7,3v6,4v5),
+// seeds 9-18 play each other (9v18,10v17,11v16,12v15,13v14)
+function getKnockdownPairs(results, handicaps) {
+  const all = getAllSeeds(results, handicaps); // 18 teams in seed order
+  if (all.length < 8) return [];
+  const top = all.slice(0, 8);
+  const bot = all.slice(8); // 10 teams
+  const pairs = [
+    [top[0],top[7]], [top[1],top[6]], [top[2],top[5]], [top[3],top[4]],
+  ];
+  // pair bottom 10: best vs worst
+  for (let i = 0; i < Math.floor(bot.length / 2); i++) {
+    pairs.push([bot[i], bot[bot.length - 1 - i]]);
+  }
+  return pairs;
 }
 
-// Week 19 QF: 1v8, 2v7, 3v6, 4v5 — based on post-knockdown seeds
+// Week 19 QF: top 8 of qfSeeds, paired 1v8, 2v7, 3v6, 4v5
 function getQFPairs(qfSeeds) {
-  if(qfSeeds.length<8) return [];
-  return [[qfSeeds[0],qfSeeds[7]],[qfSeeds[1],qfSeeds[6]],[qfSeeds[2],qfSeeds[5]],[qfSeeds[3],qfSeeds[4]]];
+  const top8 = qfSeeds.slice(0, 8);
+  if(top8.length<8) return [];
+  return [[top8[0],top8[7]],[top8[1],top8[6]],[top8[2],top8[5]],[top8[3],top8[4]]];
 }
 
 // Get winner of a playoff match (higher stab score wins; tie = lower seed/ta advances)
@@ -534,4 +550,5 @@ export {
   isWeekCancelled,
   getPlayoffWinner,
   getQFSeeds,
+  getAllSeeds,
 };

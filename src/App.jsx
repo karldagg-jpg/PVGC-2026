@@ -46,7 +46,7 @@ function App() {
   const [potyTab, setPotyTab] = useState("season");
   const playoffSeeds = React.useMemo(()=>getPlayoffSeeds(league.results,league.handicaps),[league]);
   const qfSeeds = React.useMemo(()=>getQFSeeds(league.results,league.handicaps),[league]);
-  const knockdownPairs = React.useMemo(()=>getKnockdownPairs(),[]);
+  const knockdownPairs = React.useMemo(()=>getKnockdownPairs(league.results,league.handicaps),[league]);
   const qfPairs = React.useMemo(()=>getQFPairs(qfSeeds),[qfSeeds]);
   const sfPairs = React.useMemo(()=>getSFPairs(qfSeeds,league.results),[qfSeeds,league.results]);
   const finalPairs = React.useMemo(()=>getFinalPairs(qfSeeds,league.results),[qfSeeds,league.results]);
