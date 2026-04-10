@@ -3,7 +3,7 @@ import * as L2025 from "./league_2025";
 import * as L2026 from "./league_2026";
 
 const STORAGE_KEY = "pvgc_season_year";
-const AVAILABLE_SEASONS = [2024, 2025, 2026];
+const AVAILABLE_SEASONS = [2026];
 
 function readSeasonYear() {
   if (typeof window === "undefined") return 2026;
