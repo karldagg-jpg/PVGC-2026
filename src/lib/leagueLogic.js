@@ -47,7 +47,7 @@ function getKnockdownPairs(results, handicaps) {
   const top = all.slice(0, 8);
   const bot = all.slice(8); // 10 teams
   const pairs = [
-    [top[0],top[7]], [top[1],top[6]], [top[2],top[5]], [top[3],top[4]],
+    [top[0],top[1]], [top[2],top[3]], [top[4],top[5]], [top[6],top[7]],
   ];
   // pair bottom 10: best vs worst
   for (let i = 0; i < Math.floor(bot.length / 2); i++) {
