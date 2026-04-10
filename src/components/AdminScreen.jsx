@@ -1,15 +1,21 @@
 import React, { useState } from "react";
 import { SCHEDULE_RAW, TEAMS, getTeeTimes, SEASON_YEAR } from "../constants/league";
+import * as L2026 from "../constants/league_2026";
 import { G, M, CREAM, GOLD, CARD, FB, FD, R } from "../constants/theme";
 import { fmtDate } from "../lib/format";
 import { matchKey } from "../lib/leagueLogic";
 
-function printStarterSheet(week, pairs, teeTimes) {
-  const dateStr = fmtDate(SCHEDULE_RAW.find(r => r[0] === week)?.[1]) || "";
+// Add future year modules here as they become available
+const PRINT_SCHEDULES = {
+  2026: { scheduleRaw: L2026.SCHEDULE_RAW, getTeeTimes: L2026.getTeeTimes, teams: L2026.TEAMS },
+};
+
+function printStarterSheet(week, pairs, teeTimes, schedRaw, teams) {
+  const dateStr = fmtDate(schedRaw.find(r => r[0] === week)?.[1]) || "";
   const rows = pairs.map(([ta, tb], i) => {
     const time = teeTimes[i] || "";
-    const t1 = TEAMS[ta] || {};
-    const t2 = TEAMS[tb] || {};
+    const t1 = teams[ta] || {};
+    const t2 = teams[tb] || {};
     const chk = `<span style="display:inline-block;width:14px;height:14px;border:1.5px solid #333;border-radius:2px;margin-right:4px;vertical-align:middle"></span>`;
     return `<tr style="${i % 2 === 0 ? "background:#f9f9f9" : "background:#fff"}">
       <td style="padding:8px 10px;font-weight:700;font-size:13px;white-space:nowrap;border-right:2px solid #ccc">${time}</td>
@@ -73,15 +79,25 @@ tr{border-bottom:1.5px solid #ccc}
 }
 
 export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, finalPairs, saveLeague, unlockMatch }) {
-  const regularWeeks = SCHEDULE_RAW.filter(([w]) => w < 18).map(([w]) => w);
+  const printYears = Object.keys(PRINT_SCHEDULES).map(Number).sort();
+  const [printYear, setPrintYear] = useState(printYears[printYears.length - 1] || SEASON_YEAR);
+
+  const activeSched = PRINT_SCHEDULES[printYear] || PRINT_SCHEDULES[SEASON_YEAR];
+  const schedRaw = activeSched.scheduleRaw;
+  const schedTeams = activeSched.teams;
+
+  const regularWeeks = schedRaw.filter(([w]) => w < 18).map(([w]) => w);
   const [selWeek, setSelWeek] = useState(regularWeeks[regularWeeks.length - 1] || 1);
 
-  const weekRow = SCHEDULE_RAW.find(([w]) => w === selWeek);
+  const weekRow = schedRaw.find(([w]) => w === selWeek);
   const rawPairs = weekRow ? weekRow.slice(2).filter(Array.isArray) : [];
-  const dynPairs = selWeek === 18 ? knockdownPairs
-    : selWeek === 19 ? qfPairs
-    : selWeek === 20 ? (sfPairs || [])
-    : selWeek === 21 ? (finalPairs ? [finalPairs.championship, finalPairs.thirdPlace] : [])
+  // Playoff pairs only apply for current season
+  const dynPairs = printYear === SEASON_YEAR
+    ? (selWeek === 18 ? knockdownPairs
+      : selWeek === 19 ? qfPairs
+      : selWeek === 20 ? (sfPairs || [])
+      : selWeek === 21 ? (finalPairs ? [finalPairs.championship, finalPairs.thirdPlace] : [])
+      : null)
     : null;
   const pairs = dynPairs || rawPairs;
 
@@ -119,6 +135,22 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
           Print Starter Sheet
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+          {printYears.length > 1 && (
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "13px", color: M }}>Year</span>
+              <select
+                value={printYear}
+                onChange={e => { setPrintYear(parseInt(e.target.value)); setSelWeek(1); }}
+                style={{
+                  background: "#fff", border: `1px solid ${GOLD}44`, borderRadius: "7px",
+                  color: "#0f2a14", fontFamily: FB, fontSize: "14px",
+                  padding: "6px 10px", cursor: "pointer", outline: "none",
+                }}
+              >
+                {printYears.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
+          )}
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <span style={{ fontSize: "13px", color: M }}>Week</span>
             <select
@@ -130,13 +162,13 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
                 padding: "6px 10px", cursor: "pointer", outline: "none",
               }}
             >
-              {SCHEDULE_RAW.map(([w]) => (
+              {schedRaw.map(([w]) => (
                 <option key={w} value={w}>Week {w}</option>
               ))}
             </select>
           </div>
           <button
-            onClick={() => printStarterSheet(selWeek, pairs, getTeeTimes(selWeek))}
+            onClick={() => printStarterSheet(selWeek, pairs, activeSched.getTeeTimes(selWeek), schedRaw, schedTeams)}
             disabled={pairs.length === 0}
             style={{
               padding: "8px 18px", borderRadius: "8px", cursor: pairs.length ? "pointer" : "not-allowed",
