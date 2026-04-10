@@ -451,8 +451,9 @@ function calcAutoHcpRaw(grossRounds, startHcp, isNew) {
 function getEffectiveHcpRaw(tid, pi, week, results, handicaps, hcpOverrides, defaultHcp=DEFAULT_HCP, newMemberFn=isNewMember) {
   const overrideKey = `${tid}-${pi}-${week}`;
   if (hcpOverrides && hcpOverrides[overrideKey] !== undefined) return hcpOverrides[overrideKey];
-  const history = buildGrossHistory(results, week, defaultHcp);
-  const startHcp = (defaultHcp[tid]||[0,0])[pi];
+  const hcpBase = (handicaps && Object.keys(handicaps).length) ? handicaps : defaultHcp;
+  const history = buildGrossHistory(results, week, hcpBase);
+  const startHcp = (hcpBase[tid]||[0,0])[pi];
   return calcAutoHcpRaw(history[tid][pi], startHcp, newMemberFn(tid, pi));
 }
 
@@ -463,8 +464,9 @@ function getEffectiveHcpRaw(tid, pi, week, results, handicaps, hcpOverrides, def
 function getEffectiveHcp(tid, pi, week, results, handicaps, hcpOverrides, defaultHcp=DEFAULT_HCP, newMemberFn=isNewMember) {
   const overrideKey = `${tid}-${pi}-${week}`;
   if (hcpOverrides && hcpOverrides[overrideKey] !== undefined) return hcpOverrides[overrideKey];
-  const history = buildGrossHistory(results, week, defaultHcp);
-  const startHcp = (defaultHcp[tid]||[0,0])[pi];
+  const hcpBase = (handicaps && Object.keys(handicaps).length) ? handicaps : defaultHcp;
+  const history = buildGrossHistory(results, week, hcpBase);
+  const startHcp = (hcpBase[tid]||[0,0])[pi];
   return calcAutoHcp(history[tid][pi], startHcp, newMemberFn(tid, pi));
 }
 
