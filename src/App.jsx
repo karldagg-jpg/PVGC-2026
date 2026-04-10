@@ -50,8 +50,7 @@ function App() {
   const [entryTeam, setEntryTeam] = useState(1);
   const [entryScores, setEntryScores] = useState({});
   const [entrySaved, setEntrySaved] = useState(false);
-  const [confirmReset, setConfirmReset] = useState(false);
-  const [seasonYear] = useState(SEASON_YEAR);
+const [seasonYear] = useState(SEASON_YEAR);
   const [rules, setRules] = useState([]);
   const [scanMsg, setScanMsg] = useState("");
   const [userName] = useState(() => localStorage.getItem("pvgc_user") || "");
@@ -185,10 +184,23 @@ function App() {
     }
   }
 
-  async function clearData(){
-    const fresh=initLeague();
+  async function clearMatch(week, mk){
+    const docId = `${week}_${mk}`;
+    try {
+      await WEEK_SCORES_COL.doc(docId).delete();
+      setLeague(prev => {
+        const weekResults = { ...(prev.results[week] || {}) };
+        delete weekResults[mk];
+        return { ...prev, results: { ...prev.results, [week]: weekResults } };
+      });
+    } catch(e) {
+      console.warn("clearMatch error:", e);
+    }
+  }
+
+  async function clearSeason(){
+    const fresh = initLeague();
     setMatch(initMatch());
-    setConfirmReset(false);
     try {
       const scoresSnap = await WEEK_SCORES_COL.get();
       if(scoresSnap.docs.length > 0){
@@ -197,7 +209,7 @@ function App() {
         await batch.commit();
       }
     } catch(e) {
-      console.warn("clearData subcollection error:", e);
+      console.warn("clearSeason subcollection error:", e);
     }
     await saveLeague(fresh);
   }
@@ -396,26 +408,6 @@ function App() {
               {AVAILABLE_SEASONS.map((y)=><option key={y} value={y}>{y}</option>)}
             </select>
           </div>
-          {!confirmReset ? (
-            <button onClick={()=>setConfirmReset(true)}
-              style={{padding:"4px 9px",borderRadius:"6px",border:`1px solid ${R}55`,
-                background:R+"12",color:R,fontFamily:FB,fontSize:"12px",letterSpacing:"0.06em",
-                textTransform:"uppercase",cursor:"pointer",whiteSpace:"nowrap"}}>
-              ↺ Reset
-            </button>
-          ) : (
-            <div style={{display:"flex",gap:"4px",alignItems:"center"}}>
-              <span style={{fontSize:"12px",color:R}}>Sure?</span>
-              <button onClick={clearData}
-                style={{padding:"4px 9px",borderRadius:"6px",border:`1px solid ${R}`,
-                  background:R,color:"#fff",fontFamily:FB,fontSize:"12px",fontWeight:700,
-                  cursor:"pointer",whiteSpace:"nowrap"}}>Yes</button>
-              <button onClick={()=>setConfirmReset(false)}
-                style={{padding:"4px 9px",borderRadius:"6px",border:`1px solid ${GOLD}66`,
-                  background:"transparent",color:M,fontFamily:FB,fontSize:"12px",
-                  cursor:"pointer",whiteSpace:"nowrap"}}>No</button>
-            </div>
-          )}
         </div>
         <div style={{display:"flex",gap:"0px",flexWrap:"wrap"}}>
           {TABS.map(t=><NavBtn key={t} active={screen===t} onClick={()=>setScreen(t)}>{t==="poty"?"POTY":t==="hcp"?"HCP":t==="entry"?"Entry":t==="rules"?"Rules":t==="admin"?"Admin":t}</NavBtn>)}
@@ -526,6 +518,8 @@ function App() {
           finalPairs={finalPairs}
           saveLeague={saveLeague}
           unlockMatch={unlockMatch}
+          clearMatch={clearMatch}
+          clearSeason={clearSeason}
         />
       )}
     </div>

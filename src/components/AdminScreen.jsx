@@ -3,7 +3,7 @@ import { SCHEDULE_RAW, TEAMS, getTeeTimes, SEASON_YEAR } from "../constants/leag
 import * as L2026 from "../constants/league_2026";
 import { G, M, CREAM, GOLD, CARD, FB, FD, R } from "../constants/theme";
 import { fmtDate } from "../lib/format";
-import { matchKey } from "../lib/leagueLogic";
+import { matchKey, getOpponent } from "../lib/leagueLogic";
 
 // Add future year modules here as they become available
 const PRINT_SCHEDULES = {
@@ -78,9 +78,19 @@ tr{border-bottom:1.5px solid #ccc}
   setTimeout(() => w.print(), 300);
 }
 
-export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, finalPairs, saveLeague, unlockMatch }) {
+export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, finalPairs, saveLeague, unlockMatch, clearMatch, clearSeason }) {
   const printYears = Object.keys(PRINT_SCHEDULES).map(Number).sort();
   const [printYear, setPrintYear] = useState(printYears[printYears.length - 1] || SEASON_YEAR);
+
+  // Clear match state
+  const [clearWeek, setClearWeek] = useState(1);
+  const [clearTeam, setClearTeam] = useState(1);
+  const [clearConfirm, setClearConfirm] = useState(false);
+  const [clearMsg, setClearMsg] = useState("");
+
+  // Reset season state
+  const [resetPhase, setResetPhase] = useState(0); // 0=idle, 1=confirm1, 2=confirm2
+
 
   const activeSched = PRINT_SCHEDULES[printYear] || PRINT_SCHEDULES[SEASON_YEAR];
   const schedRaw = activeSched.scheduleRaw;
@@ -102,6 +112,16 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
   const pairs = dynPairs || rawPairs;
 
   const readOnlyWeeks = league?.readOnlyWeeks || [];
+
+  // Clear match derived values
+  const clearDynPairs = clearWeek === 18 ? knockdownPairs : clearWeek === 19 ? qfPairs
+    : clearWeek === 20 ? (sfPairs || []) : clearWeek === 21 ? (finalPairs ? [finalPairs.championship, finalPairs.thirdPlace] : []) : null;
+  const clearOpp = getOpponent(clearTeam, clearWeek, clearDynPairs);
+  const clearTlow = clearOpp ? Math.min(clearTeam, clearOpp) : 0;
+  const clearThigh = clearOpp ? Math.max(clearTeam, clearOpp) : 0;
+  const clearMk = clearTlow && clearThigh ? matchKey(clearWeek, clearTlow, clearThigh) : null;
+  const clearHasData = clearMk ? !!(league?.results?.[clearWeek]?.[clearMk]) : false;
+
 
   function toggleReadOnly(w) {
     if (!saveLeague) return;
@@ -267,6 +287,114 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
           </div>
         </div>
       )}
+
+      {/* ── Clear Match ─────────────────────────────────────────── */}
+      <div style={{ background: CARD, border: `1px solid ${GOLD}33`, borderRadius: "14px", padding: "20px", marginBottom: "16px", marginTop: "16px" }}>
+        <div style={{ fontSize: "13px", letterSpacing: "0.1em", textTransform: "uppercase", color: M, marginBottom: "4px", fontWeight: 600 }}>
+          Clear Match Scores
+        </div>
+        <div style={{ fontSize: "12px", color: M, marginBottom: "14px" }}>
+          Delete scores for a single match. All other data is untouched.
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <span style={{ fontSize: "13px", color: M }}>Week</span>
+            <select value={clearWeek} onChange={e => { setClearWeek(parseInt(e.target.value)); setClearConfirm(false); setClearMsg(""); }}
+              style={{ background: "#fff", border: `1px solid ${GOLD}44`, borderRadius: "7px", color: "#0f2a14", fontFamily: FB, fontSize: "14px", padding: "6px 10px", cursor: "pointer", outline: "none" }}>
+              {Array.from({ length: 21 }, (_, i) => i + 1).map(w => <option key={w} value={w}>Week {w}</option>)}
+            </select>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <span style={{ fontSize: "13px", color: M }}>Team</span>
+            <select value={clearTeam} onChange={e => { setClearTeam(parseInt(e.target.value)); setClearConfirm(false); setClearMsg(""); }}
+              style={{ background: "#fff", border: `1px solid ${GOLD}44`, borderRadius: "7px", color: "#0f2a14", fontFamily: FB, fontSize: "14px", padding: "6px 10px", cursor: "pointer", outline: "none" }}>
+              {Array.from({ length: 18 }, (_, i) => i + 1).map(t => (
+                <option key={t} value={t}>T{t}: {TEAMS[t]?.name}</option>
+              ))}
+            </select>
+          </div>
+          {clearOpp && (
+            <span style={{ fontSize: "13px", color: M }}>
+              vs <span style={{ color: CREAM, fontWeight: 600 }}>T{clearOpp} {TEAMS[clearOpp]?.name}</span>
+              {clearHasData
+                ? <span style={{ color: GOLD, marginLeft: "8px" }}>● has scores</span>
+                : <span style={{ color: M, marginLeft: "8px" }}>○ no data</span>}
+            </span>
+          )}
+          {!clearOpp && <span style={{ fontSize: "13px", color: M }}>No match this week</span>}
+        </div>
+
+        {clearOpp && clearHasData && (
+          <div style={{ marginTop: "12px", display: "flex", alignItems: "center", gap: "10px" }}>
+            {!clearConfirm ? (
+              <button onClick={() => setClearConfirm(true)}
+                style={{ padding: "8px 18px", borderRadius: "8px", border: `1px solid ${R}55`, background: R + "12", color: R, fontFamily: FB, fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>
+                Clear Scores
+              </button>
+            ) : (
+              <>
+                <span style={{ fontSize: "13px", color: R, fontWeight: 600 }}>Delete W{clearWeek} T{clearTeam} vs T{clearOpp}?</span>
+                <button onClick={async () => {
+                  await clearMatch?.(clearWeek, clearMk);
+                  setClearConfirm(false);
+                  setClearMsg("✓ Cleared");
+                  setTimeout(() => setClearMsg(""), 3000);
+                }}
+                  style={{ padding: "7px 16px", borderRadius: "7px", border: `1px solid ${R}`, background: R, color: "#fff", fontFamily: FB, fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+                  Yes, delete
+                </button>
+                <button onClick={() => setClearConfirm(false)}
+                  style={{ padding: "7px 14px", borderRadius: "7px", border: `1px solid ${GOLD}44`, background: "transparent", color: M, fontFamily: FB, fontSize: "13px", cursor: "pointer" }}>
+                  Cancel
+                </button>
+              </>
+            )}
+            {clearMsg && <span style={{ fontSize: "13px", color: G, fontWeight: 600 }}>{clearMsg}</span>}
+          </div>
+        )}
+      </div>
+
+      {/* ── Reset Season ────────────────────────────────────────── */}
+      <div style={{ background: CARD, border: `1px solid ${R}33`, borderRadius: "14px", padding: "20px" }}>
+        <div style={{ fontSize: "13px", letterSpacing: "0.1em", textTransform: "uppercase", color: R + "cc", marginBottom: "4px", fontWeight: 600 }}>
+          Reset Entire Season
+        </div>
+        <div style={{ fontSize: "12px", color: M, marginBottom: "14px" }}>
+          Deletes all match scores for every week. Handicaps, rules, and settings are preserved.
+        </div>
+        {resetPhase === 0 && (
+          <button onClick={() => setResetPhase(1)}
+            style={{ padding: "8px 18px", borderRadius: "8px", border: `1px solid ${R}55`, background: R + "12", color: R, fontFamily: FB, fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>
+            Reset Season…
+          </button>
+        )}
+        {resetPhase === 1 && (
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <span style={{ fontSize: "13px", color: R, fontWeight: 600 }}>This will delete ALL scores. Are you sure?</span>
+            <button onClick={() => setResetPhase(2)}
+              style={{ padding: "7px 16px", borderRadius: "7px", border: `1px solid ${R}`, background: R + "20", color: R, fontFamily: FB, fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+              Yes, continue
+            </button>
+            <button onClick={() => setResetPhase(0)}
+              style={{ padding: "7px 14px", borderRadius: "7px", border: `1px solid ${GOLD}44`, background: "transparent", color: M, fontFamily: FB, fontSize: "13px", cursor: "pointer" }}>
+              Cancel
+            </button>
+          </div>
+        )}
+        {resetPhase === 2 && (
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <span style={{ fontSize: "13px", color: R, fontWeight: 700 }}>Last chance — this cannot be undone.</span>
+            <button onClick={async () => { setResetPhase(0); await clearSeason?.(); }}
+              style={{ padding: "7px 16px", borderRadius: "7px", border: `1px solid ${R}`, background: R, color: "#fff", fontFamily: FB, fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+              Delete everything
+            </button>
+            <button onClick={() => setResetPhase(0)}
+              style={{ padding: "7px 14px", borderRadius: "7px", border: `1px solid ${GOLD}44`, background: "transparent", color: M, fontFamily: FB, fontSize: "13px", cursor: "pointer" }}>
+              Cancel
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
