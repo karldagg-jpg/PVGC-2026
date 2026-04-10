@@ -153,9 +153,10 @@ function BracketPair({ matchA, matchB, sfMatch }) {
 }
 
 // ── Main Component ───────────────────────────────────────────────
-export default function PlayoffScreen({ league, playoffSeeds, knockdownPairs, qfPairs, sfPairs, finalPairs, teamStandings }) {
-  const seeds = playoffSeeds || [];
-  const seedOf = (tid) => seeds.indexOf(tid) + 1; // 1-based, 0 = not seeded
+export default function PlayoffScreen({ league, playoffSeeds, qfSeeds, knockdownPairs, qfPairs, sfPairs, finalPairs, teamStandings }) {
+  const seeds = playoffSeeds || [];  // pre-knockdown seeds (W1-W17)
+  const qfSeedList = qfSeeds || [];  // post-knockdown seeds (W1-W18), used for bracket
+  const seedOf = (tid) => qfSeedList.indexOf(tid) + 1 || seeds.indexOf(tid) + 1; // prefer post-knockdown
 
   // Determine current playoff phase
   const knockdownComplete = knockdownPairs.length > 0 && knockdownPairs.every(([a, b]) => hasScores(getRec(league, 18, a, b)));
@@ -204,45 +205,67 @@ export default function PlayoffScreen({ league, playoffSeeds, knockdownPairs, qf
         </div>
       )}
 
-      {/* Playoff Seeds */}
-      <div style={{
-        background: CARD, border: `1px solid ${GOLD}33`,
-        borderRadius: "14px", padding: "16px 18px", marginBottom: "20px"
-      }}>
-        <div style={{ fontSize: "12px", letterSpacing: "0.1em", textTransform: "uppercase", color: M, fontWeight: 600, marginBottom: "12px" }}>
-          Playoff Seeds — Regular Season Final Standings
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "6px" }}>
-          {seeds.map((tid, i) => {
-            const ts = teamStandings?.find(t => t.id === tid);
-            return (
-              <div key={tid} style={{
-                display: "flex", alignItems: "center", gap: "8px",
-                padding: "7px 10px", borderRadius: "8px",
-                background: i < 2 ? G + "12" : i < 4 ? GOLD + "0a" : "rgba(26,61,36,0.04)",
-                border: `1px solid ${i < 2 ? G + "33" : i < 4 ? GOLD + "22" : GOLD + "11"}`
-              }}>
-                <span style={{
-                  fontSize: "11px", fontWeight: 700,
-                  color: i < 2 ? G : i < 4 ? GOLD : M,
-                  width: "18px", flexShrink: 0
-                }}>#{i + 1}</span>
-                <span style={{ fontSize: "13px", fontWeight: 600, color: CREAM, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {TEAMS[tid]?.name}
-                </span>
-                {ts && (
-                  <span style={{ fontSize: "11px", color: M, flexShrink: 0 }}>{ts.totalPts} pts</span>
-                )}
+      {/* Seeds strip — show pre-knockdown or post-knockdown */}
+      {(seeds.length > 0 || qfSeedList.length > 0) && (
+        <div style={{
+          background: CARD, border: `1px solid ${GOLD}33`,
+          borderRadius: "14px", padding: "16px 18px", marginBottom: "20px"
+        }}>
+          {/* Pre-knockdown seeds (W1-17) */}
+          {seeds.length > 0 && (
+            <>
+              <div style={{ fontSize: "12px", letterSpacing: "0.1em", textTransform: "uppercase", color: M, fontWeight: 600, marginBottom: "10px" }}>
+                Regular Season Seeds (W1–17)
               </div>
-            );
-          })}
-          {seeds.length === 0 && (
-            <div style={{ fontSize: "13px", color: M, gridColumn: "1/-1" }}>
-              Seeds determined after Week 17
-            </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "5px", marginBottom: qfSeedList.length > 0 ? "16px" : "0" }}>
+                {seeds.map((tid, i) => {
+                  const ts = teamStandings?.find(t => t.id === tid);
+                  return (
+                    <div key={tid} style={{
+                      display: "flex", alignItems: "center", gap: "8px",
+                      padding: "6px 10px", borderRadius: "7px",
+                      background: i < 2 ? G + "12" : i < 4 ? GOLD + "0a" : "rgba(26,61,36,0.03)",
+                      border: `1px solid ${i < 2 ? G + "33" : i < 4 ? GOLD + "22" : GOLD + "11"}`
+                    }}>
+                      <span style={{ fontSize: "11px", fontWeight: 700, color: i < 2 ? G : i < 4 ? GOLD : M, width: "18px", flexShrink: 0 }}>#{i + 1}</span>
+                      <span style={{ fontSize: "13px", fontWeight: 600, color: CREAM, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{TEAMS[tid]?.name}</span>
+                      {ts && <span style={{ fontSize: "11px", color: M, flexShrink: 0 }}>{ts.totalPts}pts</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+          {/* Post-knockdown QF seeds (W1-18) */}
+          {qfSeedList.length > 0 && (
+            <>
+              <div style={{ fontSize: "12px", letterSpacing: "0.1em", textTransform: "uppercase", color: G, fontWeight: 600, marginBottom: "10px" }}>
+                QF Seeds — After Knockdown (W1–18) · Top 8 Advance
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "5px" }}>
+                {qfSeedList.map((tid, i) => {
+                  const ts = teamStandings?.find(t => t.id === tid);
+                  return (
+                    <div key={tid} style={{
+                      display: "flex", alignItems: "center", gap: "8px",
+                      padding: "6px 10px", borderRadius: "7px",
+                      background: i < 2 ? G + "18" : i < 4 ? GOLD + "12" : G + "08",
+                      border: `1px solid ${i < 2 ? G + "55" : i < 4 ? GOLD + "33" : G + "22"}`
+                    }}>
+                      <span style={{ fontSize: "11px", fontWeight: 700, color: i < 2 ? G : i < 4 ? GOLD : M, width: "18px", flexShrink: 0 }}>#{i + 1}</span>
+                      <span style={{ fontSize: "13px", fontWeight: 700, color: CREAM, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{TEAMS[tid]?.name}</span>
+                      {ts && <span style={{ fontSize: "11px", color: M, flexShrink: 0 }}>{ts.totalPts}pts</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+          {seeds.length === 0 && qfSeedList.length === 0 && (
+            <div style={{ fontSize: "13px", color: M }}>Seeds determined after Week 17</div>
           )}
         </div>
-      </div>
+      )}
 
       {/* Knockdown Round */}
       <div style={{ background: CARD, border: `1px solid ${GOLD}33`, borderRadius: "14px", padding: "16px 18px", marginBottom: "20px" }}>
@@ -256,15 +279,19 @@ export default function PlayoffScreen({ league, playoffSeeds, knockdownPairs, qf
           {knockdownComplete && <div style={{ fontSize: "11px", color: G, fontWeight: 600 }}>✓ Complete</div>}
         </div>
         {knockdownPairs.length > 0 ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "10px" }}>
-            {knockdownPairs.map(([ta, tb], i) => (
-              <MatchCard key={i}
-                week={18} ta={ta} tb={tb}
-                seedA={seedOf(ta)} seedB={seedOf(tb)}
-                league={league}
-                label={`Match ${i + 1}`}
-              />
-            ))}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))", gap: "8px" }}>
+            {knockdownPairs.map(([ta, tb], i) => {
+              const preA = seeds.indexOf(ta) + 1; // pre-knockdown rank (0 = outside top 8)
+              const preB = seeds.indexOf(tb) + 1;
+              return (
+                <MatchCard key={i}
+                  week={18} ta={ta} tb={tb}
+                  seedA={preA || null} seedB={preB || null}
+                  league={league}
+                  label={`Match ${i + 1}`}
+                />
+              );
+            })}
           </div>
         ) : (
           <div style={{ fontSize: "13px", color: M }}>Matchups determined by final regular season standings</div>

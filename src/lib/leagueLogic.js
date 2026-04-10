@@ -16,6 +16,7 @@ import {
 
 const REGULAR_SEASON_MAX_WEEK = PLAYOFF_START_WEEK - 1;
 
+// Seeds based on regular season (W1-W17) — used for knockdown display
 function getPlayoffSeeds(results, handicaps) {
   const {teamStats} = calcLeagueStats(results, handicaps, null, REGULAR_SEASON_MAX_WEEK);
   return Object.entries(teamStats)
@@ -25,53 +26,68 @@ function getPlayoffSeeds(results, handicaps) {
     .map(s=>s.id);
 }
 
-// Week 18 Knockdown: 1v2, 3v4, 5v6, 7v8
-function getKnockdownPairs(seeds) {
-  if(seeds.length<8) return [];
-  return [[seeds[0],seeds[1]],[seeds[2],seeds[3]],[seeds[4],seeds[5]],[seeds[6],seeds[7]]];
+// Seeds after knockdown (W18) — top 8 advance to QF
+function getQFSeeds(results, handicaps) {
+  const {teamStats} = calcLeagueStats(results, handicaps, null, PLAYOFF_START_WEEK);
+  return Object.entries(teamStats)
+    .map(([id,s])=>({id:parseInt(id),...s}))
+    .sort((a,b)=>b.totalPts-a.totalPts||b.stab-a.stab)
+    .slice(0,8)
+    .map(s=>s.id);
 }
 
-// Week 19 QF: 1v8, 2v7, 3v6, 4v5
-function getQFPairs(seeds) {
-  if(seeds.length<8) return [];
-  return [[seeds[0],seeds[7]],[seeds[1],seeds[6]],[seeds[2],seeds[5]],[seeds[3],seeds[4]]];
+// Week 18 Knockdown: all 18 teams play their scheduled W18 pairs
+function getKnockdownPairs() {
+  return SCHEDULE[PLAYOFF_START_WEEK]?.pairs || [];
 }
 
-// Get winner of a playoff match (higher score wins; tie = lower seed advances)
+// Week 19 QF: 1v8, 2v7, 3v6, 4v5 — based on post-knockdown seeds
+function getQFPairs(qfSeeds) {
+  if(qfSeeds.length<8) return [];
+  return [[qfSeeds[0],qfSeeds[7]],[qfSeeds[1],qfSeeds[6]],[qfSeeds[2],qfSeeds[5]],[qfSeeds[3],qfSeeds[4]]];
+}
+
+// Get winner of a playoff match (higher stab score wins; tie = lower seed/ta advances)
 function getPlayoffWinner(week, ta, tb, results) {
   const mk = matchKey(week, Math.min(ta,tb), Math.max(ta,tb));
   const rec = results[week]?.[mk];
   if(!rec) return null;
-  // Use team stableford totals to determine winner
-  const totA = (rec.t1scores||[[],[]]).reduce((s,arr)=>s+arr.reduce((x,v)=>x+(v||0),0),0);
-  const totB = (rec.t2scores||[[],[]]).reduce((s,arr)=>s+arr.reduce((x,v)=>x+(v||0),0),0);
-  // t1scores belongs to lower-numbered team
-  const tlow=Math.min(ta,tb), thigh=Math.max(ta,tb);
+  const flatScores = (arr) => {
+    if (!arr) return [];
+    if (Array.isArray(arr)) return arr.flat();
+    return [...(arr.p0||[]), ...(arr.p1||[])];
+  };
+  const totA = flatScores(rec.t1scores).reduce((s,v)=>s+(v||0),0);
+  const totB = flatScores(rec.t2scores).reduce((s,v)=>s+(v||0),0);
+  const tlow=Math.min(ta,tb);
   const scoreA = ta===tlow ? totA : totB;
   const scoreB = tb===tlow ? totA : totB;
   if(scoreA > scoreB) return ta;
   if(scoreB > scoreA) return tb;
-  return ta; // tie: lower seed (ta is lower seed by convention)
+  return ta; // tie: ta advances (lower seed by convention)
 }
 
-// Get SF pairs from QF results
-function getSFPairs(seeds, results) {
-  const qf = getQFPairs(seeds);
+// Get SF pairs — reseed QF winners by original QF seed
+function getSFPairs(qfSeeds, results) {
+  const qf = getQFPairs(qfSeeds);
   const w = qf.map(([a,b])=>getPlayoffWinner(19,a,b,results));
-  if(w.some(x=>!x)) return null; // QF not complete
-  // SF: QF1 winner vs QF4 winner, QF2 winner vs QF3 winner
-  return [[w[0],w[3]],[w[1],w[2]]];
+  if(w.some(x=>!x)) return null;
+  // Reseed: sort winners by their original seed position, match 1v4 and 2v3
+  const sorted = [...w].sort((a,b) => qfSeeds.indexOf(a) - qfSeeds.indexOf(b));
+  return [[sorted[0],sorted[3]],[sorted[1],sorted[2]]];
 }
 
-// Get Finals pair from SF results + 3rd place match
-function getFinalPairs(seeds, results) {
-  const sf = getSFPairs(seeds, results);
+// Get Finals pairs — reseed SF winners by original QF seed
+function getFinalPairs(qfSeeds, results) {
+  const sf = getSFPairs(qfSeeds, results);
   if(!sf) return null;
   const w = sf.map(([a,b])=>getPlayoffWinner(20,a,b,results));
   if(w.some(x=>!x)) return null;
-  // Losers
   const l = sf.map(([a,b],i)=>w[i]===a?b:a);
-  return {championship:[w[0],w[1]], thirdPlace:[l[0],l[1]]};
+  // Reseed winners and losers by original seed
+  const wSorted = [...w].sort((a,b) => qfSeeds.indexOf(a) - qfSeeds.indexOf(b));
+  const lSorted = [...l].sort((a,b) => qfSeeds.indexOf(a) - qfSeeds.indexOf(b));
+  return {championship:[wSorted[0],wSorted[1]], thirdPlace:[lSorted[0],lSorted[1]]};
 }
 
 function getOpponent(teamId, week, dynamicPairs=null, schedule=SCHEDULE) {
@@ -517,4 +533,5 @@ export {
   initMatch,
   isWeekCancelled,
   getPlayoffWinner,
+  getQFSeeds,
 };
