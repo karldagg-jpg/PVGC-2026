@@ -60,7 +60,7 @@ function HandicapScreen({ league, saveLeague }) {
             {ALL_PLAYERS.map((player, rowIdx) => {
               const { tid, pi, name } = player;
               const team = TEAMS[tid];
-              const startHcp = (DEFAULT_HCP[tid] || [0, 0])[pi];
+              const startHcp = (league.handicaps[tid] || DEFAULT_HCP[tid] || [0, 0])[pi];
               const isNew = isNewMember(tid, pi);
               const isEvenRow = rowIdx % 2 === 0;
               const isNewTeam = rowIdx > 0 && ALL_PLAYERS[rowIdx - 1].tid !== tid;
@@ -81,8 +81,26 @@ function HandicapScreen({ league, saveLeague }) {
                     )}
                   </td>
                   <td style={{ padding: "8px 8px", color: M, fontSize: "12px", whiteSpace: "nowrap" }}>{team?.name}</td>
-                  <td style={{ padding: "8px 8px", textAlign: "center", fontWeight: 700, color: GOLD, fontSize: "14px", borderRight: `2px solid ${GOLD}44` }}>
-                    {startHcp}
+                  <td style={{ padding: "4px 6px", textAlign: "center", borderRight: `2px solid ${GOLD}44` }}>
+                    <input
+                      type="number" min="0" max="36"
+                      value={startHcp}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value);
+                        if (isNaN(v)) return;
+                        const next = { ...league, handicaps: { ...league.handicaps } };
+                        next.handicaps[tid] = [...(league.handicaps[tid] || DEFAULT_HCP[tid] || [0,0])];
+                        next.handicaps[tid][pi] = v;
+                        saveLeague(next);
+                      }}
+                      style={{
+                        width: "42px", height: "30px", textAlign: "center",
+                        background: "#fff8e6", border: `1px solid ${GOLD}88`,
+                        borderRadius: "5px", color: GOLD, fontWeight: 700,
+                        fontSize: "14px", fontFamily: FB, outline: "none",
+                        MozAppearance: "textfield", appearance: "textfield",
+                      }}
+                    />
                   </td>
                   {Array.from({ length: 18 }, (_, i) => i + 1).map((w) => {
                     const autoHcp = getEffectiveHcp(tid, pi, w, league.results, league.handicaps, {});
@@ -218,7 +236,7 @@ function HandicapScreen({ league, saveLeague }) {
               {ALL_PLAYERS.map((player, rowIdx) => {
                 const { tid, pi, name } = player;
                 const isNew = isNewMember(tid, pi);
-                const startHcp = (DEFAULT_HCP[tid] || [0, 0])[pi];
+                const startHcp = (league.handicaps[tid] || DEFAULT_HCP[tid] || [0, 0])[pi];
                 const history = getGrossHistory(tid, pi);
                 const n = history.length;
                 const isEvenRow = rowIdx % 2 === 0;
