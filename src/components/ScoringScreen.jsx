@@ -21,7 +21,19 @@ function ScoringScreen({
   weekBonus,
   cancelledWeeks,
   toggleCancelWeek,
+  confirmMatch,
+  unlockMatch,
 }) {
+  const isReadOnly = (league.readOnlyWeeks || []).includes(selWeek);
+  const [tlow, thigh] = t1id && t2id ? (t1id<t2id?[t1id,t2id]:[t2id,t1id]) : [0,0];
+  const mk = tlow && thigh ? matchKey(selWeek, tlow, thigh) : null;
+  const matchDoc = mk ? league.results[selWeek]?.[mk] : null;
+  const isLocked = !!(matchDoc?.locked);
+  const isDisabled = isLocked || isReadOnly;
+  const confirmations = matchDoc?.confirmations || {};
+  const hasConfirmed = !!(confirmations[t1id]);
+  const oppConfirmed = !!(confirmations[t2id]);
+
   const effH = (hi) =>
     match.rainout && hi >= match.holesPlayed && RAINOUT_SUB[hi] !== undefined
       ? RAINOUT_SUB[hi]
@@ -440,6 +452,7 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
 
               const cap = maxGross(PAR[effH(hole)], strokes);
               const adjGross = (delta) => {
+                if (isDisabled) return;
                 const cur = getGross(r.tIdx, r.pi, effH(hole));
                 const next = Math.max(1, Math.min(cap, (cur || PAR[hole]) + delta));
                 setScoreVal(r.tIdx, r.pi, effH(hole), next);
@@ -482,11 +495,13 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
                     </div>
 
                     {/* Type selector */}
-                    <select value={type} onChange={e => setTypeVal(r.tIdx, r.pi, e.target.value)}
+                    <select value={type} onChange={e => !isDisabled && setTypeVal(r.tIdx, r.pi, e.target.value)}
+                      disabled={isDisabled}
                       style={{
                         background: "rgba(26,61,36,0.04)", border: `1px solid ${GOLD}33`,
                         borderRadius: "5px", color: CREAM, fontFamily: FB, fontSize: "12px",
-                        padding: "3px 5px", cursor: "pointer", outline: "none", flexShrink: 0
+                        padding: "3px 5px", cursor: isDisabled ? "not-allowed" : "pointer",
+                        outline: "none", flexShrink: 0, opacity: isDisabled ? 0.5 : 1
                       }}>
                       <option value="normal">Regular</option>
                       <option value="sub">Sub</option>
@@ -796,6 +811,77 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
 
         </>);
       })()}
+
+      {/* Read-only / Lock banner */}
+      {isReadOnly && (
+        <div style={{
+          background: "#fff3cd", border: "2px solid #e6a817", borderRadius: "12px",
+          padding: "12px 16px", marginBottom: "12px", fontSize: "14px",
+          color: "#7a4f00", fontWeight: 600, display: "flex", alignItems: "center", gap: "8px"
+        }}>
+          🔒 Week {selWeek} is read-only — scores are locked by the admin.
+        </div>
+      )}
+      {!isReadOnly && isLocked && (
+        <div style={{
+          background: G + "12", border: `2px solid ${G}55`, borderRadius: "12px",
+          padding: "12px 16px", marginBottom: "12px", display: "flex", alignItems: "center",
+          justifyContent: "space-between", gap: "8px", flexWrap: "wrap"
+        }}>
+          <div style={{ fontSize: "14px", color: G, fontWeight: 700 }}>
+            ✅ Scores confirmed &amp; locked
+            <span style={{ fontSize: "12px", fontWeight: 400, color: M, marginLeft: "8px" }}>
+              Both teams agreed
+            </span>
+          </div>
+          {unlockMatch && (
+            <button onClick={() => unlockMatch(selWeek, mk)}
+              style={{
+                padding: "6px 14px", borderRadius: "7px", border: `1px solid ${R}55`,
+                background: R + "12", color: R, fontFamily: FB, fontSize: "13px",
+                fontWeight: 600, cursor: "pointer"
+              }}>
+              Unlock
+            </button>
+          )}
+        </div>
+      )}
+      {!isReadOnly && !isLocked && opp && mk && (
+        <div style={{
+          background: CARD2, border: `1px solid ${GOLD}22`, borderRadius: "12px",
+          padding: "12px 16px", marginBottom: "12px", display: "flex", alignItems: "center",
+          justifyContent: "space-between", gap: "8px", flexWrap: "wrap"
+        }}>
+          <div>
+            <div style={{ fontSize: "13px", color: M, marginBottom: "4px", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+              Confirm Scores
+            </div>
+            <div style={{ fontSize: "12px", color: M, display: "flex", gap: "12px" }}>
+              <span style={{ color: hasConfirmed ? G : M }}>
+                {hasConfirmed ? "✓" : "○"} T{t1id} {hasConfirmed ? `(${confirmations[t1id]?.confirmedBy||"confirmed"})` : ""}
+              </span>
+              <span style={{ color: oppConfirmed ? GO : M }}>
+                {oppConfirmed ? "✓" : "○"} T{t2id} {oppConfirmed ? `(${confirmations[t2id]?.confirmedBy||"confirmed"})` : ""}
+              </span>
+            </div>
+          </div>
+          {!hasConfirmed && confirmMatch && (
+            <button onClick={() => confirmMatch(selWeek, mk, t1id)}
+              style={{
+                padding: "8px 18px", borderRadius: "8px", border: `1px solid ${G}55`,
+                background: G + "18", color: G, fontFamily: FB, fontSize: "14px",
+                fontWeight: 600, cursor: "pointer"
+              }}>
+              Confirm T{t1id} Scores
+            </button>
+          )}
+          {hasConfirmed && !oppConfirmed && (
+            <span style={{ fontSize: "12px", color: GOLD, fontWeight: 600 }}>
+              Waiting for T{t2id} to confirm…
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Bonus pts */}
       {weekBonus ? (

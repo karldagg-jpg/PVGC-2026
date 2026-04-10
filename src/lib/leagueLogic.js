@@ -335,7 +335,7 @@ function initLeague() {
   const handicaps={}, results={};
   for (let t=1;t<=18;t++) handicaps[t]=[...DEFAULT_HCP[t]];
   for (let w=1;w<=21;w++) results[w]={};
-  return {handicaps, results, hcpOverrides:{}, loHiOverrides:{}, cancelledWeeks: new Set()};
+  return {handicaps, results, hcpOverrides:{}, loHiOverrides:{}, cancelledWeeks: new Set(), readOnlyWeeks:[]};
 }
 
 // ── Auto-handicap calculation ─────────────────────────────────
