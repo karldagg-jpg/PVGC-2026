@@ -57,6 +57,8 @@ const [seasonYear] = useState(SEASON_YEAR);
   const [rules, setRules] = useState([]);
   const [scanMsg, setScanMsg] = useState("");
   const [userName] = useState(() => localStorage.getItem("pvgc_user") || "");
+  const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem("pvgc_admin") === "1");
+  const [adminPin, setAdminPin] = useState(""); // loaded from Firebase
 
   function changeSeason(year) {
     if (!setSeasonYear(year)) return;
@@ -88,6 +90,7 @@ const [seasonYear] = useState(SEASON_YEAR);
         return next;
       });
       if (snap.exists && snap.data().rules) setRules(snap.data().rules);
+      if (snap.exists && snap.data().adminPin) setAdminPin(snap.data().adminPin);
       setFbStatus("loaded");
     } catch(err) {
       console.warn("Firebase load error:", err);
@@ -112,6 +115,7 @@ const [seasonYear] = useState(SEASON_YEAR);
         readOnlyWeeks: p.readOnlyWeeks || [],
       }));
       if (p.rules) setRules(p.rules);
+      if (p.adminPin) setAdminPin(p.adminPin);
       setFbStatus("loaded");
     }, (err)=>console.warn("Snapshot error:", err));
     return ()=>unsub();
@@ -180,6 +184,29 @@ const [seasonYear] = useState(SEASON_YEAR);
       console.warn("saveMatchDoc error:",e);
       setFbStatus("save-error:"+e.code+":"+e.message);
     }
+  }
+
+  async function saveAdminPin(pin) {
+    setAdminPin(pin);
+    try {
+      await LEAGUE_DOC.set({ adminPin: pin }, { merge: true });
+    } catch(e) {
+      console.warn("saveAdminPin error:", e);
+    }
+  }
+
+  function adminUnlock(pin) {
+    if (pin === adminPin) {
+      localStorage.setItem("pvgc_admin", "1");
+      setIsAdmin(true);
+      return true;
+    }
+    return false;
+  }
+
+  function adminLock() {
+    localStorage.removeItem("pvgc_admin");
+    setIsAdmin(false);
   }
 
   async function saveRules(next) {
@@ -510,6 +537,7 @@ const [seasonYear] = useState(SEASON_YEAR);
         <HandicapScreen
           league={league}
           saveLeague={saveLeague}
+          isAdmin={isAdmin}
         />
       )}
 
@@ -541,6 +569,11 @@ const [seasonYear] = useState(SEASON_YEAR);
           unlockMatch={unlockMatch}
           clearMatch={clearMatch}
           clearSeason={clearSeason}
+          isAdmin={isAdmin}
+          adminPin={adminPin}
+          adminUnlock={adminUnlock}
+          adminLock={adminLock}
+          saveAdminPin={saveAdminPin}
         />
       )}
     </div>

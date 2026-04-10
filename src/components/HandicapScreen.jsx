@@ -2,7 +2,7 @@ import { ALL_PLAYERS, TEAMS, DEFAULT_HCP, isNewMember, HCP_PCT, HCP_CAP, HCP_ROU
 import { G, GO, R, M, CREAM, GOLD, CARD2, FD, FB } from "../constants/theme";
 import { getEffectiveHcp, getEffectiveHcpRaw, getOpponent, matchKey } from "../lib/leagueLogic";
 
-function HandicapScreen({ league, saveLeague }) {
+function HandicapScreen({ league, saveLeague, isAdmin }) {
 
   // Build gross score history for a player across all played weeks
   function getGrossHistory(tid, pi) {
@@ -35,9 +35,19 @@ function HandicapScreen({ league, saveLeague }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
         <div style={{ fontFamily: FD, fontSize: "28px", fontWeight: 600, color: CREAM }}>Handicaps</div>
       </div>
-      <div style={{ color: M, fontSize: "14px", marginBottom: "16px" }}>
+      <div style={{ color: M, fontSize: "14px", marginBottom: isAdmin ? "16px" : "8px" }}>
         9-hole handicaps · Auto-calculated after each round
       </div>
+      {!isAdmin && (
+        <div style={{
+          display: "inline-flex", alignItems: "center", gap: "6px",
+          background: "#fff3cd", border: "1px solid #e6a81766",
+          borderRadius: "8px", padding: "6px 12px", marginBottom: "14px",
+          fontSize: "12px", color: "#7a4f00", fontWeight: 600
+        }}>
+          🔒 Read-only — admin login required to edit handicaps
+        </div>
+      )}
 
       {/* Week-by-week table */}
       <div style={{ overflowX: "auto", background: CARD2, border: `1px solid ${GOLD}22`, borderRadius: "12px" }}>
@@ -82,25 +92,29 @@ function HandicapScreen({ league, saveLeague }) {
                   </td>
                   <td style={{ padding: "8px 8px", color: M, fontSize: "12px", whiteSpace: "nowrap" }}>{team?.name}</td>
                   <td style={{ padding: "4px 6px", textAlign: "center", borderRight: `2px solid ${GOLD}44` }}>
-                    <input
-                      type="number" min="0" max="36"
-                      value={startHcp}
-                      onChange={(e) => {
-                        const v = parseInt(e.target.value);
-                        if (isNaN(v)) return;
-                        const next = { ...league, handicaps: { ...league.handicaps } };
-                        next.handicaps[tid] = [...(league.handicaps[tid] || DEFAULT_HCP[tid] || [0,0])];
-                        next.handicaps[tid][pi] = v;
-                        saveLeague(next);
-                      }}
-                      style={{
-                        width: "42px", height: "30px", textAlign: "center",
-                        background: "#fff8e6", border: `1px solid ${GOLD}88`,
-                        borderRadius: "5px", color: GOLD, fontWeight: 700,
-                        fontSize: "14px", fontFamily: FB, outline: "none",
-                        MozAppearance: "textfield", appearance: "textfield",
-                      }}
-                    />
+                    {isAdmin ? (
+                      <input
+                        type="number" min="0" max="36"
+                        value={startHcp}
+                        onChange={(e) => {
+                          const v = parseInt(e.target.value);
+                          if (isNaN(v)) return;
+                          const next = { ...league, handicaps: { ...league.handicaps } };
+                          next.handicaps[tid] = [...(league.handicaps[tid] || DEFAULT_HCP[tid] || [0,0])];
+                          next.handicaps[tid][pi] = v;
+                          saveLeague(next);
+                        }}
+                        style={{
+                          width: "42px", height: "30px", textAlign: "center",
+                          background: "#fff8e6", border: `1px solid ${GOLD}88`,
+                          borderRadius: "5px", color: GOLD, fontWeight: 700,
+                          fontSize: "14px", fontFamily: FB, outline: "none",
+                          MozAppearance: "textfield", appearance: "textfield",
+                        }}
+                      />
+                    ) : (
+                      <span style={{ fontSize: "14px", fontWeight: 700, color: GOLD }}>{startHcp}</span>
+                    )}
                   </td>
                   {Array.from({ length: 18 }, (_, i) => i + 1).map((w) => {
                     const autoHcp = getEffectiveHcp(tid, pi, w, league.results, league.handicaps, {});
@@ -135,28 +149,35 @@ function HandicapScreen({ league, saveLeague }) {
                       }}>
                         {showHcp ? (
                           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1px" }}>
-                            <input
-                              type="number"
-                              min="-9"
-                              max={isNew ? 99 : startHcp + (HCP_CAP ?? 99)}
-                              value={override !== undefined ? override : autoHcp}
-                              onChange={(e) => {
-                                const v = e.target.value;
-                                const next = { ...league, hcpOverrides: { ...(league.hcpOverrides || {}) } };
-                                if (v === "") delete next.hcpOverrides[overrideKey];
-                                else next.hcpOverrides[overrideKey] = parseInt(v) || 0;
-                                saveLeague(next);
-                              }}
-                              style={{
-                                width: "36px", height: "26px", textAlign: "center",
-                                background: override !== undefined ? "#fff8e6" : "transparent",
-                                border: override !== undefined ? `1px solid ${GOLD}88` : "1px solid transparent",
-                                borderRadius: "4px",
+                            {isAdmin ? (
+                              <input
+                                type="number"
+                                min="-9"
+                                max={isNew ? 99 : startHcp + (HCP_CAP ?? 99)}
+                                value={override !== undefined ? override : autoHcp}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  const next = { ...league, hcpOverrides: { ...(league.hcpOverrides || {}) } };
+                                  if (v === "") delete next.hcpOverrides[overrideKey];
+                                  else next.hcpOverrides[overrideKey] = parseInt(v) || 0;
+                                  saveLeague(next);
+                                }}
+                                style={{
+                                  width: "36px", height: "26px", textAlign: "center",
+                                  background: override !== undefined ? "#fff8e6" : "transparent",
+                                  border: override !== undefined ? `1px solid ${GOLD}88` : "1px solid transparent",
+                                  borderRadius: "4px",
+                                  color: override !== undefined ? GOLD : G,
+                                  fontWeight: 600, fontSize: "13px", fontFamily: FB,
+                                  outline: "none", MozAppearance: "textfield", appearance: "textfield",
+                                }}
+                              />
+                            ) : (
+                              <span style={{
+                                fontSize: "13px", fontWeight: 600,
                                 color: override !== undefined ? GOLD : G,
-                                fontWeight: 600, fontSize: "13px", fontFamily: FB,
-                                outline: "none", MozAppearance: "textfield", appearance: "textfield",
-                              }}
-                            />
+                              }}>{override !== undefined ? override : autoHcp}</span>
+                            )}
                             {override === undefined && (
                               <span style={{ fontSize: "9px", color: "#aaa", lineHeight: 1 }}>{rawHcp.toFixed(2)}</span>
                             )}

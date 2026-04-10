@@ -78,9 +78,15 @@ tr{border-bottom:1.5px solid #ccc}
   setTimeout(() => w.print(), 300);
 }
 
-export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, finalPairs, saveLeague, unlockMatch, clearMatch, clearSeason }) {
+export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, finalPairs, saveLeague, unlockMatch, clearMatch, clearSeason, isAdmin, adminPin, adminUnlock, adminLock, saveAdminPin }) {
   const printYears = Object.keys(PRINT_SCHEDULES).map(Number).sort();
   const [printYear, setPrintYear] = useState(printYears[printYears.length - 1] || SEASON_YEAR);
+
+  // Admin PIN state
+  const [pinInput, setPinInput] = useState("");
+  const [pinError, setPinError] = useState(false);
+  const [newPin, setNewPin] = useState("");
+  const [changingPin, setChangingPin] = useState(false);
 
   // Clear match state
   const [clearWeek, setClearWeek] = useState(1);
@@ -149,6 +155,93 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
         Admin
       </div>
 
+      {/* ── Admin Lock ──────────────────────────────────────────── */}
+      <div style={{ background: CARD, border: `1px solid ${isAdmin ? G + "55" : GOLD}33`, borderRadius: "14px", padding: "16px 18px", marginBottom: "16px" }}>
+        {isAdmin ? (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "16px" }}>🔓</span>
+              <div>
+                <div style={{ fontSize: "13px", fontWeight: 700, color: G }}>Admin Unlocked</div>
+                <div style={{ fontSize: "11px", color: M }}>Full edit access active</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+              {!changingPin ? (
+                <button onClick={() => setChangingPin(true)}
+                  style={{ padding: "6px 14px", borderRadius: "7px", border: `1px solid ${GOLD}44`, background: "transparent", color: M, fontFamily: FB, fontSize: "12px", cursor: "pointer" }}>
+                  Change PIN
+                </button>
+              ) : (
+                <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                  <input
+                    type="password" placeholder="New PIN" value={newPin}
+                    onChange={e => setNewPin(e.target.value)}
+                    style={{ width: "90px", padding: "6px 8px", borderRadius: "7px", border: `1px solid ${GOLD}44`, fontFamily: FB, fontSize: "13px", outline: "none" }}
+                  />
+                  <button onClick={async () => {
+                    if (!newPin) return;
+                    await saveAdminPin(newPin);
+                    setNewPin(""); setChangingPin(false);
+                  }}
+                    style={{ padding: "6px 12px", borderRadius: "7px", border: `1px solid ${G}55`, background: G + "18", color: G, fontFamily: FB, fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
+                    Save
+                  </button>
+                  <button onClick={() => { setNewPin(""); setChangingPin(false); }}
+                    style={{ padding: "6px 10px", borderRadius: "7px", border: `1px solid ${GOLD}33`, background: "transparent", color: M, fontFamily: FB, fontSize: "12px", cursor: "pointer" }}>
+                    Cancel
+                  </button>
+                </div>
+              )}
+              <button onClick={adminLock}
+                style={{ padding: "6px 14px", borderRadius: "7px", border: `1px solid ${R}44`, background: R + "10", color: R, fontFamily: FB, fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
+                Lock
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+              <span style={{ fontSize: "16px" }}>🔒</span>
+              <div>
+                <div style={{ fontSize: "13px", fontWeight: 700, color: M }}>Admin Locked</div>
+                <div style={{ fontSize: "11px", color: M }}>Enter PIN to unlock editing</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+              <input
+                type="password" placeholder="Enter PIN"
+                value={pinInput}
+                onChange={e => { setPinInput(e.target.value); setPinError(false); }}
+                onKeyDown={e => {
+                  if (e.key === "Enter") {
+                    const ok = adminUnlock(pinInput);
+                    if (!ok) setPinError(true);
+                    else setPinInput("");
+                  }
+                }}
+                style={{
+                  width: "120px", padding: "8px 10px", borderRadius: "8px",
+                  border: `1px solid ${pinError ? R : GOLD}44`,
+                  fontFamily: FB, fontSize: "14px", outline: "none",
+                  background: pinError ? R + "08" : "#fff",
+                }}
+              />
+              <button onClick={() => {
+                const ok = adminUnlock(pinInput);
+                if (!ok) setPinError(true);
+                else setPinInput("");
+              }}
+                style={{ padding: "8px 18px", borderRadius: "8px", border: `1px solid ${GOLD}66`, background: GOLD + "18", color: GOLD, fontFamily: FB, fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>
+                Unlock
+              </button>
+              {pinError && <span style={{ fontSize: "12px", color: R, fontWeight: 600 }}>Incorrect PIN</span>}
+              {!adminPin && <span style={{ fontSize: "11px", color: M }}>No PIN set — set one after unlocking</span>}
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* ── Print Starter Sheet ──────────────────────────────────── */}
       <div style={{ background: CARD, border: `1px solid ${GOLD}33`, borderRadius: "14px", padding: "20px", marginBottom: "16px" }}>
         <div style={{ fontSize: "13px", letterSpacing: "0.1em", textTransform: "uppercase", color: M, marginBottom: "14px", fontWeight: 600 }}>
@@ -206,6 +299,14 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
           )}
         </div>
       </div>
+
+      {/* ── Admin-only sections ─────────────────────────────────── */}
+      {!isAdmin && (
+        <div style={{ textAlign: "center", padding: "20px", fontSize: "13px", color: M }}>
+          Unlock admin to manage read-only weeks, clear matches, and reset season.
+        </div>
+      )}
+      {isAdmin && <>
 
       {/* ── Read-Only Weeks ──────────────────────────────────────── */}
       <div style={{ background: CARD, border: `1px solid ${GOLD}33`, borderRadius: "14px", padding: "20px", marginBottom: "16px" }}>
@@ -354,7 +455,7 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
         )}
       </div>
 
-      {/* ── Reset Season ────────────────────────────────────────── */}
+      {/* ── Reset Season (admin only) ───────────────────────────── */}
       <div style={{ background: CARD, border: `1px solid ${R}33`, borderRadius: "14px", padding: "20px" }}>
         <div style={{ fontSize: "13px", letterSpacing: "0.1em", textTransform: "uppercase", color: R + "cc", marginBottom: "4px", fontWeight: 600 }}>
           Reset Entire Season
@@ -395,6 +496,7 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
           </div>
         )}
       </div>
+      </>}
     </div>
   );
 }
