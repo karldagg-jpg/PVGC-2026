@@ -154,9 +154,13 @@ const [seasonYear] = useState(SEASON_YEAR);
     const key = matchKey(week, tlow, thigh);
     const docId = `${week}_${key}`;
     lastMatchSaveTime.current = Date.now();
+    // Firestore doesn't support nested arrays — flatten [[p0],[p1]] → {p0:[],p1:[]}
+    const flatScores = (arr) => Array.isArray(arr) ? { p0: arr[0]||[], p1: arr[1]||[] } : arr;
     try{
       await WEEK_SCORES_COL.doc(docId).set({
         ...toSave,
+        t1scores: flatScores(toSave.t1scores),
+        t2scores: flatScores(toSave.t2scores),
         week,
         matchKey: key,
         updatedAt: new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"}),
@@ -228,9 +232,10 @@ const [seasonYear] = useState(SEASON_YEAR);
     const bothConfirmed = !!(confirmations[tlow] && confirmations[thigh]);
     const docId = `${week}_${mk}`;
     lastMatchSaveTime.current = Date.now();
+    const flatScores = (arr) => Array.isArray(arr) ? { p0: arr[0]||[], p1: arr[1]||[] } : arr;
     try {
       await WEEK_SCORES_COL.doc(docId).set(
-        { ...existing, week, matchKey: mk, confirmations, locked: bothConfirmed },
+        { ...existing, t1scores: flatScores(existing.t1scores), t2scores: flatScores(existing.t2scores), week, matchKey: mk, confirmations, locked: bothConfirmed },
         { merge: false }
       );
       setLeague(prev => ({
