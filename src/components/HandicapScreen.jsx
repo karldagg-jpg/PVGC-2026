@@ -1,6 +1,6 @@
 import { ALL_PLAYERS, TEAMS, DEFAULT_HCP, isNewMember, HCP_PCT, HCP_CAP, HCP_ROUNDS, NEW_MEMBER_HCP_PCT, SEASON_YEAR, RAINOUT_SUB } from "../constants/league";
 import { G, GO, R, M, CREAM, GOLD, CARD2, FD, FB } from "../constants/theme";
-import { getEffectiveHcp, getOpponent, matchKey } from "../lib/leagueLogic";
+import { getEffectiveHcp, getEffectiveHcpRaw, getOpponent, matchKey } from "../lib/leagueLogic";
 
 function HandicapScreen({ league, saveLeague }) {
 
@@ -86,6 +86,7 @@ function HandicapScreen({ league, saveLeague }) {
                   </td>
                   {Array.from({ length: 18 }, (_, i) => i + 1).map((w) => {
                     const autoHcp = getEffectiveHcp(tid, pi, w, league.results, league.handicaps, {});
+                    const rawHcp  = getEffectiveHcpRaw(tid, pi, w, league.results, league.handicaps, {});
                     const overrideKey = `${tid}-${pi}-${w}`;
                     const override = (league.hcpOverrides || {})[overrideKey];
                     const opp = getOpponent(tid, w);
@@ -138,6 +139,9 @@ function HandicapScreen({ league, saveLeague }) {
                                 outline: "none", MozAppearance: "textfield", appearance: "textfield",
                               }}
                             />
+                            {override === undefined && (
+                              <span style={{ fontSize: "9px", color: "#aaa", lineHeight: 1 }}>{rawHcp.toFixed(3)}</span>
+                            )}
                             {played && (gross > 0 ? (
                               <span style={{ fontSize: "10px", color: isRainout ? GO : M }}>
                                 {gross}{isRainout ? "R" : ""}
@@ -161,7 +165,8 @@ function HandicapScreen({ league, saveLeague }) {
 
       <div style={{ marginTop: "10px", fontSize: "12px", color: M, display: "flex", gap: "16px", flexWrap: "wrap" }}>
         <span><span style={{ color: G, fontWeight: 700 }}>Green</span> = auto HCP</span>
-        <span><span style={{ color: GOLD, fontWeight: 700 }}>Gold</span> = overridden</span>
+        <span><span style={{ color: GOLD, fontWeight: 700 }}>Gold</span> = overridden (click any cell to edit)</span>
+        <span style={{ color: "#aaa", fontSize: "11px" }}>Small decimal = raw unrounded HCP (for lo/hi tiebreaking)</span>
         <span>Small number = gross score shot</span>
         <span><span style={{ color: GO, fontWeight: 700 }}>R</span> = rainout</span>
         <span><span style={{ color: "#ccc" }}>—</span> = not yet reached</span>
@@ -263,7 +268,10 @@ function HandicapScreen({ league, saveLeague }) {
                       {pctLabel} × ({avgGross.toFixed(1)} − 36) = {raw.toFixed(1)}
                       {capped && <span style={{ color: GO }}> → capped</span>}
                     </td>
-                    <td style={{ padding: "7px 8px", textAlign: "center", fontWeight: 700, color: G, fontSize: "15px" }}>{calcHcp}</td>
+                    <td style={{ padding: "7px 8px", textAlign: "center" }}>
+                      <span style={{ fontWeight: 700, color: G, fontSize: "15px" }}>{calcHcp}</span>
+                      <div style={{ fontSize: "10px", color: "#aaa" }}>{raw.toFixed(3)}</div>
+                    </td>
                   </tr>
                 );
               })}
