@@ -222,7 +222,16 @@ const [seasonYear] = useState(SEASON_YEAR);
   async function clearMatch(week, mk){
     const docId = `${week}_${mk}`;
     try {
+      // Delete from subcollection
       await WEEK_SCORES_COL.doc(docId).delete();
+      // Also remove from main doc legacy results
+      const snap = await LEAGUE_DOC.get();
+      if (snap.exists) {
+        const legacyResults = snap.data().results || {};
+        const weekResults = { ...(legacyResults[week] || {}) };
+        delete weekResults[mk];
+        await LEAGUE_DOC.set({ results: { ...legacyResults, [week]: weekResults } }, { merge: true });
+      }
       setLeague(prev => {
         const weekResults = { ...(prev.results[week] || {}) };
         delete weekResults[mk];
@@ -237,14 +246,17 @@ const [seasonYear] = useState(SEASON_YEAR);
     const fresh = initLeague();
     setMatch(initMatch());
     try {
+      // Delete all subcollection docs
       const scoresSnap = await WEEK_SCORES_COL.get();
       if(scoresSnap.docs.length > 0){
         const batch = db.batch();
         scoresSnap.docs.forEach(d => batch.delete(d.ref));
         await batch.commit();
       }
+      // Also wipe results from main doc
+      await LEAGUE_DOC.set({ results: {} }, { merge: true });
     } catch(e) {
-      console.warn("clearSeason subcollection error:", e);
+      console.warn("clearSeason error:", e);
     }
     await saveLeague(fresh);
   }
