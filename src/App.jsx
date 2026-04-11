@@ -18,6 +18,7 @@ import HandicapScreen from "./components/HandicapScreen";
 import RulesScreen from "./components/RulesScreen";
 import AdminScreen from "./components/AdminScreen";
 import PlayoffScreen from "./components/PlayoffScreen";
+import PlayerScreen from "./components/PlayerScreen";
 import {
   getPlayoffSeeds,
   getQFSeeds,
@@ -396,7 +397,7 @@ const [seasonYear] = useState(SEASON_YEAR);
 
   const weekBonus=calcWeekBonus(selWeek,league.results,league.handicaps);
 
-  const TABS=["schedule","scoring","entry","standings","poty","hcp","playoffs","rules","admin"];
+  const TABS=["schedule","scoring","entry","standings","poty","hcp","playoffs","players","rules","admin"];
 
   // Current match doc (for confirm/lock)
   const [cTlow,cThigh] = t1id && t2id ? (t1id<t2id?[t1id,t2id]:[t2id,t1id]) : [0,0];
@@ -458,7 +459,7 @@ const [seasonYear] = useState(SEASON_YEAR);
           </div>
         </div>
         <div style={{display:"flex",gap:"0px",flexWrap:"wrap"}}>
-          {TABS.map(t=><NavBtn key={t} active={screen===t} onClick={()=>setScreen(t)}>{t==="poty"?"POTY":t==="hcp"?"HCP":t==="entry"?"Entry":t==="rules"?"Rules":t==="admin"?"Admin":t==="playoffs"?"Playoffs":t}</NavBtn>)}
+          {TABS.map(t=><NavBtn key={t} active={screen===t} onClick={()=>setScreen(t)}>{t==="poty"?"POTY":t==="hcp"?"HCP":t==="entry"?"Entry":t==="rules"?"Rules":t==="admin"?"Admin":t==="playoffs"?"Playoffs":t==="players"?"Players":t}</NavBtn>)}
         </div>
       </div>
 
@@ -565,6 +566,10 @@ const [seasonYear] = useState(SEASON_YEAR);
           finalPairs={finalPairs}
           teamStandings={teamStandings}
         />
+      )}
+
+      {screen==="players"&&(
+        <PlayerScreen league={league} />
       )}
 
       {screen==="rules"&&(
