@@ -3,6 +3,151 @@ import { stabPts, hcpStr, maxGross, getEffectiveHcp, getEffectiveHcpRaw, compute
 import { BG, CARD, CARD2, CREAM, FB, FD, G, GO, GOLD, M, R } from "../constants/theme";
 import { fmtDate } from "../lib/format";
 import { Tag, PtsBadge } from "./ui";
+import { useState, useEffect, useRef } from "react";
+
+const LOST_BALL_SECS = 180;
+
+function playHorn() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    // Two-tone horn: main note + harmony
+    const tones = [
+      { freq: 440, gain: 0.5 },
+      { freq: 554, gain: 0.3 },
+    ];
+    tones.forEach(({ freq, gain }) => {
+      const osc = ctx.createOscillator();
+      const env = ctx.createGain();
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      osc.frequency.linearRampToValueAtTime(freq * 1.02, ctx.currentTime + 0.1);
+      env.gain.setValueAtTime(0, ctx.currentTime);
+      env.gain.linearRampToValueAtTime(gain, ctx.currentTime + 0.05);
+      env.gain.setValueAtTime(gain, ctx.currentTime + 0.6);
+      env.gain.linearRampToValueAtTime(0, ctx.currentTime + 1.0);
+      osc.connect(env);
+      env.connect(ctx.destination);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 1.0);
+    });
+  } catch(e) {
+    // audio not supported — silent fallback
+  }
+}
+
+function LostBallTimer() {
+  const [running, setRunning] = useState(false);
+  const [secsLeft, setSecsLeft] = useState(LOST_BALL_SECS);
+  const [expired, setExpired] = useState(false);
+  const intervalRef = useRef(null);
+
+  function start() {
+    setSecsLeft(LOST_BALL_SECS);
+    setExpired(false);
+    setRunning(true);
+  }
+
+  function cancel() {
+    setRunning(false);
+    setExpired(false);
+    setSecsLeft(LOST_BALL_SECS);
+    clearInterval(intervalRef.current);
+  }
+
+  useEffect(() => {
+    if (!running) return;
+    intervalRef.current = setInterval(() => {
+      setSecsLeft(s => {
+        if (s <= 1) {
+          clearInterval(intervalRef.current);
+          setRunning(false);
+          setExpired(true);
+          playHorn();
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(intervalRef.current);
+  }, [running]);
+
+  const mins = Math.floor(secsLeft / 60);
+  const secs = secsLeft % 60;
+  const timeStr = `${mins}:${String(secs).padStart(2, "0")}`;
+  const urgent = secsLeft <= 30 && running;
+  const pct = secsLeft / LOST_BALL_SECS;
+
+  return (
+    <>
+      {/* Floating button — bottom right */}
+      {!running && !expired && (
+        <button onClick={start}
+          title="Start 3-min lost ball timer"
+          style={{
+            position: "fixed", bottom: "20px", right: "18px", zIndex: 100,
+            width: "52px", height: "52px", borderRadius: "50%",
+            background: GOLD + "22", border: `2px solid ${GOLD}66`,
+            color: GOLD, fontSize: "22px", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.2)", touchAction: "manipulation",
+          }}>
+          ⏱
+        </button>
+      )}
+
+      {/* Running / expired banner */}
+      {(running || expired) && (
+        <div style={{
+          position: "fixed", bottom: "0", left: "0", right: "0", zIndex: 100,
+          background: expired ? R : urgent ? R + "ee" : "rgba(20,45,20,0.96)",
+          borderTop: `3px solid ${expired ? R : urgent ? R : GOLD}`,
+          padding: "14px 20px",
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px",
+          boxShadow: "0 -4px 16px rgba(0,0,0,0.3)",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "14px", flex: 1 }}>
+            <span style={{ fontSize: "26px" }}>{expired ? "🚫" : "⏱"}</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: "11px", color: expired ? "#fff" : GOLD, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600, marginBottom: "2px" }}>
+                {expired ? "Time's Up — Lost Ball!" : "Lost Ball Timer"}
+              </div>
+              {!expired && (
+                <>
+                  <div style={{ fontFamily: FB, fontSize: "32px", fontWeight: 700, color: urgent ? "#fff" : GOLD, lineHeight: 1 }}>
+                    {timeStr}
+                  </div>
+                  {/* Progress bar */}
+                  <div style={{ height: "3px", background: "rgba(255,255,255,0.15)", borderRadius: "2px", marginTop: "4px" }}>
+                    <div style={{
+                      height: "100%", borderRadius: "2px",
+                      background: urgent ? "#fff" : GOLD,
+                      width: `${pct * 100}%`,
+                      transition: "width 1s linear",
+                    }} />
+                  </div>
+                </>
+              )}
+              {expired && (
+                <div style={{ fontSize: "14px", color: "#fff", fontWeight: 600 }}>
+                  Drop and play a penalty stroke
+                </div>
+              )}
+            </div>
+          </div>
+          <button onClick={cancel}
+            style={{
+              padding: "10px 20px", borderRadius: "9px", fontFamily: FB, fontSize: "14px",
+              fontWeight: 700, cursor: "pointer", touchAction: "manipulation",
+              border: "2px solid rgba(255,255,255,0.4)",
+              background: "rgba(255,255,255,0.15)", color: "#fff",
+            }}>
+            {expired ? "Dismiss" : "Cancel"}
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
 
 function ScoringScreen({
   selWeek,
@@ -933,6 +1078,8 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
       {/* Auto-saves on score change */}
 
     </>)}
+
+    <LostBallTimer />
   </div>
   );
 }
