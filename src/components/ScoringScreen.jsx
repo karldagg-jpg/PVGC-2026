@@ -533,16 +533,19 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
                               cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
                               userSelect: "none", touchAction: "manipulation"
                             }}>−</button>
-                          <div style={{
-                            width: "52px", height: "52px", border: `1px solid ${atMax ? R + "88" : GOLD + "44"}`,
-                            background: atMax ? R + "18" : "rgba(26,61,36,0.08)", display: "flex", flexDirection: "column",
-                            alignItems: "center", justifyContent: "center", gap: "1px"
-                          }}>
+                          <div onClick={() => !gross && !isDisabled && setScoreVal(r.tIdx, r.pi, effH(hole), PAR[hole])}
+                            style={{
+                              width: "52px", height: "52px", border: `1px solid ${atMax ? R + "88" : GOLD + "44"}`,
+                              background: atMax ? R + "18" : "rgba(26,61,36,0.08)", display: "flex", flexDirection: "column",
+                              alignItems: "center", justifyContent: "center", gap: "1px",
+                              cursor: !gross && !isDisabled ? "pointer" : "default",
+                              touchAction: "manipulation",
+                            }}>
                             <span style={{ fontSize: "20px", fontWeight: 700, color: gross ? ptColor : M, lineHeight: 1 }}>
                               {gross || PAR[hole]}
                             </span>
                             <span style={{ fontSize: "10px", lineHeight: 1, color: gross ? ptColor : M }}>
-                              {!gross ? "tap −/+" : scoreName(gross, PAR[hole])}
+                              {!gross ? "tap par" : scoreName(gross, PAR[hole])}
                             </span>
                           </div>
                           <button onClick={() => adjGross(+1)} disabled={atMax}
