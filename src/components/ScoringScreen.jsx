@@ -5,30 +5,31 @@ import { fmtDate } from "../lib/format";
 import { Tag, PtsBadge } from "./ui";
 import { useState, useEffect, useRef } from "react";
 
-const LOST_BALL_SECS = 180;
+const LOST_BALL_SECS = 20;
 
 function playHorn() {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    // Two-tone horn: main note + harmony
-    const tones = [
-      { freq: 440, gain: 0.5 },
-      { freq: 554, gain: 0.3 },
+    // Clown horn: three descending "honk" blasts
+    const honks = [
+      { startFreq: 480, endFreq: 320, start: 0.0, dur: 0.25 },
+      { startFreq: 420, endFreq: 280, start: 0.3, dur: 0.25 },
+      { startFreq: 360, endFreq: 220, start: 0.6, dur: 0.35 },
     ];
-    tones.forEach(({ freq, gain }) => {
+    honks.forEach(({ startFreq, endFreq, start, dur }) => {
       const osc = ctx.createOscillator();
       const env = ctx.createGain();
       osc.type = "sawtooth";
-      osc.frequency.setValueAtTime(freq, ctx.currentTime);
-      osc.frequency.linearRampToValueAtTime(freq * 1.02, ctx.currentTime + 0.1);
-      env.gain.setValueAtTime(0, ctx.currentTime);
-      env.gain.linearRampToValueAtTime(gain, ctx.currentTime + 0.05);
-      env.gain.setValueAtTime(gain, ctx.currentTime + 0.6);
-      env.gain.linearRampToValueAtTime(0, ctx.currentTime + 1.0);
+      osc.frequency.setValueAtTime(startFreq, ctx.currentTime + start);
+      osc.frequency.linearRampToValueAtTime(endFreq, ctx.currentTime + start + dur);
+      env.gain.setValueAtTime(0, ctx.currentTime + start);
+      env.gain.linearRampToValueAtTime(0.6, ctx.currentTime + start + 0.02);
+      env.gain.setValueAtTime(0.6, ctx.currentTime + start + dur - 0.05);
+      env.gain.linearRampToValueAtTime(0, ctx.currentTime + start + dur);
       osc.connect(env);
       env.connect(ctx.destination);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 1.0);
+      osc.start(ctx.currentTime + start);
+      osc.stop(ctx.currentTime + start + dur + 0.05);
     });
   } catch(e) {
     // audio not supported — silent fallback
