@@ -7,9 +7,28 @@ import { useState, useEffect, useRef } from "react";
 
 const LOST_BALL_SECS = 20;
 
+// Module-level AudioContext — created on first user tap so iOS allows it later
+let _audioCtx = null;
+
+function unlockAudio() {
+  try {
+    if (!_audioCtx) {
+      _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (_audioCtx.state === "suspended") _audioCtx.resume();
+    // Play a silent buffer — fully unlocks iOS audio policy
+    const buf = _audioCtx.createBuffer(1, 1, 22050);
+    const src = _audioCtx.createBufferSource();
+    src.buffer = buf;
+    src.connect(_audioCtx.destination);
+    src.start(0);
+  } catch(e) {}
+}
+
 function playHorn() {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = _audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === "suspended") ctx.resume();
     // Clown horn: three descending "honk" blasts
     const honks = [
       { startFreq: 480, endFreq: 320, start: 0.0, dur: 0.25 },
@@ -31,9 +50,7 @@ function playHorn() {
       osc.start(ctx.currentTime + start);
       osc.stop(ctx.currentTime + start + dur + 0.05);
     });
-  } catch(e) {
-    // audio not supported — silent fallback
-  }
+  } catch(e) {}
 }
 
 function LostBallTimer() {
@@ -43,6 +60,7 @@ function LostBallTimer() {
   const intervalRef = useRef(null);
 
   function start() {
+    unlockAudio(); // must happen during the tap — unlocks iOS audio
     setSecsLeft(LOST_BALL_SECS);
     setExpired(false);
     setRunning(true);
