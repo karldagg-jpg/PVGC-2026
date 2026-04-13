@@ -71,11 +71,11 @@ export default function WeeklyScreen({ weeklyTeamPts }) {
 
           {/* Header */}
           <div style={{
-            display: "grid", gridTemplateColumns: "32px 1fr 70px 70px 70px",
+            display: "grid", gridTemplateColumns: "32px 1fr 80px",
             padding: "7px 14px", borderBottom: `1px solid ${GOLD}22`,
             background: "rgba(26,61,36,0.05)"
           }}>
-            {["#", "Team", "Match", "Bonus", "Total"].map((h, i) => (
+            {["#", "Team", "Pts"].map((h, i) => (
               <div key={i} style={{
                 fontSize: "11px", color: M, letterSpacing: "0.08em", textTransform: "uppercase",
                 textAlign: i >= 2 ? "center" : "left"
@@ -89,7 +89,7 @@ export default function WeeklyScreen({ weeklyTeamPts }) {
             const isTop = rank <= 3;
             return (
               <div key={e.tid} style={{
-                display: "grid", gridTemplateColumns: "32px 1fr 70px 70px 70px",
+                display: "grid", gridTemplateColumns: "32px 1fr 80px",
                 padding: "11px 14px",
                 borderBottom: idx < weekEntries.length - 1 ? `1px solid ${GOLD}11` : "none",
                 background: rank === 1 ? GOLD + "08" : "transparent",
@@ -104,10 +104,8 @@ export default function WeeklyScreen({ weeklyTeamPts }) {
                     {TEAMS[e.tid]?.p1} · {TEAMS[e.tid]?.p2}
                   </div>
                 </div>
-                <div style={{ textAlign: "center", fontSize: "14px", color: "#c0a060" }}>{e.matchPts}</div>
-                <div style={{ textAlign: "center", fontSize: "14px", color: G }}>{e.bonusPts ?? 0}</div>
                 <div style={{
-                  textAlign: "center", fontSize: "15px", fontWeight: 700,
+                  textAlign: "center", fontSize: "18px", fontWeight: 700,
                   color: rank === 1 ? GOLD : rank <= 3 ? G : CREAM
                 }}>{e.totalPts}</div>
               </div>
@@ -116,10 +114,9 @@ export default function WeeklyScreen({ weeklyTeamPts }) {
 
           <div style={{
             padding: "9px 14px", borderTop: "1px solid rgba(255,255,255,0.06)",
-            fontSize: "12px", color: M, display: "flex", gap: "14px", flexWrap: "wrap"
+            fontSize: "12px", color: M
           }}>
-            <span>Match pts: Win=8, Tie=4–6, Loss=0–2 per match</span>
-            <span>Bonus pts: 1st–2nd=8, 3rd–4th=6, 5th–6th=4, 7th–8th+=2</span>
+            Total pts = match pts (Low vs Low + High vs High + team result)
           </div>
         </div>
       )}
