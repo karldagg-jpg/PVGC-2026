@@ -13,7 +13,7 @@ const DEFAULT_RULES = [
       "Week 18 is the Knockdown Round — pairings based on current standings (1v2, 3v4, 5v6, etc.). The Tie Rule is in effect. There is no rain-out round.",
       "A round is considered official if the final team has finished the 6th hole. For H7 use H1 score, H8 use H4 score, H9 use H3 score.",
       "One-time non-refundable membership fee: $60.00/season payable to Krista (Treasurer). All members must be paid in full by Week 10 or the team is ineligible for playoffs.",
-      "Green fees (subject to change): Walking $21.00 · Walking with hand cart $23.00 · Riding $30.00.",
+      "Green fees (subject to change): Walking $25.00 · Walking with hand cart $27.00 · Riding $36.00.",
       "If you cannot play, it is your responsibility to arrange a substitute. Missing 3 rounds without a substitute = subject to expulsion pending League Commissioner Committee vote.",
       "The top 8 teams make the playoffs.",
       "Only the winning team's last name can be engraved on the league trophy — no substitutes or replacements.",
@@ -48,7 +48,7 @@ const DEFAULT_RULES = [
     title: "Handicaps",
     items: [
       "The lowest 7 rounds of the entire season are used to calculate handicaps for all members.",
-      "Returning players — staggered percentage for first 4 rounds: R1=60%, R2=70%, R3=75%, R4=80%. All rounds from R5 onward: 90%.",
+      "Returning players — all rounds played at 90%. No staggered percentages.",
       "Returning players — handicap cannot increase more than 2 strokes from the previous season's final handicap (cap applies until they shoot low enough to come back down).",
       "New members — 60% for the first 7 rounds played, then 90% from Round 8 onward. Starting handicap is set from the calculated (60%) result of their first round.",
       "Substitute player points: 6 Stableford points (flat). Handicaps are not calculated for subs.",
@@ -237,7 +237,7 @@ function RulesScreen({ rules, saveRules }) {
           Click any rule or section title to edit. Changes save automatically.
         </div>
         <button
-          onClick={() => { if (confirm("Reset all rules to the official 2025 rulebook?")) saveRules(DEFAULT_RULES); }}
+          onClick={() => { if (confirm("Reset all rules to the official 2026 rulebook?")) saveRules(DEFAULT_RULES); }}
           style={{
             background: "transparent",
             border: `1px solid ${GOLD}44`,

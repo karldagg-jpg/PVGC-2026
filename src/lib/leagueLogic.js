@@ -383,19 +383,20 @@ function calcAutoHcp(grossRounds, startHcp, isNew) {
   let avgGross, PCT;
 
   if (isNew) {
-    // New members: NEW_MEMBER_HCP_PCT, best HCP_ROUNDS if set (else all rounds), no cap
-    PCT = NEW_MEMBER_HCP_PCT;
+    // New members: 60% for rounds 1-7, then 90% + best 7 from round 8 onwards. No cap.
     if (HCP_ROUNDS && n > HCP_ROUNDS) {
+      PCT = 0.90;
       const sorted = [...grossRounds].sort((a, b) => a - b);
       avgGross = sorted.slice(0, HCP_ROUNDS).reduce((s, g) => s + g, 0) / HCP_ROUNDS;
     } else {
+      PCT = NEW_MEMBER_HCP_PCT;
       avgGross = grossRounds.reduce((s, g) => s + g, 0) / n;
     }
     return Math.round(PCT * (avgGross - 36));
   }
 
-  // Returning members
-  PCT = n <= 4 ? HCP_PCT[n] : 0.90;
+  // Returning members: flat 90% all rounds
+  PCT = 0.90;
 
   if (n <= 4) {
     avgGross = grossRounds.reduce((s, g) => s + g, 0) / n;
@@ -456,16 +457,18 @@ function calcAutoHcpRaw(grossRounds, startHcp, isNew) {
   if (n === 0) return isNew ? 0 : startHcp;
   let avgGross, PCT;
   if (isNew) {
-    PCT = NEW_MEMBER_HCP_PCT;
+    // New members: 60% for rounds 1-7, then 90% + best 7 from round 8 onwards. No cap.
     if (HCP_ROUNDS && n > HCP_ROUNDS) {
+      PCT = 0.90;
       const sorted = [...grossRounds].sort((a, b) => a - b);
       avgGross = sorted.slice(0, HCP_ROUNDS).reduce((s, g) => s + g, 0) / HCP_ROUNDS;
     } else {
+      PCT = NEW_MEMBER_HCP_PCT;
       avgGross = grossRounds.reduce((s, g) => s + g, 0) / n;
     }
     return PCT * (avgGross - 36);
   }
-  PCT = n <= 4 ? HCP_PCT[n] : 0.90;
+  PCT = 0.90;
   if (n <= 4) {
     avgGross = grossRounds.reduce((s, g) => s + g, 0) / n;
   } else if (HCP_ROUNDS) {

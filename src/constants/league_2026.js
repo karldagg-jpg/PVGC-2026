@@ -107,10 +107,10 @@ const NEW_MEMBERS = {
 };
 
 
-const HCP_PCT = [0, 0.90, 0.90, 0.90, 0.90]; // veterans: flat 90% for all rounds
+const HCP_PCT = [0, 0.90, 0.90, 0.90, 0.90]; // veterans: 90% all rounds (staggering removed 2026)
 const HCP_CAP = 2; // max handicap increase from startHcp
 const HCP_ROUNDS = 7;
-const NEW_MEMBER_HCP_PCT = 0.65; // new members: 65%, all rounds, no cap
+const NEW_MEMBER_HCP_PCT = 0.60; // new members: 60% rounds 1-7, then 90% from round 8+, no cap
 const PLAYOFF_START_WEEK = 18;
 
 export {
