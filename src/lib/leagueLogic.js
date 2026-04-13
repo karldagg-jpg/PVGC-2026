@@ -517,6 +517,46 @@ function calcSuggestedHcps(results, currentWeek, defaultHcp=DEFAULT_HCP, newMemb
   return suggested;
 }
 
+// Returns per-week points earned by each team: { [teamId]: { [week]: { matchPts, bonusPts, totalPts } } }
+function calcWeeklyTeamPts(results, handicaps, cancelledWeeksIn=null, maxWeek=REGULAR_SEASON_MAX_WEEK, schedule=SCHEDULE) {
+  const weekly = {};
+  for (let t = 1; t <= 18; t++) weekly[t] = {};
+
+  for (let w = 1; w <= maxWeek; w++) {
+    const week = schedule[w];
+    if (!week?.pairs?.length) continue;
+    if (isWeekCancelled(results[w]) || cancelledWeeksIn?.has(w)) continue;
+
+    const bonus = calcWeekBonus(w, results, handicaps, schedule);
+
+    for (const pair of week.pairs) {
+      if (!Array.isArray(pair)) continue;
+      const [ta, tb] = pair;
+      const key = matchKey(w, ta, tb);
+      const rec = results[w]?.[key];
+      if (!rec) continue;
+
+      const [tlow, thigh] = ta < tb ? [ta, tb] : [tb, ta];
+      const totA = computeTeamTotal(rec, 0, tlow, handicaps);
+      const totB = computeTeamTotal(rec, 1, thigh, handicaps);
+
+      let mA = 0, mB = 0;
+      for (const {piA, piB} of [{piA:0,piB:0},{piA:1,piB:1}]) {
+        const pA = computePlayerTotal(rec, 0, piA, tlow, handicaps);
+        const pB = computePlayerTotal(rec, 1, piB, thigh, handicaps);
+        if (pA > pB) mA += 2; else if (pB > pA) mB += 2; else { mA += 1; mB += 1; }
+      }
+      if (totA > totB) mA += 4; else if (totB > totA) mB += 4; else { mA += 2; mB += 2; }
+
+      const bA = bonus ? (bonus[tlow] || 0) : 0;
+      const bB = bonus ? (bonus[thigh] || 0) : 0;
+      weekly[tlow][w]  = { matchPts: mA, bonusPts: bA, totalPts: mA + bA };
+      weekly[thigh][w] = { matchPts: mB, bonusPts: bB, totalPts: mB + bB };
+    }
+  }
+  return weekly;
+}
+
 function initMatch() {
   return {
     t1scores:[Array(9).fill(0),Array(9).fill(0)],
@@ -543,6 +583,7 @@ export {
   computePlayerTotal,
   calcWeekBonus,
   calcLeagueStats,
+  calcWeeklyTeamPts,
   initLeague,
   calcAutoHcp,
   buildGrossHistory,

@@ -30,6 +30,7 @@ import {
   matchKey,
   calcWeekBonus,
   calcLeagueStats,
+  calcWeeklyTeamPts,
   initLeague,
   initMatch,
   getEffectiveHcp,
@@ -487,6 +488,7 @@ const [seasonYear] = useState(SEASON_YEAR);
   const teamStandings=Object.entries(teamStats)
     .map(([id,s])=>({id:parseInt(id),...s}))
     .sort((a,b)=>b.totalPts-a.totalPts||b.stab-a.stab);
+  const weeklyTeamPts=calcWeeklyTeamPts(league.results,league.handicaps,league.cancelledWeeks);
 
   const weekBonus=calcWeekBonus(selWeek,league.results,league.handicaps);
 
@@ -608,7 +610,7 @@ const [seasonYear] = useState(SEASON_YEAR);
       })()}
 
       {screen==="standings"&&(
-        <StandingsScreen teamStandings={teamStandings} />
+        <StandingsScreen teamStandings={teamStandings} weeklyTeamPts={weeklyTeamPts} />
       )}
 
       {screen==="poty"&&(
