@@ -619,10 +619,10 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
               const adjGross = (delta) => {
                 if (isDisabled) return;
                 const cur = getGross(r.tIdx, r.pi, effH(hole));
-                const next = Math.max(1, Math.min(cap, (cur || PAR[hole]) + delta));
+                const next = Math.max(1, (cur || PAR[hole]) + delta);
                 setScoreVal(r.tIdx, r.pi, effH(hole), next);
               };
-              const atMax = gross > 0 && gross >= cap;
+              const atMax = gross > 0 && gross > cap; // above cap — indicator only, not a blocker
 
               const ptColor = pts === null ? M : pts >= 3 ? G : pts === 1 ? "#c0a060" : pts === 0 ? M : R;
 
@@ -710,17 +710,17 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
                               {gross || PAR[hole]}
                             </span>
                             <span style={{ fontSize: "10px", lineHeight: 1, color: gross ? ptColor : M }}>
-                              {!gross ? "tap par" : scoreName(gross, PAR[hole])}
+                              {!gross ? "tap par" : atMax ? `pts at ${cap}` : scoreName(gross, PAR[hole])}
                             </span>
                           </div>
-                          <button onClick={() => adjGross(+1)} disabled={atMax}
+                          <button onClick={() => adjGross(+1)}
                             style={{
                               width: "42px", height: "52px", borderRadius: "0 9px 9px 0",
                               border: `1px solid ${GOLD}44`, borderLeft: "none",
                               background: "rgba(26,61,36,0.08)", color: CREAM, fontSize: "22px",
-                              cursor: atMax ? "not-allowed" : "pointer",
+                              cursor: "pointer",
                               display: "flex", alignItems: "center", justifyContent: "center",
-                              opacity: atMax ? 0.3 : 1, userSelect: "none", touchAction: "manipulation"
+                              userSelect: "none", touchAction: "manipulation"
                             }}>+</button>
                         </div>
                         {/* Net + stab column */}
