@@ -31,7 +31,7 @@ export default function WeeklyScreen({ weeklyTeamPts }) {
         Weekly Results
       </div>
       <div style={{ color: M, fontSize: "14px", marginBottom: "18px" }}>
-        Team points earned each week — match pts + bonus pts
+        Total stableford points earned per team each week
       </div>
 
       {/* Week picker */}
