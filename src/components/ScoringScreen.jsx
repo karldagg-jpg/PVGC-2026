@@ -5,7 +5,7 @@ import { fmtDate } from "../lib/format";
 import { Tag, PtsBadge } from "./ui";
 import { useState, useEffect, useRef } from "react";
 
-const LOST_BALL_SECS = 20;
+const LOST_BALL_SECS = 180;
 
 // Module-level AudioContext — created on first user tap so iOS allows it later
 let _audioCtx = null;
