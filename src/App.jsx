@@ -272,12 +272,14 @@ const [seasonYear] = useState(SEASON_YEAR);
   async function createSnapshot(label) {
     const id = new Date().toISOString().replace(/[:.]/g, "-");
     const weeksCovered = Object.keys(league.results || {}).filter(w => Object.keys(league.results[w] || {}).length > 0).length;
+    // Convert Set → Array so JSON.stringify preserves it
+    const serializable = { ...league, cancelledWeeks: [...(league.cancelledWeeks || [])] };
     try {
       await SNAPSHOTS_COL.doc(id).set({
         createdAt: new Date().toLocaleString("en-US"),
         label: label || "",
         weeksCovered,
-        data: JSON.stringify(league),
+        data: JSON.stringify(serializable),
       });
       return true;
     } catch(e) {
@@ -304,23 +306,27 @@ const [seasonYear] = useState(SEASON_YEAR);
       const doc = await SNAPSHOTS_COL.doc(id).get();
       if (!doc.exists) return false;
       const restored = JSON.parse(doc.data().data);
-      // Write main doc fields back
+
+      // Set local state immediately so UI stays rendered during Firestore writes
+      // Convert cancelledWeeks array back to Set (JSON.stringify flattens Sets)
+      setLeague({ ...restored, cancelledWeeks: new Set(restored.cancelledWeeks || []) });
+
       const { results, ...mainFields } = restored;
-      await LEAGUE_DOC.set({ ...mainFields, results: {} }, { merge: false });
-      // Delete existing weekScores and rewrite from snapshot
+      const flatScores = (arr) => Array.isArray(arr) ? { p0: arr[0]||[], p1: arr[1]||[] } : arr;
+
+      // Delete existing weekScores
       const existing = await WEEK_SCORES_COL.get();
       if (existing.docs.length > 0) {
         const batch = db.batch();
         existing.docs.forEach(d => batch.delete(d.ref));
         await batch.commit();
       }
+
       // Write snapshot weekScores back
       for (const [week, matches] of Object.entries(results || {})) {
         for (const [mk, rec] of Object.entries(matches || {})) {
           if (!rec) continue;
-          const docId = `${week}_${mk}`;
-          const flatScores = (arr) => Array.isArray(arr) ? { p0: arr[0]||[], p1: arr[1]||[] } : arr;
-          await WEEK_SCORES_COL.doc(docId).set({
+          await WEEK_SCORES_COL.doc(`${week}_${mk}`).set({
             ...rec,
             t1scores: flatScores(rec.t1scores),
             t2scores: flatScores(rec.t2scores),
@@ -329,7 +335,14 @@ const [seasonYear] = useState(SEASON_YEAR);
           });
         }
       }
-      await loadFromFirebase();
+
+      // Write main doc last — avoids triggering the live listener mid-restore
+      await LEAGUE_DOC.set({
+        ...mainFields,
+        cancelledWeeks: [...(mainFields.cancelledWeeks || [])],
+        results: {},
+      }, { merge: false });
+
       return true;
     } catch(e) {
       console.warn("restoreSnapshot error:", e);
