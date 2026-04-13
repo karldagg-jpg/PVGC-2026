@@ -34,7 +34,7 @@ import {
   initMatch,
   getEffectiveHcp,
 } from "./lib/leagueLogic";
-import { applySnapshotToLeague, applyWeekScoreDoc, removeWeekScoreDoc, normalizeMatch } from "./lib/persistence";
+import { applySnapshotToLeague, applyWeekScoreDoc, removeWeekScoreDoc, normalizeMatch, toSet } from "./lib/persistence";
 
 function App() {
   const [screen,  setScreen]  = useState("schedule");
@@ -116,7 +116,7 @@ const [seasonYear] = useState(SEASON_YEAR);
         handicaps: { ...(DEFAULT_HCP || {}), ...(p.handicaps || {}) },
         hcpOverrides: p.hcpOverrides || {},
         loHiOverrides: p.loHiOverrides || {},
-        cancelledWeeks: new Set(p.cancelledWeeks || []),
+        cancelledWeeks: toSet(p.cancelledWeeks),
         readOnlyWeeks: p.readOnlyWeeks || [],
       }));
       if (p.rules) setRules(p.rules);
@@ -337,10 +337,10 @@ const [seasonYear] = useState(SEASON_YEAR);
         }
       }
 
-      // Write main doc
+      // Write main doc — convert cancelledWeeks to array safely (JSON.stringify turns Sets to {})
       await LEAGUE_DOC.set({
         ...mainFields,
-        cancelledWeeks: [...(mainFields.cancelledWeeks || [])],
+        cancelledWeeks: [...toSet(mainFields.cancelledWeeks)],
         results: {},
       }, { merge: false });
 
@@ -569,7 +569,7 @@ const [seasonYear] = useState(SEASON_YEAR);
           finalPairs={finalPairs}
           cancelledWeeks={cancelledWeeks}
           toggleCancelWeek={(w) => {
-            const next = { ...league, cancelledWeeks: new Set(league.cancelledWeeks || []) };
+            const next = { ...league, cancelledWeeks: toSet(league.cancelledWeeks) };
             if (next.cancelledWeeks.has(w)) next.cancelledWeeks.delete(w);
             else next.cancelledWeeks.add(w);
             saveLeague(next);
@@ -596,7 +596,7 @@ const [seasonYear] = useState(SEASON_YEAR);
             weekBonus={weekBonus}
             cancelledWeeks={cancelledWeeks}
             toggleCancelWeek={(w) => {
-              const next = { ...league, cancelledWeeks: new Set(league.cancelledWeeks || []) };
+              const next = { ...league, cancelledWeeks: toSet(league.cancelledWeeks) };
               if (next.cancelledWeeks.has(w)) next.cancelledWeeks.delete(w);
               else next.cancelledWeeks.add(w);
               saveLeague(next);
@@ -632,7 +632,7 @@ const [seasonYear] = useState(SEASON_YEAR);
           sfPairs={sfPairs} finalPairs={finalPairs}
           cancelledWeeks={cancelledWeeks}
           toggleCancelWeek={(w) => {
-            const next = { ...league, cancelledWeeks: new Set(league.cancelledWeeks || []) };
+            const next = { ...league, cancelledWeeks: toSet(league.cancelledWeeks) };
             if (next.cancelledWeeks.has(w)) next.cancelledWeeks.delete(w);
             else next.cancelledWeeks.add(w);
             saveLeague(next);

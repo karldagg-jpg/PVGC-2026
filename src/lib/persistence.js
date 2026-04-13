@@ -67,6 +67,13 @@ function removeWeekScoreDoc(prevLeague, week, mk) {
   return { ...prevLeague, results: { ...prevLeague.results, [week]: weekResults } };
 }
 
+// Safely convert any value to a Set — handles Array, Set, plain object {}, null, undefined
+function toSet(x) {
+  if (x instanceof Set) return x;
+  if (Array.isArray(x)) return new Set(x);
+  return new Set(); // {} from JSON.stringify(Set), null, undefined — all become empty Set
+}
+
 function applySnapshotToLeague(prevLeague, payload, defaultHcp) {
   const p = payload || {};
   const decoded = decodeResults(p.results || {});
@@ -78,12 +85,13 @@ function applySnapshotToLeague(prevLeague, payload, defaultHcp) {
     results: decoded,
     hcpOverrides: p.hcpOverrides || {},
     loHiOverrides: p.loHiOverrides || {},
-    cancelledWeeks: new Set(p.cancelledWeeks || []),
+    cancelledWeeks: toSet(p.cancelledWeeks),
     readOnlyWeeks: p.readOnlyWeeks || [],
   };
 }
 
 export {
+  toSet,
   normalizeMatch,
   decodeResults,
   encodeResults,
