@@ -481,10 +481,11 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
         const o1 = getOrder(t1id), o2 = getOrder(t2id);
 
         // rows: [{label, tIdx, pi, tid, color, rival: {tIdx,pi,tid}}]
+        // Grouped by team: T1-Low, T1-High, T2-Low, T2-High
         const rows = [
           { label: "Low", tIdx: 0, pi: o1.low, tid: t1id, color: G, rivalTIdx: 1, rivalPi: o2.low },
-          { label: "Low", tIdx: 1, pi: o2.low, tid: t2id, color: GO, rivalTIdx: 0, rivalPi: o1.low },
           { label: "High", tIdx: 0, pi: o1.high, tid: t1id, color: G, rivalTIdx: 1, rivalPi: o2.high },
+          { label: "Low", tIdx: 1, pi: o2.low, tid: t2id, color: GO, rivalTIdx: 0, rivalPi: o1.low },
           { label: "High", tIdx: 1, pi: o2.high, tid: t2id, color: GO, rivalTIdx: 0, rivalPi: o1.high },
         ];
 
@@ -612,7 +613,7 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
               const gross = getGross(r.tIdx, r.pi, effH(hole));
               const pts = getPtsFor(r.tIdx, r.pi, r.tid, hole);
               const pname = TEAMS[r.tid]?.[r.pi === 0 ? "p1" : "p2"] || "";
-              const isSep = ri === 1; // separator between low/high pairs
+              const isSep = ri === 2; // separator between team 1 and team 2
 
               const cap = maxGross(PAR[effH(hole)], strokes);
               const adjGross = (delta) => {
