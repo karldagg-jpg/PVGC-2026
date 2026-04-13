@@ -752,6 +752,99 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
             })}
           </div>
 
+          {/* Gross / Net / Stab summary strip */}
+          <div style={{
+            background: CARD2, border: `1px solid ${GOLD}22`,
+            borderRadius: "14px", padding: "10px 14px", marginBottom: "13px",
+            display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px"
+          }}>
+            {rows.map((r, ri) => {
+              const type = getType(r.tIdx, r.pi);
+              const pname = TEAMS[r.tid]?.[r.pi === 0 ? "p1" : "p2"] || "";
+              const gross = (type === "sub" || type === "phantom") ? null : getGrossTotal(r.tIdx, r.pi);
+              const maxT  = (type === "sub" || type === "phantom") ? null : getMaxTotal(r.tIdx, r.pi, r.tid);
+              const net = (type === "sub" || type === "phantom") ? null : getNetTotal(r.tIdx, r.pi, r.tid);
+              const stab = getRunTotal(r.tIdx, r.pi, r.tid);
+              const rivalStab = getRunTotal(r.rivalTIdx, r.rivalPi, ri < 2 ? t2id : t1id);
+              const winning = stab > rivalStab, losing = stab < rivalStab;
+              return (
+                <div key={ri} style={{
+                  background: "rgba(26,61,36,0.05)", borderRadius: "8px",
+                  padding: "8px 10px", border: `1px solid ${winning ? r.color + "33" : losing ? R + "22" : "rgba(26,61,36,0.04)"}`
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "5px" }}>
+                    <span style={{
+                      width: "5px", height: "5px", borderRadius: "50%", background: r.color,
+                      display: "inline-block", flexShrink: 0
+                    }} />
+                    <span style={{
+                      fontSize: "13px", fontWeight: 600, color: CREAM,
+                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
+                    }}>{pname}{type === "phantom" ? " (P)" : type === "sub" ? " (S)" : ""}</span>
+                    {winning && <span style={{ marginLeft: "auto", fontSize: "12px", color: r.color }}>▲ leading</span>}
+                    {losing && <span style={{ marginLeft: "auto", fontSize: "12px", color: R }}>▼ trailing</span>}
+                  </div>
+                  <div style={{ display: "flex", gap: "10px" }}>
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ fontSize: "11px", color: M, letterSpacing: "0.04em" }}>RAW</div>
+                      <div style={{ fontSize: "15px", fontWeight: 700, color: CREAM, lineHeight: 1.1 }}>
+                        {(type === "sub" || type === "phantom") ? "—" : gross || "—"}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ fontSize: "11px", color: M, letterSpacing: "0.04em" }}>MAX</div>
+                      <div style={{ fontSize: "15px", fontWeight: 700, color: gross !== maxT ? GO : CREAM, lineHeight: 1.1 }}>
+                        {(type === "sub" || type === "phantom") ? "—" : maxT || "—"}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ fontSize: "11px", color: M, letterSpacing: "0.04em" }}>NET</div>
+                      <div style={{ fontSize: "15px", fontWeight: 700, color: "#c8d4c0", lineHeight: 1.1 }}>
+                        {(type === "sub" || type === "phantom") ? "—" : net || "—"}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ fontSize: "11px", color: G, letterSpacing: "0.04em" }}>STAB</div>
+                      <div style={{
+                        fontSize: "15px", fontWeight: 700,
+                        color: winning ? r.color : losing ? R : G, lineHeight: 1.1
+                      }}>{stab}</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Team totals row */}
+            {[{tid: t1id, tIdx: 0, color: G}, {tid: t2id, tIdx: 1, color: GO}].map(({tid, tIdx, color}) => {
+              const teamRows = rows.filter(r => r.tIdx === tIdx);
+              const raw  = teamRows.reduce((s, r) => s + (getType(r.tIdx,r.pi)==="sub"||getType(r.tIdx,r.pi)==="phantom" ? 0 : getGrossTotal(r.tIdx,r.pi)||0), 0);
+              const maxS = teamRows.reduce((s, r) => s + (getType(r.tIdx,r.pi)==="sub"||getType(r.tIdx,r.pi)==="phantom" ? 0 : getMaxTotal(r.tIdx,r.pi,r.tid)||0), 0);
+              const net  = teamRows.reduce((s, r) => s + (getType(r.tIdx,r.pi)==="sub"||getType(r.tIdx,r.pi)==="phantom" ? 0 : getNetTotal(r.tIdx,r.pi,r.tid)||0), 0);
+              const stab = teamRows.reduce((s, r) => s + getRunTotal(r.tIdx,r.pi,r.tid), 0);
+              const rivalStab = rows.filter(r => r.tIdx !== tIdx).reduce((s, r) => s + getRunTotal(r.tIdx,r.pi,r.tid), 0);
+              const winning = stab > rivalStab, losing = stab < rivalStab;
+              return (
+                <div key={tid} style={{
+                  gridColumn: "span 1", background: color + "10", borderRadius: "8px",
+                  padding: "8px 10px", border: `1px solid ${winning ? color+"44" : losing ? R+"22" : color+"22"}`
+                }}>
+                  <div style={{ fontSize: "11px", fontWeight: 700, color, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "5px" }}>
+                    {TEAMS[tid]?.name} — Team Total
+                  </div>
+                  <div style={{ display: "flex", gap: "10px" }}>
+                    {[["RAW", raw, CREAM], ["MAX", maxS, raw!==maxS ? GO : CREAM], ["NET", net, "#c8d4c0"], ["STAB", stab, winning ? color : losing ? R : G]].map(([lbl, val, clr]) => (
+                      <div key={lbl} style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: "11px", color: lbl==="STAB" ? G : M, letterSpacing: "0.04em" }}>{lbl}</div>
+                        <div style={{ fontSize: "17px", fontWeight: 700, color: clr, lineHeight: 1.1 }}>{val || "—"}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
           {/* Full 4-row scrollable scorecard */}
           <div style={{
             background: CARD2, border: `1px solid ${GOLD}22`,
@@ -762,7 +855,7 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
               display: "flex", justifyContent: "space-between", alignItems: "center"
             }}>
               <span style={{ fontSize: "12px", letterSpacing: "0.1em", textTransform: "uppercase", color: M }}>Full Scorecard</span>
-              <span style={{ fontSize: "12px", color: M }}>raw · max · net · <span style={{ color: G }}>stab</span></span>
+              <span style={{ fontSize: "12px", color: M }}>gross <span style={{ color: "#555" }}>·</span> <span style={{ color: G }}>stab</span></span>
             </div>
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px", minWidth: "520px" }}>
@@ -777,9 +870,8 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
                         {h + 1}{isRain(h) && <span style={{ color: GO, fontSize: "7px" }}>R</span>}
                       </td>
                     ))}
-                    <td style={{ padding: "6px 8px", textAlign: "center", fontSize: "11px" }}>
-                      <div style={{ color: M }}>Raw</div>
-                      <div style={{ color: GO }}>Max</div>
+                    <td style={{ padding: "6px 8px", textAlign: "center", fontSize: "12px" }}>
+                      <div style={{ color: M }}>Gross</div>
                       <div style={{ color: "#c8d4c0" }}>Net</div>
                       <div style={{ color: G }}>Stab</div>
                     </td>
@@ -794,8 +886,6 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
                     ))}
                     <td style={{ padding: "3px 8px", textAlign: "center" }}>
                       <div>36</div>
-                      <div>—</div>
-                      <div>—</div>
                       <div style={{ color: G }}>—</div>
                     </td>
                   </tr>
@@ -859,19 +949,15 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
                           );
                         })}
                         <td style={{ padding: "4px 8px", textAlign: "center", whiteSpace: "nowrap" }}>
-                          {(type === "sub" || type === "phantom") ? (
-                            <div style={{ fontSize: "14px", color: M }}>—</div>
-                          ) : (() => {
-                            const rawT = getGrossTotal(r.tIdx, r.pi);
-                            const maxT = getMaxTotal(r.tIdx, r.pi, r.tid);
-                            const netT = getNetTotal(r.tIdx, r.pi, r.tid);
-                            return (<>
-                              <div style={{ fontSize: "13px", fontWeight: 700, color: CREAM }}>{rawT || "—"}</div>
-                              <div style={{ fontSize: "13px", fontWeight: 700, color: rawT !== maxT ? GO : CREAM }}>{maxT || "—"}</div>
-                              <div style={{ fontSize: "13px", fontWeight: 600, color: "#c8d4c0" }}>{netT || "—"}</div>
-                              <div style={{ fontSize: "14px", fontWeight: 700, color: winning ? r.color : losing ? R : G }}>{total}</div>
-                            </>);
-                          })()}
+                          <div style={{ fontSize: "14px", fontWeight: 700, color: CREAM }}>
+                            {(type === "sub" || type === "phantom") ? "—" : getGrossTotal(r.tIdx, r.pi) || "—"}
+                          </div>
+                          <div style={{ fontSize: "14px", fontWeight: 600, color: "#c8d4c0" }}>
+                            {(type === "sub" || type === "phantom") ? "—" : getNetTotal(r.tIdx, r.pi, r.tid) || "—"}
+                          </div>
+                          <div style={{ fontSize: "14px", fontWeight: 700, color: winning ? r.color : losing ? R : G }}>
+                            {total}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -881,29 +967,61 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
             </div>
           </div>
 
-          {/* Team stableford totals */}
-          {(() => {
-            const t1stab = rows.filter(r => r.tIdx === 0).reduce((s, r) => s + getRunTotal(r.tIdx, r.pi, r.tid), 0);
-            const t2stab = rows.filter(r => r.tIdx === 1).reduce((s, r) => s + getRunTotal(r.tIdx, r.pi, r.tid), 0);
-            const t1win = t1stab > t2stab, t2win = t2stab > t1stab;
-            return (
-              <div style={{
-                background: CARD2, border: `1px solid ${GOLD}22`,
-                borderRadius: "14px", padding: "12px 16px", marginBottom: "12px",
-                display: "flex", alignItems: "center", justifyContent: "space-around"
-              }}>
-                <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: "12px", color: G, letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: "4px" }}>{TEAMS[t1id]?.name}</div>
-                  <div style={{ fontSize: "28px", fontWeight: 700, color: t1win ? G : CREAM }}>{t1stab}</div>
+          {/* Individual match results */}
+          <div style={{
+            background: CARD2, border: `1px solid ${GOLD}22`,
+            borderRadius: "14px", overflow: "hidden", marginBottom: "12px"
+          }}>
+            <div style={{
+              padding: "8px 13px", borderBottom: "1px solid rgba(255,255,255,0.06)",
+              fontSize: "12px", letterSpacing: "0.1em", textTransform: "uppercase", color: M,
+              display: "flex", justifyContent: "space-between", alignItems: "center"
+            }}>
+              <span>Individual Matches</span>
+              <span style={{ color: G }}>
+                {(() => {
+                  const t1m = matchResults.reduce((s, m) => s + (m.t1pts > m.t2pts ? 2 : m.t1pts === m.t2pts ? 1 : 0), 0);
+                  const t2m = matchResults.reduce((s, m) => s + (m.t2pts > m.t1pts ? 2 : m.t1pts === m.t2pts ? 1 : 0), 0);
+                  const t1team = t1m > t2m ? 4 : t1m === t2m ? 2 : 0;
+                  const t2team = t2m > t1m ? 4 : t1m === t2m ? 2 : 0;
+                  return <>T{t1id} {t1m + t1team}<span style={{ color: M }}> vs </span>{t2m + t2team} T{t2id}<span style={{ color: GO }}> / 8 match pts</span></>;
+                })()}
+              </span>
+            </div>
+            {matchResults.map((m, i) => {
+              const t1wins = m.t1pts > m.t2pts, t2wins = m.t2pts > m.t1pts, tied = m.t1pts === m.t2pts;
+              return (
+                <div key={i} style={{
+                  padding: "10px 14px",
+                  borderBottom: i === 0 ? `1px solid ${GOLD}22` : "none",
+                  display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px"
+                }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: "12px", color: M, marginBottom: "3px", letterSpacing: "0.07em", textTransform: "uppercase" }}>{m.label}</div>
+                    <div style={{ fontSize: "12px" }}>
+                      <span style={{ color: t1wins ? G : CREAM, fontWeight: t1wins ? 700 : 400 }}>{m.t1name}</span>
+                      <span style={{ color: M, margin: "0 6px" }}>vs</span>
+                      <span style={{ color: t2wins ? GO : CREAM, fontWeight: t2wins ? 700 : 400 }}>{m.t2name}</span>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+                    <span style={{
+                      fontWeight: 700, fontSize: "15px",
+                      color: t1wins ? G : tied ? CREAM : "#555"
+                    }}>{m.t1pts}</span>
+                    <span style={{ color: M, fontSize: "13px" }}>–</span>
+                    <span style={{
+                      fontWeight: 700, fontSize: "15px",
+                      color: t2wins ? GO : tied ? CREAM : "#555"
+                    }}>{m.t2pts}</span>
+                    <Tag color={t1wins ? G : t2wins ? GO : M}>
+                      {t1wins ? "+2" : t2wins ? "+2" : "Split 1-1"}
+                    </Tag>
+                  </div>
                 </div>
-                <div style={{ fontSize: "12px", color: M, letterSpacing: "0.06em", textTransform: "uppercase" }}>Stableford</div>
-                <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: "12px", color: GO, letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: "4px" }}>{TEAMS[t2id]?.name}</div>
-                  <div style={{ fontSize: "28px", fontWeight: 700, color: t2win ? GO : CREAM }}>{t2stab}</div>
-                </div>
-              </div>
-            );
-          })()}
+              );
+            })}
+          </div>
 
         </>);
       })()}
