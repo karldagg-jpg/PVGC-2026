@@ -921,6 +921,48 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
             </div>
           </div>
 
+          {/* Team Points Scoreboard */}
+          {(() => {
+            const t1m = matchResults.reduce((s, m) => s + (m.t1pts > m.t2pts ? 2 : m.t1pts === m.t2pts ? 1 : 0), 0);
+            const t2m = matchResults.reduce((s, m) => s + (m.t2pts > m.t1pts ? 2 : m.t1pts === m.t2pts ? 1 : 0), 0);
+            const t1team = t1m > t2m ? 4 : t1m === t2m ? 2 : 0;
+            const t2team = t2m > t1m ? 4 : t1m === t2m ? 2 : 0;
+            const t1total = t1m + t1team, t2total = t2m + t2team;
+            const t1name = TEAMS[t1id]?.name || `Team ${t1id}`;
+            const t2name = TEAMS[t2id]?.name || `Team ${t2id}`;
+            const t1wins = t1total > t2total, t2wins = t2total > t1total;
+            const remaining = 8 - t1total - t2total;
+            return (
+              <div style={{ background: CARD2, border: `1px solid ${GOLD}33`, borderRadius: "14px", padding: "14px 16px", marginBottom: "12px" }}>
+                <div style={{ fontSize: "11px", letterSpacing: "0.1em", textTransform: "uppercase", color: M, textAlign: "center", marginBottom: "10px" }}>
+                  Match Points (of 8)
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <div style={{ flex: 1, textAlign: "center" }}>
+                    <div style={{ fontSize: "12px", color: G, fontWeight: 600, marginBottom: "4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t1name}</div>
+                    <div style={{ fontSize: "44px", fontWeight: 700, color: t1wins ? G : t2wins ? "#555" : CREAM, lineHeight: 1 }}>{t1total}</div>
+                    <div style={{ fontSize: "11px", color: M, marginTop: "3px" }}>{t1m} match · {t1team} team</div>
+                  </div>
+                  <div style={{ textAlign: "center", flexShrink: 0 }}>
+                    <div style={{ fontSize: "18px", color: M }}>vs</div>
+                    <div style={{ fontSize: "10px", color: M, marginTop: "4px" }}>{remaining > 0 ? `${remaining} left` : "Final"}</div>
+                  </div>
+                  <div style={{ flex: 1, textAlign: "center" }}>
+                    <div style={{ fontSize: "12px", color: GO, fontWeight: 600, marginBottom: "4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t2name}</div>
+                    <div style={{ fontSize: "44px", fontWeight: 700, color: t2wins ? GO : t1wins ? "#555" : CREAM, lineHeight: 1 }}>{t2total}</div>
+                    <div style={{ fontSize: "11px", color: M, marginTop: "3px" }}>{t2m} match · {t2team} team</div>
+                  </div>
+                </div>
+                {(t1wins || t2wins) && (
+                  <div style={{ marginTop: "8px", textAlign: "center", fontSize: "12px", color: t1wins ? G : GO, fontWeight: 600 }}>
+                    {t1wins ? t1name : t2name} leading
+                    {remaining > 0 && <span style={{ color: M, fontWeight: 400 }}> · {remaining} pts still available</span>}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {/* Individual match results */}
           <div style={{
             background: CARD2, border: `1px solid ${GOLD}22`,
@@ -929,18 +971,8 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
             <div style={{
               padding: "8px 13px", borderBottom: "1px solid rgba(255,255,255,0.06)",
               fontSize: "12px", letterSpacing: "0.1em", textTransform: "uppercase", color: M,
-              display: "flex", justifyContent: "space-between", alignItems: "center"
             }}>
               <span>Individual Matches</span>
-              <span style={{ color: G }}>
-                {(() => {
-                  const t1m = matchResults.reduce((s, m) => s + (m.t1pts > m.t2pts ? 2 : m.t1pts === m.t2pts ? 1 : 0), 0);
-                  const t2m = matchResults.reduce((s, m) => s + (m.t2pts > m.t1pts ? 2 : m.t1pts === m.t2pts ? 1 : 0), 0);
-                  const t1team = t1m > t2m ? 4 : t1m === t2m ? 2 : 0;
-                  const t2team = t2m > t1m ? 4 : t1m === t2m ? 2 : 0;
-                  return <>T{t1id} {t1m + t1team}<span style={{ color: M }}> vs </span>{t2m + t2team} T{t2id}<span style={{ color: GO }}> / 8 match pts</span></>;
-                })()}
-              </span>
             </div>
             {matchResults.map((m, i) => {
               const t1wins = m.t1pts > m.t2pts, t2wins = m.t2pts > m.t1pts, tied = m.t1pts === m.t2pts;
@@ -976,6 +1008,66 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
               );
             })}
           </div>
+
+          {/* Gross Leaderboard */}
+          {(() => {
+            const lb = rows
+              .map(r => {
+                const type = getType(r.tIdx, r.pi);
+                const pname = TEAMS[r.tid]?.[r.pi === 0 ? "p1" : "p2"] || "";
+                const gross = (type === "sub" || type === "phantom") ? null : getGrossTotal(r.tIdx, r.pi);
+                const net = (type === "sub" || type === "phantom") ? null : getNetTotal(r.tIdx, r.pi, r.tid);
+                const stab = getRunTotal(r.tIdx, r.pi, r.tid);
+                return { row: r, pname, gross, net, stab, type };
+              })
+              .sort((a, b) => {
+                if (a.gross && b.gross) return a.gross - b.gross;
+                if (a.gross) return -1;
+                if (b.gross) return 1;
+                return 0;
+              });
+            const anyGross = lb.some(x => x.gross);
+            return (
+              <div style={{ background: CARD2, border: `1px solid ${GOLD}22`, borderRadius: "14px", overflow: "hidden", marginBottom: "12px" }}>
+                <div style={{ padding: "8px 13px", borderBottom: "1px solid rgba(255,255,255,0.06)", fontSize: "12px", letterSpacing: "0.1em", textTransform: "uppercase", color: M }}>
+                  Gross Leaderboard
+                </div>
+                {lb.map(({ row, pname, gross, net, stab, type }, rank) => {
+                  const vsPar = gross ? gross - 36 : null;
+                  const isLow = rank === 0 && anyGross;
+                  return (
+                    <div key={rank} style={{
+                      padding: "9px 14px", borderBottom: rank < lb.length - 1 ? `1px solid ${GOLD}22` : "none",
+                      display: "flex", alignItems: "center", gap: "10px",
+                      background: isLow ? row.color + "08" : "transparent"
+                    }}>
+                      <span style={{ fontSize: "16px", fontWeight: 700, color: isLow ? GOLD : M, width: "20px", textAlign: "center", flexShrink: 0 }}>{rank + 1}</span>
+                      <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: row.color, display: "inline-block", flexShrink: 0 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: "13px", fontWeight: 600, color: CREAM, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pname}</div>
+                        <div style={{ fontSize: "11px", color: M }}>{row.label} HCP · HCP {getHcp(row.tid, row.pi)}</div>
+                      </div>
+                      <div style={{ display: "flex", gap: "14px", alignItems: "center", flexShrink: 0 }}>
+                        <div style={{ textAlign: "center" }}>
+                          <div style={{ fontSize: "10px", color: M, letterSpacing: "0.05em" }}>GROSS</div>
+                          <div style={{ fontSize: "17px", fontWeight: 700, color: CREAM, lineHeight: 1 }}>{(type === "sub" || type === "phantom") ? "—" : gross || "—"}</div>
+                          {vsPar !== null && <div style={{ fontSize: "10px", color: vsPar < 0 ? G : vsPar > 0 ? R : M, lineHeight: 1, marginTop: "1px" }}>{vsPar > 0 ? "+" : ""}{vsPar}</div>}
+                        </div>
+                        <div style={{ textAlign: "center" }}>
+                          <div style={{ fontSize: "10px", color: M, letterSpacing: "0.05em" }}>NET</div>
+                          <div style={{ fontSize: "17px", fontWeight: 600, color: "#c8d4c0", lineHeight: 1 }}>{(type === "sub" || type === "phantom") ? "—" : net || "—"}</div>
+                        </div>
+                        <div style={{ textAlign: "center" }}>
+                          <div style={{ fontSize: "10px", color: G, letterSpacing: "0.05em" }}>STAB</div>
+                          <div style={{ fontSize: "17px", fontWeight: 700, color: G, lineHeight: 1 }}>{stab}</div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
 
         </>);
       })()}
