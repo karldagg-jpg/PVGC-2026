@@ -233,7 +233,7 @@ function HandicapScreen({ league, saveLeague, isAdmin }) {
             ) : (
               <>
                 <span><strong style={{ color: CREAM }}>Veterans:</strong> 90%{HCP_ROUNDS ? ` of avg of best ${HCP_ROUNDS} scores` : ""}</span>
-                <span><strong style={{ color: "#f0a050" }}>New members:</strong> always {Math.round(NEW_MEMBER_HCP_PCT * 100)}%{HCP_ROUNDS ? `, best ${HCP_ROUNDS} rounds` : ", all rounds"}, no cap</span>
+                <span><strong style={{ color: "#f0a050" }}>New members:</strong> {Math.round(NEW_MEMBER_HCP_PCT * 100)}% rounds 1–{HCP_ROUNDS}, then 90% of best {HCP_ROUNDS} from round {HCP_ROUNDS + 1}+, no cap</span>
               </>
             )}
           </div>
@@ -272,10 +272,10 @@ function HandicapScreen({ league, saveLeague, isAdmin }) {
                   );
                 }
 
-                const pct = isNew ? NEW_MEMBER_HCP_PCT : n <= 4 ? (HCP_PCT[n] || 0) : 0.90;
+                const pct = isNew ? (HCP_ROUNDS && n > HCP_ROUNDS ? 0.90 : NEW_MEMBER_HCP_PCT) : 0.90;
                 const pctLabel = `${Math.round(pct * 100)}%`;
                 let scoresUsed, avgGross;
-                const useBest = HCP_ROUNDS && (isNew ? n > HCP_ROUNDS : n > 4);
+                const useBest = HCP_ROUNDS && n > (isNew ? HCP_ROUNDS : 4);
                 if (useBest) {
                   const sorted = [...history].sort((a, b) => a.gross - b.gross);
                   const best = sorted.slice(0, Math.min(HCP_ROUNDS, n));
