@@ -369,6 +369,8 @@ function EntryTab({league, saveLeague, saveMatchDoc, entryWeek, setEntryWeek, en
                     const strokes = hcpStr(hcp, SI[hi]);
                     const grossMax = maxGross(PAR[hi], strokes);
                     const isCapped = gross > 0 && gross > grossMax;
+                    const adjGross = gross > 0 ? Math.min(gross, grossMax) : 0;
+                    const net = adjGross > 0 ? adjGross - strokes : null;
                     const ptColor=pts===null?M:pts>=3?G:pts===1?GOLD:pts===0?M:R;
                     const bgColor=gross?(pts>=3?"#e6f5ea":pts===1?"#fdf6e0":pts===0?"#ffffff":R+"18"):"#ffffff";
                     const bdColor=isCapped?GO:gross?(pts>=3?G:pts===1?GOLD:pts===0?"#999":R):"#999";
@@ -388,9 +390,8 @@ function EntryTab({league, saveLeague, saveMatchDoc, entryWeek, setEntryWeek, en
                             fontWeight:700,textAlign:"center",outline:"none",
                             MozAppearance:"textfield",appearance:"textfield"}}
                         />
-                        {isCapped && (
-                          <span style={{fontSize:"10px",fontWeight:600,color:GO,lineHeight:1}}>→{grossMax}</span>
-                        )}
+                        {isCapped&&<span style={{fontSize:"10px",fontWeight:600,color:GO,lineHeight:1}}>max {grossMax}</span>}
+                        {net!==null&&<span style={{fontSize:"10px",color:M,lineHeight:1}}>net {net}</span>}
                         {gross>0&&pts!==null&&(
                           <span style={{fontSize:"12px",fontWeight:700,color:ptColor}}>
                             {pts>0?"+"+pts:pts}
