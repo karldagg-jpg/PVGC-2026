@@ -39,7 +39,7 @@ function PotyScreen({ potyTab, setPotyTab, potyList, weeklyPoty, cancelledWeeks 
       {potyTab === "season" && (
         <>
           <div style={{ background: GO + "0d", border: `1px solid ${GO}33`, borderRadius: "13px", padding: "10px 14px", marginBottom: "14px", fontSize: "13px", color: M }}>
-            ⚡ Season total drops the <span style={{ color: GO }}>2 lowest rounds</span> per player at season end.
+            ⚡ Season total drops the <span style={{ color: GO }}>3 lowest rounds</span> per player at season end.
             Scores shown are current running totals (all rounds included until season ends).
           </div>
           <div style={{ background: CARD2, border: `1px solid ${GOLD}22`, borderRadius: "12px", overflow: "hidden" }}>
@@ -47,7 +47,7 @@ function PotyScreen({ potyTab, setPotyTab, potyList, weeklyPoty, cancelledWeeks 
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px", minWidth: "460px" }}>
                 <thead>
                   <tr style={{ borderBottom: `1px solid ${GOLD}33`, background: "rgba(26,61,36,0.05)" }}>
-                    {["#", "Player", "Team", "Rounds", "Cur. Total", "Drop-2 Total", ""].map((h, i) => (
+                    {["#", "Player", "Team", "Rounds", "Cur. Total", "Drop-3 Total", ""].map((h, i) => (
                       <td key={i} style={{ padding: "9px 10px", color: M, textAlign: i >= 3 ? "center" : "left", fontSize: "12px", letterSpacing: "0.08em", textTransform: "uppercase" }}>
                         {h}
                       </td>
