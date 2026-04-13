@@ -368,18 +368,18 @@ function EntryTab({league, saveLeague, saveMatchDoc, entryWeek, setEntryWeek, en
                   {holes.map(({gross,pts},hi)=>{
                     const strokes = hcpStr(hcp, SI[hi]);
                     const grossMax = maxGross(PAR[hi], strokes);
-                    const isCapped = gross > 0 && gross >= grossMax;
+                    const isCapped = gross > 0 && gross > grossMax;
                     const ptColor=pts===null?M:pts>=3?G:pts===1?GOLD:pts===0?M:R;
                     const bgColor=gross?(pts>=3?"#e6f5ea":pts===1?"#fdf6e0":pts===0?"#ffffff":R+"18"):"#ffffff";
                     const bdColor=isCapped?GO:gross?(pts>=3?G:pts===1?GOLD:pts===0?"#999":R):"#999";
                     return (
-                      <div key={hi} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"3px"}}>
+                      <div key={hi} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"2px"}}>
                         <input
                           ref={el=>cellRefs.current[`${rowIdx}-${hi}`]=el}
-                          type="number" min="1" max={grossMax}
+                          type="number" min="1"
                           value={gross||""}
                           placeholder={String(PAR[hi])}
-                          onChange={e=>{const v=parseInt(e.target.value);setEntry(p.tIdx,p.pi,hi,isNaN(v)||v<1?0:Math.min(grossMax,v));}}
+                          onChange={e=>{const v=parseInt(e.target.value);setEntry(p.tIdx,p.pi,hi,isNaN(v)||v<1?0:v);}}
                           onKeyDown={e=>handleKeyDown(e,rowIdx,hi)}
                           onFocus={e=>e.target.select()}
                           style={{width:"100%",height:"48px",background:bgColor,
@@ -388,17 +388,13 @@ function EntryTab({league, saveLeague, saveMatchDoc, entryWeek, setEntryWeek, en
                             fontWeight:700,textAlign:"center",outline:"none",
                             MozAppearance:"textfield",appearance:"textfield"}}
                         />
+                        {isCapped && (
+                          <span style={{fontSize:"10px",fontWeight:600,color:GO,lineHeight:1}}>→{grossMax}</span>
+                        )}
                         {gross>0&&pts!==null&&(
-                          isCapped ? (
-                            <div style={{display:"flex",flexDirection:"column",alignItems:"center",lineHeight:1,gap:"1px"}}>
-                              <span style={{fontSize:"12px",fontWeight:700,color:R}}>Max</span>
-                              <span style={{fontSize:"12px",fontWeight:700,color:R}}>-1</span>
-                            </div>
-                          ) : (
-                            <span style={{fontSize:"12px",fontWeight:700,color:ptColor}}>
-                              {pts>0?"+"+pts:pts}
-                            </span>
-                          )
+                          <span style={{fontSize:"12px",fontWeight:700,color:ptColor}}>
+                            {pts>0?"+"+pts:pts}
+                          </span>
                         )}
                       </div>
                     );
