@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { LEAGUE_DOC, LEAGUE_DOC_ID, WEEK_SCORES_COL, db } from "./firebase/client";
+import { LEAGUE_DOC, LEAGUE_DOC_ID, WEEK_SCORES_COL, db, auth } from "./firebase/client";
 import {
   DEFAULT_HCP,
   AVAILABLE_SEASONS,
@@ -75,6 +75,10 @@ const [seasonYear] = useState(SEASON_YEAR);
   const loadFromFirebase = async () => {
     setFbStatus("connecting");
     try {
+      // Wait for anonymous auth before hitting Firestore
+      await new Promise(resolve => {
+        const unsub = auth.onAuthStateChanged(user => { if (user) { unsub(); resolve(); } });
+      });
       const [snap, scoresSnap] = await Promise.all([
         LEAGUE_DOC.get({ source: "server" }),
         WEEK_SCORES_COL.get({ source: "server" }),
