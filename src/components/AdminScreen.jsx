@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { SCHEDULE_RAW, TEAMS, getTeeTimes, SEASON_YEAR } from "../constants/league";
 import * as L2026 from "../constants/league_2026";
 import { G, M, CREAM, GOLD, CARD, FB, FD, R } from "../constants/theme";
 import { fmtDate } from "../lib/format";
+import { exportStandings, exportHandicaps, exportScores } from "../lib/exportUtils";
 import { matchKey, getOpponent } from "../lib/leagueLogic";
 
 // Add future year modules here as they become available
@@ -78,7 +79,7 @@ tr{border-bottom:1.5px solid #ccc}
   setTimeout(() => w.print(), 300);
 }
 
-export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, finalPairs, saveLeague, unlockMatch, clearMatch, clearSeason, isAdmin, adminPin, adminUnlock, adminLock, saveAdminPin }) {
+export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, finalPairs, saveLeague, unlockMatch, clearMatch, clearSeason, isAdmin, adminPin, adminUnlock, adminLock, saveAdminPin, teamStandings, createSnapshot, listSnapshots, restoreSnapshot }) {
   const printYears = Object.keys(PRINT_SCHEDULES).map(Number).sort();
   const [printYear, setPrintYear] = useState(printYears[printYears.length - 1] || SEASON_YEAR);
 
@@ -96,6 +97,38 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
 
   // Reset season state
   const [resetPhase, setResetPhase] = useState(0); // 0=idle, 1=confirm1, 2=confirm2
+
+  // Snapshot state
+  const [snapshots, setSnapshots] = useState([]);
+  const [snapshotLabel, setSnapshotLabel] = useState("");
+  const [snapshotStatus, setSnapshotStatus] = useState(""); // "saving"|"saved"|"error"|"restoring"|"restored"
+  const [restoreId, setRestoreId] = useState(null);
+
+  useEffect(() => {
+    if (!isAdmin || !listSnapshots) return;
+    listSnapshots().then(setSnapshots);
+  }, [isAdmin]);
+
+  async function handleCreateSnapshot() {
+    setSnapshotStatus("saving");
+    const ok = await createSnapshot?.(snapshotLabel);
+    setSnapshotStatus(ok ? "saved" : "error");
+    if (ok) {
+      setSnapshotLabel("");
+      const updated = await listSnapshots?.();
+      if (updated) setSnapshots(updated);
+      setTimeout(() => setSnapshotStatus(""), 3000);
+    }
+  }
+
+  async function handleRestore(id) {
+    setSnapshotStatus("restoring");
+    setRestoreId(id);
+    const ok = await restoreSnapshot?.(id);
+    setSnapshotStatus(ok ? "restored" : "error");
+    setRestoreId(null);
+    setTimeout(() => setSnapshotStatus(""), 3000);
+  }
 
 
   const activeSched = PRINT_SCHEDULES[printYear] || PRINT_SCHEDULES[SEASON_YEAR];
@@ -496,7 +529,100 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
           </div>
         )}
       </div>
+      {/* ── Data Export ─────────────────────────────────────────── */}
+      <div style={{ background: CARD, border: `1px solid ${GOLD}33`, borderRadius: "14px", padding: "20px" }}>
+        <div style={{ fontSize: "13px", letterSpacing: "0.1em", textTransform: "uppercase", color: GOLD, marginBottom: "4px", fontWeight: 600 }}>
+          Export Data
+        </div>
+        <div style={{ fontSize: "12px", color: M, marginBottom: "14px" }}>
+          Download season data as CSV files — open in Excel or Google Sheets.
+        </div>
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+          <button onClick={() => exportStandings(teamStandings || [])}
+            style={exportBtn}>
+            ↓ Standings
+          </button>
+          <button onClick={() => exportHandicaps(league)}
+            style={exportBtn}>
+            ↓ Handicaps
+          </button>
+          <button onClick={() => exportScores(league)}
+            style={exportBtn}>
+            ↓ All Scores
+          </button>
+        </div>
+      </div>
+
+      {/* ── Snapshots ────────────────────────────────────────────── */}
+      <div style={{ background: CARD, border: `1px solid ${GOLD}33`, borderRadius: "14px", padding: "20px" }}>
+        <div style={{ fontSize: "13px", letterSpacing: "0.1em", textTransform: "uppercase", color: GOLD, marginBottom: "4px", fontWeight: 600 }}>
+          Snapshots
+        </div>
+        <div style={{ fontSize: "12px", color: M, marginBottom: "14px" }}>
+          Save a full backup of all scores and settings to Firestore. Restore any snapshot to roll back the season.
+        </div>
+
+        {/* Create snapshot */}
+        <div style={{ display: "flex", gap: "8px", marginBottom: "16px", flexWrap: "wrap" }}>
+          <input
+            value={snapshotLabel}
+            onChange={e => setSnapshotLabel(e.target.value)}
+            placeholder="Label (optional, e.g. 'After Week 3')"
+            style={{ flex: 1, minWidth: "180px", background: "rgba(26,61,36,0.07)", border: `1px solid ${GOLD}44`, borderRadius: "8px", color: CREAM, fontFamily: FB, fontSize: "13px", padding: "8px 12px", outline: "none" }}
+          />
+          <button
+            onClick={handleCreateSnapshot}
+            disabled={snapshotStatus === "saving"}
+            style={{ ...exportBtn, background: GOLD + "22", borderColor: GOLD + "66", color: GOLD }}>
+            {snapshotStatus === "saving" ? "Saving…" : snapshotStatus === "saved" ? "✓ Saved!" : "Create Snapshot"}
+          </button>
+        </div>
+
+        {snapshotStatus === "error" && (
+          <div style={{ fontSize: "12px", color: R, marginBottom: "10px" }}>Something went wrong. Try again.</div>
+        )}
+        {snapshotStatus === "restored" && (
+          <div style={{ fontSize: "12px", color: G, marginBottom: "10px" }}>✓ Snapshot restored successfully.</div>
+        )}
+
+        {/* Snapshot list */}
+        {snapshots.length === 0 ? (
+          <div style={{ fontSize: "12px", color: M }}>No snapshots yet.</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            {snapshots.map(s => (
+              <div key={s.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", background: "rgba(26,61,36,0.04)", border: `1px solid ${GOLD}22`, borderRadius: "8px", padding: "10px 12px", flexWrap: "wrap" }}>
+                <div>
+                  <div style={{ fontSize: "13px", fontWeight: 600, color: CREAM }}>
+                    {s.label || s.createdAt}
+                  </div>
+                  <div style={{ fontSize: "11px", color: M, marginTop: "2px" }}>
+                    {s.label ? s.createdAt + " · " : ""}{s.weeksCovered} week{s.weeksCovered !== 1 ? "s" : ""} of data
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    if (confirm(`Restore snapshot "${s.label || s.createdAt}"? This will overwrite all current scores.`)) {
+                      handleRestore(s.id);
+                    }
+                  }}
+                  disabled={snapshotStatus === "restoring"}
+                  style={{ padding: "6px 14px", borderRadius: "7px", border: `1px solid ${GOLD}55`, background: "transparent", color: GOLD, fontFamily: FB, fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
+                  {snapshotStatus === "restoring" && restoreId === s.id ? "Restoring…" : "Restore"}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       </>}
     </div>
   );
 }
+
+const exportBtn = {
+  padding: "8px 16px", borderRadius: "8px", border: `1px solid ${GOLD}44`,
+  background: "transparent", color: GOLD, fontFamily: FB, fontSize: "13px",
+  fontWeight: 600, cursor: "pointer", letterSpacing: "0.04em",
+};
