@@ -13,6 +13,7 @@ import EntryTab from "./components/EntryTab";
 import ScheduleScreen from "./components/ScheduleScreen";
 import ScoringScreen from "./components/ScoringScreen";
 import StandingsScreen from "./components/StandingsScreen";
+import WeeklyScreen from "./components/WeeklyScreen";
 import PotyScreen from "./components/PotyScreen";
 import HandicapScreen from "./components/HandicapScreen";
 import RulesScreen from "./components/RulesScreen";
@@ -492,7 +493,7 @@ const [seasonYear] = useState(SEASON_YEAR);
 
   const weekBonus=calcWeekBonus(selWeek,league.results,league.handicaps);
 
-  const TABS=["schedule","scoring","entry","standings","poty","hcp","playoffs","players","rules","admin"];
+  const TABS=["schedule","scoring","entry","standings","weekly","poty","hcp","playoffs","players","rules","admin"];
 
   // Current match doc (for confirm/lock)
   const [cTlow,cThigh] = t1id && t2id ? (t1id<t2id?[t1id,t2id]:[t2id,t1id]) : [0,0];
@@ -610,7 +611,11 @@ const [seasonYear] = useState(SEASON_YEAR);
       })()}
 
       {screen==="standings"&&(
-        <StandingsScreen teamStandings={teamStandings} weeklyTeamPts={weeklyTeamPts} />
+        <StandingsScreen teamStandings={teamStandings} />
+      )}
+
+      {screen==="weekly"&&(
+        <WeeklyScreen weeklyTeamPts={weeklyTeamPts} />
       )}
 
       {screen==="poty"&&(
