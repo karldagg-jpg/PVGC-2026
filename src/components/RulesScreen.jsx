@@ -155,8 +155,20 @@ function RulesScreen({ rules, saveRules }) {
   const [editing, setEditing] = useState(null); // { sectionId, itemIdx } or { sectionId, titleEdit }
   const [draftText, setDraftText] = useState("");
   const [draftTitle, setDraftTitle] = useState("");
+  const [search, setSearch] = useState("");
 
   const sections = rules && rules.length > 0 ? rules : DEFAULT_RULES;
+
+  const q = search.trim().toLowerCase();
+  const filteredSections = q
+    ? sections
+        .map(s => ({
+          ...s,
+          items: s.items.filter(item => item.toLowerCase().includes(q)),
+          _titleMatch: s.title.toLowerCase().includes(q),
+        }))
+        .filter(s => s._titleMatch || s.items.length > 0)
+    : sections;
 
   function startEditItem(sectionId, itemIdx) {
     const section = sections.find(s => s.id === sectionId);
@@ -232,9 +244,22 @@ function RulesScreen({ rules, saveRules }) {
       }}>
         League Rules
       </div>
+      {/* Search */}
+      <input
+        value={search}
+        onChange={e => { setSearch(e.target.value); setEditing(null); }}
+        placeholder="Search rules…"
+        style={{
+          width: "100%", boxSizing: "border-box",
+          background: "rgba(26,61,36,0.07)", border: `1px solid ${GOLD}44`,
+          borderRadius: "10px", color: CREAM, fontFamily: FB, fontSize: "14px",
+          padding: "10px 14px", outline: "none", marginBottom: "16px",
+        }}
+      />
+
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
         <div style={{ color: M, fontSize: "13px" }}>
-          Click any rule or section title to edit. Changes save automatically.
+          {q ? `${filteredSections.reduce((s, sec) => s + sec.items.length, 0)} result${filteredSections.reduce((s,sec)=>s+sec.items.length,0)===1?"":"s"}` : "Click any rule or section title to edit. Changes save automatically."}
         </div>
         <button
           onClick={() => { if (confirm("Reset all rules to the official 2026 rulebook?")) saveRules(DEFAULT_RULES); }}
@@ -256,7 +281,12 @@ function RulesScreen({ rules, saveRules }) {
       </div>
 
       <div style={{ display: "grid", gap: "14px" }}>
-        {sections.map((section, si) => (
+        {filteredSections.length === 0 && q && (
+          <div style={{ textAlign: "center", color: M, fontSize: "14px", padding: "32px 0" }}>
+            No rules found for "{search}"
+          </div>
+        )}
+        {filteredSections.map((section, si) => (
           <div key={section.id} style={{
             background: CARD,
             border: `1px solid rgba(26,61,36,0.08)`,
@@ -428,7 +458,7 @@ function RulesScreen({ rules, saveRules }) {
       </div>
 
       {/* Add section */}
-      <div style={{ marginTop: "16px", textAlign: "center" }}>
+      <div style={{ marginTop: "16px", textAlign: "center", display: q ? "none" : "block" }}>
         <button
           onClick={addSection}
           style={{
