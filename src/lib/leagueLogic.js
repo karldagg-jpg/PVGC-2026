@@ -550,8 +550,8 @@ function calcWeeklyTeamPts(results, handicaps, cancelledWeeksIn=null, maxWeek=RE
 
       const bA = bonus ? (bonus[tlow] || 0) : 0;
       const bB = bonus ? (bonus[thigh] || 0) : 0;
-      weekly[tlow][w]  = { matchPts: mA, bonusPts: bA, totalPts: mA + bA };
-      weekly[thigh][w] = { matchPts: mB, bonusPts: bB, totalPts: mB + bB };
+      weekly[tlow][w]  = { matchPts: mA, bonusPts: bA, totalPts: mA + bA, stab: totA };
+      weekly[thigh][w] = { matchPts: mB, bonusPts: bB, totalPts: mB + bB, stab: totB };
     }
   }
   return weekly;

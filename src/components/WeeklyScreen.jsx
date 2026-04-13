@@ -17,11 +17,11 @@ export default function WeeklyScreen({ weeklyTeamPts }) {
   const defaultWeek = playedWeeks.length ? playedWeeks[playedWeeks.length - 1].week : 1;
   const [selWeek, setSelWeek] = useState(defaultWeek);
 
-  // Build ranked list for selected week
+  // Build ranked list for selected week — sorted by team stableford total
   const weekEntries = Object.entries(pts)
     .map(([tid, weeks]) => ({ tid: parseInt(tid), ...weeks[selWeek] }))
-    .filter(e => e.totalPts !== undefined)
-    .sort((a, b) => b.totalPts - a.totalPts || b.matchPts - a.matchPts);
+    .filter(e => e.stab !== undefined)
+    .sort((a, b) => b.stab - a.stab);
 
   const weekInfo = REGULAR_WEEKS.find(w => w.week === selWeek);
 
@@ -107,7 +107,7 @@ export default function WeeklyScreen({ weeklyTeamPts }) {
                 <div style={{
                   textAlign: "center", fontSize: "18px", fontWeight: 700,
                   color: rank === 1 ? GOLD : rank <= 3 ? G : CREAM
-                }}>{e.totalPts}</div>
+                }}>{e.stab}</div>
               </div>
             );
           })}
@@ -116,7 +116,7 @@ export default function WeeklyScreen({ weeklyTeamPts }) {
             padding: "9px 14px", borderTop: "1px solid rgba(255,255,255,0.06)",
             fontSize: "12px", color: M
           }}>
-            Total pts = match pts (Low vs Low + High vs High + team result)
+            Stableford total for both players on the team
           </div>
         </div>
       )}
