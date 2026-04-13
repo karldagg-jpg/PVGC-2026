@@ -266,6 +266,74 @@ const [seasonYear] = useState(SEASON_YEAR);
     await saveLeague(fresh);
   }
 
+  // ── Snapshots ────────────────────────────────────────────────
+  const SNAPSHOTS_COL = LEAGUE_DOC.collection("snapshots");
+
+  async function createSnapshot(label) {
+    const id = new Date().toISOString().replace(/[:.]/g, "-");
+    const weeksCovered = Object.keys(league.results || {}).filter(w => Object.keys(league.results[w] || {}).length > 0).length;
+    try {
+      await SNAPSHOTS_COL.doc(id).set({
+        createdAt: new Date().toLocaleString("en-US"),
+        label: label || "",
+        weeksCovered,
+        data: JSON.stringify(league),
+      });
+      return true;
+    } catch(e) {
+      console.warn("snapshot error:", e);
+      return false;
+    }
+  }
+
+  async function listSnapshots() {
+    try {
+      const snap = await SNAPSHOTS_COL.orderBy("createdAt", "desc").limit(10).get();
+      return snap.docs.map(d => ({ id: d.id, ...d.data(), data: undefined }));
+    } catch(e) {
+      console.warn("listSnapshots error:", e);
+      return [];
+    }
+  }
+
+  async function restoreSnapshot(id) {
+    try {
+      const doc = await SNAPSHOTS_COL.doc(id).get();
+      if (!doc.exists) return false;
+      const restored = JSON.parse(doc.data().data);
+      // Write main doc fields back
+      const { results, ...mainFields } = restored;
+      await LEAGUE_DOC.set({ ...mainFields, results: {} }, { merge: false });
+      // Delete existing weekScores and rewrite from snapshot
+      const existing = await WEEK_SCORES_COL.get();
+      if (existing.docs.length > 0) {
+        const batch = db.batch();
+        existing.docs.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+      }
+      // Write snapshot weekScores back
+      for (const [week, matches] of Object.entries(results || {})) {
+        for (const [mk, rec] of Object.entries(matches || {})) {
+          if (!rec) continue;
+          const docId = `${week}_${mk}`;
+          const flatScores = (arr) => Array.isArray(arr) ? { p0: arr[0]||[], p1: arr[1]||[] } : arr;
+          await WEEK_SCORES_COL.doc(docId).set({
+            ...rec,
+            t1scores: flatScores(rec.t1scores),
+            t2scores: flatScores(rec.t2scores),
+            week: parseInt(week),
+            matchKey: mk,
+          });
+        }
+      }
+      await loadFromFirebase();
+      return true;
+    } catch(e) {
+      console.warn("restoreSnapshot error:", e);
+      return false;
+    }
+  }
+
   async function confirmMatch(week, mk, tid){
     const existing = league.results[week]?.[mk] || {};
     const confirmations = {
@@ -596,6 +664,10 @@ const [seasonYear] = useState(SEASON_YEAR);
           adminUnlock={adminUnlock}
           adminLock={adminLock}
           saveAdminPin={saveAdminPin}
+          teamStandings={teamStandings}
+          createSnapshot={createSnapshot}
+          listSnapshots={listSnapshots}
+          restoreSnapshot={restoreSnapshot}
         />
       )}
     </div>
