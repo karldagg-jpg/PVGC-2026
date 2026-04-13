@@ -290,11 +290,13 @@ function EntryTab({league, saveLeague, saveMatchDoc, entryWeek, setEntryWeek, en
             return c;
           })();
           const hcpPct = roundCount <= 0 ? null : Math.round((roundCount <= 4 ? (HCP_PCT[roundCount] || 0) : 0.90) * 100);
-          let grossTotal=0, stabTotal=0;
+          let grossTotal=0, maxTotal=0, netTotal=0, stabTotal=0;
           const holes = Array(9).fill(0).map((_,hi)=>{
             const gross=getEntry(p.tIdx,p.pi,hi);
-            const pts=gross?stabPts(gross,PAR[hi],hcpStr(hcp,SI[hi])):null;
-            if(gross>0){grossTotal+=gross;stabTotal+=(pts||0);}
+            const strokes=hcpStr(hcp,SI[hi]);
+            const capped=gross>0?Math.min(gross,maxGross(PAR[hi],strokes)):0;
+            const pts=gross?stabPts(gross,PAR[hi],strokes):null;
+            if(gross>0){grossTotal+=gross;maxTotal+=capped;netTotal+=(capped-strokes);stabTotal+=(pts||0);}
             return {gross,pts};
           });
           return (
@@ -337,14 +339,18 @@ function EntryTab({league, saveLeague, saveMatchDoc, entryWeek, setEntryWeek, en
                   </select>
                 </div>
                 {ptype==="normal"&&grossTotal>0&&(
-                  <div style={{display:"flex",gap:"20px",alignItems:"center",marginLeft:"12px"}}>
+                  <div style={{display:"flex",gap:"14px",alignItems:"center",marginLeft:"12px",flexShrink:0}}>
                     <div style={{textAlign:"center"}}>
-                      <div style={{fontSize:"14px",color:M,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase"}}>Gross</div>
-                      <div style={{fontSize:"24px",fontWeight:700,color:CREAM,lineHeight:1.1}}>{grossTotal}</div>
+                      <div style={{fontSize:"11px",color:M,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase"}}>Raw</div>
+                      <div style={{fontSize:"22px",fontWeight:700,color:CREAM,lineHeight:1.1}}>{grossTotal}</div>
                     </div>
                     <div style={{textAlign:"center"}}>
-                      <div style={{fontSize:"14px",color:G,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase"}}>Stab</div>
-                      <div style={{fontSize:"24px",fontWeight:700,color:G,lineHeight:1.1}}>{stabTotal}</div>
+                      <div style={{fontSize:"11px",color:M,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase"}}>Max</div>
+                      <div style={{fontSize:"22px",fontWeight:700,color:grossTotal!==maxTotal?GO:CREAM,lineHeight:1.1}}>{maxTotal}</div>
+                    </div>
+                    <div style={{textAlign:"center"}}>
+                      <div style={{fontSize:"11px",color:M,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase"}}>Net</div>
+                      <div style={{fontSize:"22px",fontWeight:700,color:"#888",lineHeight:1.1}}>{netTotal}</div>
                     </div>
                   </div>
                 )}

@@ -508,6 +508,11 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
           return Math.min(gross, maxGross(PAR[effH(hi)], strokes)) - strokes;
         };
         const getGrossTotal = (tIdx, pi) => Array(9).fill(0).reduce((s, _, h) => s + (getGross(tIdx, pi, effH(h)) || 0), 0);
+        const getMaxTotal = (tIdx, pi, tid) => Array(9).fill(0).reduce((s, _, h) => {
+          const g = getGross(tIdx, pi, effH(h)); if (!g) return s;
+          const str = hcpStr(getHcp(tid, pi), SI[h]);
+          return s + Math.min(g, maxGross(PAR[h], str));
+        }, 0);
         const getNetTotal = (tIdx, pi, tid) => Array(9).fill(0).reduce((s, _, h) => {
           const g = getGross(tIdx, pi, effH(h)); if (!g) return s;
           const str = hcpStr(getHcp(tid, pi), SI[h]);
@@ -757,6 +762,7 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
               const type = getType(r.tIdx, r.pi);
               const pname = TEAMS[r.tid]?.[r.pi === 0 ? "p1" : "p2"] || "";
               const gross = (type === "sub" || type === "phantom") ? null : getGrossTotal(r.tIdx, r.pi);
+              const maxT  = (type === "sub" || type === "phantom") ? null : getMaxTotal(r.tIdx, r.pi, r.tid);
               const net = (type === "sub" || type === "phantom") ? null : getNetTotal(r.tIdx, r.pi, r.tid);
               const stab = getRunTotal(r.tIdx, r.pi, r.tid);
               const rivalStab = getRunTotal(r.rivalTIdx, r.rivalPi, ri < 2 ? t2id : t1id);
@@ -778,23 +784,29 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
                     {winning && <span style={{ marginLeft: "auto", fontSize: "12px", color: r.color }}>▲ leading</span>}
                     {losing && <span style={{ marginLeft: "auto", fontSize: "12px", color: R }}>▼ trailing</span>}
                   </div>
-                  <div style={{ display: "flex", gap: "13px" }}>
+                  <div style={{ display: "flex", gap: "10px" }}>
                     <div style={{ textAlign: "center" }}>
-                      <div style={{ fontSize: "12px", color: M, letterSpacing: "0.04em" }}>GROSS</div>
-                      <div style={{ fontSize: "16px", fontWeight: 700, color: CREAM, lineHeight: 1.1 }}>
+                      <div style={{ fontSize: "11px", color: M, letterSpacing: "0.04em" }}>RAW</div>
+                      <div style={{ fontSize: "15px", fontWeight: 700, color: CREAM, lineHeight: 1.1 }}>
                         {(type === "sub" || type === "phantom") ? "—" : gross || "—"}
                       </div>
                     </div>
                     <div style={{ textAlign: "center" }}>
-                      <div style={{ fontSize: "12px", color: M, letterSpacing: "0.04em" }}>NET</div>
-                      <div style={{ fontSize: "16px", fontWeight: 700, color: "#c8d4c0", lineHeight: 1.1 }}>
+                      <div style={{ fontSize: "11px", color: M, letterSpacing: "0.04em" }}>MAX</div>
+                      <div style={{ fontSize: "15px", fontWeight: 700, color: gross !== maxT ? GO : CREAM, lineHeight: 1.1 }}>
+                        {(type === "sub" || type === "phantom") ? "—" : maxT || "—"}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ fontSize: "11px", color: M, letterSpacing: "0.04em" }}>NET</div>
+                      <div style={{ fontSize: "15px", fontWeight: 700, color: "#c8d4c0", lineHeight: 1.1 }}>
                         {(type === "sub" || type === "phantom") ? "—" : net || "—"}
                       </div>
                     </div>
                     <div style={{ textAlign: "center" }}>
-                      <div style={{ fontSize: "12px", color: G, letterSpacing: "0.04em" }}>STAB</div>
+                      <div style={{ fontSize: "11px", color: G, letterSpacing: "0.04em" }}>STAB</div>
                       <div style={{
-                        fontSize: "16px", fontWeight: 700,
+                        fontSize: "15px", fontWeight: 700,
                         color: winning ? r.color : losing ? R : G, lineHeight: 1.1
                       }}>{stab}</div>
                     </div>
