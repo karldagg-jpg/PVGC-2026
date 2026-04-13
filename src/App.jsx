@@ -344,11 +344,8 @@ const [seasonYear] = useState(SEASON_YEAR);
         results: {},
       }, { merge: false });
 
-      // All writes done — do a clean reload from Firestore
-      lastSaveTime.current = 0;
-      lastMatchSaveTime.current = 0;
-      await loadFromFirebase();
-
+      // All writes done — reload the page for a clean state
+      window.location.reload();
       return true;
     } catch(e) {
       console.warn("restoreSnapshot error:", e);
