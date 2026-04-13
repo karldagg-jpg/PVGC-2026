@@ -288,8 +288,11 @@ const [seasonYear] = useState(SEASON_YEAR);
 
   async function listSnapshots() {
     try {
-      const snap = await SNAPSHOTS_COL.orderBy("createdAt", "desc").limit(10).get();
-      return snap.docs.map(d => ({ id: d.id, ...d.data(), data: undefined }));
+      const snap = await SNAPSHOTS_COL.limit(20).get();
+      return snap.docs
+        .map(d => ({ id: d.id, ...d.data(), data: undefined }))
+        .sort((a, b) => b.id.localeCompare(a.id))
+        .slice(0, 10);
     } catch(e) {
       console.warn("listSnapshots error:", e);
       return [];
