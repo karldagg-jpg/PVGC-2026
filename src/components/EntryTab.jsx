@@ -390,8 +390,12 @@ function EntryTab({league, saveLeague, saveMatchDoc, entryWeek, setEntryWeek, en
                             fontWeight:700,textAlign:"center",outline:"none",
                             MozAppearance:"textfield",appearance:"textfield"}}
                         />
-                        {isCapped&&<span style={{fontSize:"10px",fontWeight:600,color:GO,lineHeight:1}}>max {grossMax}</span>}
-                        {net!==null&&<span style={{fontSize:"10px",color:M,lineHeight:1}}>net {net}</span>}
+                        {gross>0&&<>
+                          <span style={{fontSize:"9px",color:M,lineHeight:1.2,letterSpacing:"0.04em"}}>MAX</span>
+                          <span style={{fontSize:"10px",fontWeight:600,color:isCapped?GO:M,lineHeight:1}}>{adjGross}</span>
+                          <span style={{fontSize:"9px",color:M,lineHeight:1.2,letterSpacing:"0.04em"}}>NET</span>
+                          <span style={{fontSize:"10px",color:M,lineHeight:1}}>{net}</span>
+                        </>}
                         {gross>0&&pts!==null&&(
                           <span style={{fontSize:"12px",fontWeight:700,color:ptColor}}>
                             {pts>0?"+"+pts:pts}

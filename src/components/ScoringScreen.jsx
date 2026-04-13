@@ -710,8 +710,8 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
                             <span style={{ fontSize: "20px", fontWeight: 700, color: gross ? ptColor : M, lineHeight: 1 }}>
                               {gross || PAR[hole]}
                             </span>
-                            <span style={{ fontSize: "10px", lineHeight: 1, color: atMax ? GO : gross ? ptColor : M }}>
-                              {!gross ? "tap par" : atMax ? `max ${cap}` : scoreName(gross, PAR[hole])}
+                            <span style={{ fontSize: "10px", lineHeight: 1, color: gross ? ptColor : M }}>
+                              {!gross ? "tap par" : scoreName(gross, PAR[hole])}
                             </span>
                           </div>
                           <button onClick={() => adjGross(+1)}
@@ -726,22 +726,19 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
                         </div>
                         {/* Raw / Max / Net + stab column */}
                         {gross > 0 && (
-                          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px", minWidth: "42px" }}>
-                            {atMax && <div style={{ fontSize: "10px", color: GO, lineHeight: 1 }}>raw {gross}</div>}
-                            <div style={{ fontSize: "10px", color: M, letterSpacing: "0.04em", lineHeight: 1 }}>{atMax ? "max" : "NET"}</div>
-                            <div style={{ fontSize: "15px", fontWeight: 700, color: CREAM, lineHeight: 1 }}>
-                              {atMax ? cap : getNet(r.tIdx, r.pi, r.tid, hole)}
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1px", minWidth: "44px" }}>
+                            <div style={{ fontSize: "9px", color: M, letterSpacing: "0.04em", lineHeight: 1.2 }}>RAW</div>
+                            <div style={{ fontSize: "13px", fontWeight: 700, color: atMax ? GO : CREAM, lineHeight: 1 }}>{gross}</div>
+                            <div style={{ fontSize: "9px", color: M, letterSpacing: "0.04em", lineHeight: 1.2 }}>MAX</div>
+                            <div style={{ fontSize: "13px", fontWeight: 700, color: CREAM, lineHeight: 1 }}>{cap}</div>
+                            <div style={{ fontSize: "9px", color: M, letterSpacing: "0.04em", lineHeight: 1.2 }}>NET</div>
+                            <div style={{ fontSize: "13px", fontWeight: 700, color: "#c8d4c0", lineHeight: 1 }}>
+                              {getNet(r.tIdx, r.pi, r.tid, hole)}
                             </div>
-                            {atMax && <>
-                              <div style={{ fontSize: "10px", color: M, lineHeight: 1 }}>net</div>
-                              <div style={{ fontSize: "13px", fontWeight: 700, color: "#c8d4c0", lineHeight: 1 }}>
-                                {getNet(r.tIdx, r.pi, r.tid, hole)}
-                              </div>
-                            </>}
                             <PtsBadge pts={pts} />
                           </div>
                         )}
-                        {!gross && <div style={{ width: "42px" }} />}
+                        {!gross && <div style={{ width: "44px" }} />}
                       </div>
                     )}
                   </div>
