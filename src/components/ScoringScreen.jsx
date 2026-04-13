@@ -814,6 +814,35 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
                 </div>
               );
             })}
+
+            {/* Team totals row */}
+            {[{tid: t1id, tIdx: 0, color: G}, {tid: t2id, tIdx: 1, color: GO}].map(({tid, tIdx, color}) => {
+              const teamRows = rows.filter(r => r.tIdx === tIdx);
+              const raw  = teamRows.reduce((s, r) => s + (getType(r.tIdx,r.pi)==="sub"||getType(r.tIdx,r.pi)==="phantom" ? 0 : getGrossTotal(r.tIdx,r.pi)||0), 0);
+              const maxS = teamRows.reduce((s, r) => s + (getType(r.tIdx,r.pi)==="sub"||getType(r.tIdx,r.pi)==="phantom" ? 0 : getMaxTotal(r.tIdx,r.pi,r.tid)||0), 0);
+              const net  = teamRows.reduce((s, r) => s + (getType(r.tIdx,r.pi)==="sub"||getType(r.tIdx,r.pi)==="phantom" ? 0 : getNetTotal(r.tIdx,r.pi,r.tid)||0), 0);
+              const stab = teamRows.reduce((s, r) => s + getRunTotal(r.tIdx,r.pi,r.tid), 0);
+              const rivalStab = rows.filter(r => r.tIdx !== tIdx).reduce((s, r) => s + getRunTotal(r.tIdx,r.pi,r.tid), 0);
+              const winning = stab > rivalStab, losing = stab < rivalStab;
+              return (
+                <div key={tid} style={{
+                  gridColumn: "span 1", background: color + "10", borderRadius: "8px",
+                  padding: "8px 10px", border: `1px solid ${winning ? color+"44" : losing ? R+"22" : color+"22"}`
+                }}>
+                  <div style={{ fontSize: "11px", fontWeight: 700, color, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "5px" }}>
+                    {TEAMS[tid]?.name} — Team Total
+                  </div>
+                  <div style={{ display: "flex", gap: "10px" }}>
+                    {[["RAW", raw, CREAM], ["MAX", maxS, raw!==maxS ? GO : CREAM], ["NET", net, "#c8d4c0"], ["STAB", stab, winning ? color : losing ? R : G]].map(([lbl, val, clr]) => (
+                      <div key={lbl} style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: "11px", color: lbl==="STAB" ? G : M, letterSpacing: "0.04em" }}>{lbl}</div>
+                        <div style={{ fontSize: "17px", fontWeight: 700, color: clr, lineHeight: 1.1 }}>{val || "—"}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           {/* Full 4-row scrollable scorecard */}
