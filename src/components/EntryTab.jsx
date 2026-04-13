@@ -132,12 +132,19 @@ function EntryTab({league, saveLeague, saveMatchDoc, entryWeek, setEntryWeek, en
     const dt = draftTypes[draftKey];
     const t1types_draft = isSwapped ? (dt?.[1] || existing.t2types || ["normal","normal"]) : (dt?.[0] || existing.t1types || ["normal","normal"]);
     const t2types_draft = isSwapped ? (dt?.[0] || existing.t2types || ["normal","normal"]) : (dt?.[1] || existing.t2types || ["normal","normal"]);
+    const now = new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});
+    const confirmations = {
+      [tlow]: { confirmedBy: "Admin", confirmedAt: now },
+      [thigh]: { confirmedBy: "Admin", confirmedAt: now },
+    };
     const toSave = {
       ...initMatch(), ...existing,
       t1scores: t1s, t2scores: t2s,
       t1types: t1types_draft,
       t2types: t2types_draft,
       hcpSnapshot,
+      confirmations,
+      locked: true,
     };
     if (saveMatchDoc) {
       await saveMatchDoc(toSave, entryWeek, tlow, thigh);
