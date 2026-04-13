@@ -307,9 +307,10 @@ const [seasonYear] = useState(SEASON_YEAR);
       if (!doc.exists) return false;
       const restored = JSON.parse(doc.data().data);
 
-      // Set local state immediately so UI stays rendered during Firestore writes
-      // Convert cancelledWeeks array back to Set (JSON.stringify flattens Sets)
-      setLeague({ ...restored, cancelledWeeks: new Set(restored.cancelledWeeks || []) });
+      // Suppress both live listeners for 30s so deletes/writes don't corrupt state
+      const suppressUntil = Date.now() + 30000;
+      lastSaveTime.current = suppressUntil;
+      lastMatchSaveTime.current = suppressUntil;
 
       const { results, ...mainFields } = restored;
       const flatScores = (arr) => Array.isArray(arr) ? { p0: arr[0]||[], p1: arr[1]||[] } : arr;
@@ -336,16 +337,23 @@ const [seasonYear] = useState(SEASON_YEAR);
         }
       }
 
-      // Write main doc last — avoids triggering the live listener mid-restore
+      // Write main doc
       await LEAGUE_DOC.set({
         ...mainFields,
         cancelledWeeks: [...(mainFields.cancelledWeeks || [])],
         results: {},
       }, { merge: false });
 
+      // All writes done — do a clean reload from Firestore
+      lastSaveTime.current = 0;
+      lastMatchSaveTime.current = 0;
+      await loadFromFirebase();
+
       return true;
     } catch(e) {
       console.warn("restoreSnapshot error:", e);
+      lastSaveTime.current = 0;
+      lastMatchSaveTime.current = 0;
       return false;
     }
   }
