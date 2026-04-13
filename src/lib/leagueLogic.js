@@ -436,12 +436,15 @@ function buildGrossHistory(results, upToWeek, defaultHcp=DEFAULT_HCP) {
           if (type !== 'normal') return; // skip subs/phantoms
           // Rainout: substitute unplayed holes with earlier hole scores (same as scoring).
           // Cancelled weeks have no records, so they are naturally excluded.
+          // Use hcpSnapshot stored with the record for accurate per-hole cap
+          const hcp = rec.hcpSnapshot ? (rec.hcpSnapshot[tid] || [0,0])[pi] : (defaultHcp[tid] || [0,0])[pi];
           let gross = 0;
           for (let hi = 0; hi < 9; hi++) {
             const effHi = (rec.rainout && hi >= rec.holesPlayed && RAINOUT_SUB[hi] !== undefined)
               ? RAINOUT_SUB[hi]
               : hi;
-            gross += (scores[pi] || [])[effHi] || 0;
+            const raw = (scores[pi] || [])[effHi] || 0;
+            if (raw > 0) gross += Math.min(raw, maxGross(PAR[hi], hcpStr(hcp, SI[hi])));
           }
           if (gross > 0) history[tid][pi].push(gross);
         });
