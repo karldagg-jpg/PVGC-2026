@@ -1,10 +1,10 @@
-import { ALL_PLAYERS, TEAMS, DEFAULT_HCP, isNewMember, HCP_PCT, HCP_CAP, HCP_ROUNDS, NEW_MEMBER_HCP_PCT, SEASON_YEAR, RAINOUT_SUB } from "../constants/league";
+import { ALL_PLAYERS, TEAMS, DEFAULT_HCP, isNewMember, HCP_PCT, HCP_CAP, HCP_ROUNDS, NEW_MEMBER_HCP_PCT, SEASON_YEAR, RAINOUT_SUB, PAR, SI } from "../constants/league";
 import { G, GO, R, M, CREAM, GOLD, CARD2, FD, FB } from "../constants/theme";
-import { getEffectiveHcp, getEffectiveHcpRaw, getOpponent, matchKey } from "../lib/leagueLogic";
+import { getEffectiveHcp, getEffectiveHcpRaw, getOpponent, matchKey, hcpStr, maxGross } from "../lib/leagueLogic";
 
 function HandicapScreen({ league, saveLeague, isAdmin }) {
 
-  // Build gross score history for a player across all played weeks
+  // Build gross score history for a player — caps each hole at max gross for handicap accuracy
   function getGrossHistory(tid, pi) {
     const grosses = [];
     for (let w = 1; w <= 17; w++) {
@@ -17,13 +17,15 @@ function HandicapScreen({ league, saveLeague, isAdmin }) {
       const scores = (tIdx === 0 ? rec.t1scores : rec.t2scores) || [];
       const types  = (tIdx === 0 ? rec.t1types  : rec.t2types)  || [];
       if ((types[pi] || "normal") !== "normal") continue;
-      // Rainout: substitute unplayed holes with earlier hole scores
+      // Use hcpSnapshot for accurate per-hole cap, fall back to current handicap
+      const hcp = rec.hcpSnapshot ? (rec.hcpSnapshot[tid] || [0,0])[pi] : (league.handicaps[tid] || [0,0])[pi];
       let g = 0;
       for (let hi = 0; hi < 9; hi++) {
         const effHi = (rec.rainout && hi >= rec.holesPlayed && RAINOUT_SUB[hi] !== undefined)
           ? RAINOUT_SUB[hi]
           : hi;
-        g += (scores[pi] || [])[effHi] || 0;
+        const raw = (scores[pi] || [])[effHi] || 0;
+        if (raw > 0) g += Math.min(raw, maxGross(PAR[effHi], hcpStr(hcp, SI[effHi])));
       }
       if (g > 0) grosses.push({ week: w, gross: g });
     }
