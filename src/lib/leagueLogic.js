@@ -323,10 +323,10 @@ function calcLeagueStats(results, handicaps, cancelledWeeksIn=null, maxWeek=REGU
     teamStats[t].totalPts = teamStats[t].matchPts + teamStats[t].bonusPts;
   }
 
-  // Finalize POTY: drop 2 lowest rounds
+  // Finalize POTY: drop 3 lowest rounds
   const potyList = Object.values(playerStats).map(p => {
     const sorted = [...p.rounds].sort((a,b)=>a.pts-b.pts);
-    const toDrop = sorted.length > 2 ? 2 : 0;
+    const toDrop = sorted.length > 3 ? 3 : 0;
     const kept   = sorted.slice(toDrop);
     const total  = kept.reduce((s,r)=>s+r.pts,0);
     return {...p, total, keptRounds:kept.length, droppedRounds:sorted.slice(0,toDrop)};
