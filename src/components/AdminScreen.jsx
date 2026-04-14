@@ -99,7 +99,7 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
   const [resetPhase, setResetPhase] = useState(0); // 0=idle, 1=confirm1, 2=confirm2
 
   // Recap state
-  const [recapWeek, setRecapWeek] = useState(regularWeeks[regularWeeks.length - 1] || 1);
+  const [recapWeek, setRecapWeek] = useState(1);
   const [recapCopied, setRecapCopied] = useState(false);
   function copyRecap() {
     const text = buildWeekRecap(recapWeek, league.results || {}, league.handicaps || {});
