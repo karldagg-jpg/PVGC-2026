@@ -89,7 +89,7 @@ const DEFAULT_HCP = {
   7:  [10,9],  // John Harvey, Jeff Rowles
   8:  [8,10],  // Bob Saenz, Dennis Huston
   9:  [7,11],  // Chris Fahey, Barry Wzorek
-  10: [5,2],   // Tom Mulvey, Chris Nelson
+  10: [5,3],   // Tom Mulvey, Chris Nelson
   11: [11,16], // Jack West, Ron Herman
   12: [13,3],  // Gabe Lorenz, Jake Huckestein
   13: [16,11], // Betsy Wagner, Gordon Hammond
