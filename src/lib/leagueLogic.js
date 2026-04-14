@@ -571,6 +571,128 @@ function initMatch() {
 }
 
 
+// ── Weekly recap text builder ───────────────────────────────────
+function buildWeekRecap(week, results, handicaps, schedule=SCHEDULE, teams=TEAMS) {
+  const weekInfo = schedule[week];
+  if (!weekInfo) return "";
+  const lines = [];
+  const hr = (char="─", len=42) => char.repeat(len);
+
+  lines.push(`PVGC 2026 — Week ${week} Recap${weekInfo.date ? ` (${weekInfo.date})` : ""}`);
+  lines.push(hr("="));
+  lines.push("");
+
+  // ── Match Results ──
+  lines.push("MATCH RESULTS");
+  lines.push(hr());
+
+  const weekResults = results[week] || {};
+  const allPlayerScores = []; // for top scorers
+
+  for (const pair of (weekInfo.pairs || [])) {
+    if (!Array.isArray(pair)) continue;
+    const [ta, tb] = pair;
+    const [tlow, thigh] = ta < tb ? [ta, tb] : [tb, ta];
+    const key = matchKey(week, tlow, thigh);
+    const rec = weekResults[key];
+
+    const tAname = teams[tlow]?.name || `Team ${tlow}`;
+    const tBname = teams[thigh]?.name || `Team ${thigh}`;
+    lines.push(`${tAname}  vs  ${tBname}`);
+
+    if (!rec) {
+      lines.push("  (no scores recorded)");
+      lines.push("");
+      continue;
+    }
+
+    // Per-player lines
+    for (let tIdx = 0; tIdx < 2; tIdx++) {
+      const tid = tIdx === 0 ? tlow : thigh;
+      const scores = tIdx === 0 ? rec.t1scores : rec.t2scores;
+      const types  = tIdx === 0 ? rec.t1types  : rec.t2types;
+      const snap   = rec.hcpSnapshot;
+      let teamStab = 0;
+
+      for (let pi = 0; pi < 2; pi++) {
+        const name = teams[tid]?.[pi === 0 ? "p1" : "p2"] || `P${pi+1}`;
+        const type = (types || [])[pi] || "normal";
+        const hcp  = snap ? (snap[tid] || [0,0])[pi] || 0 : (handicaps[tid] || [0,0])[pi] || 0;
+
+        if (type === "sub") {
+          lines.push(`  ${name}: SUB (6 pts)`);
+          teamStab += 6;
+          continue;
+        }
+        if (type === "phantom") {
+          lines.push(`  ${name}: PHANTOM (2 pts)`);
+          teamStab += 2;
+          continue;
+        }
+
+        let gross = 0, stab = 0;
+        for (let hi = 0; hi < 9; hi++) {
+          const effHi = (rec.rainout && hi >= rec.holesPlayed && RAINOUT_SUB[hi] !== undefined) ? RAINOUT_SUB[hi] : hi;
+          const g = (scores || [[],[]])[pi]?.[effHi] || 0;
+          if (g > 0) { gross += g; stab += stabPts(g, PAR[hi], hcpStr(hcp, SI[hi])) || 0; }
+        }
+        const grossStr = gross > 0 ? `${gross} gross` : "no score";
+        lines.push(`  ${name} (HCP ${hcp}): ${grossStr} — ${stab} stab`);
+        teamStab += stab;
+        if (gross > 0) allPlayerScores.push({ name, stab });
+      }
+      lines.push(`  Team stableford: ${teamStab}`);
+      lines.push("");
+    }
+
+    // Match outcome
+    const totA = computeTeamTotal(rec, 0, tlow, handicaps);
+    const totB = computeTeamTotal(rec, 1, thigh, handicaps);
+    const pA0 = computePlayerTotal(rec, 0, 0, tlow, handicaps);
+    const pA1 = computePlayerTotal(rec, 0, 1, tlow, handicaps);
+    const pB0 = computePlayerTotal(rec, 1, 0, thigh, handicaps);
+    const pB1 = computePlayerTotal(rec, 1, 1, thigh, handicaps);
+
+    let matchLine = "  Result: ";
+    if (totA > totB) matchLine += `${tAname} wins team match`;
+    else if (totB > totA) matchLine += `${tBname} wins team match`;
+    else matchLine += "Team match tied";
+    lines.push(matchLine);
+
+    const ind1 = pA0 > pB0 ? `${teams[tlow]?.p1} wins` : pB0 > pA0 ? `${teams[thigh]?.p1} wins` : "tied";
+    const ind2 = pA1 > pB1 ? `${teams[tlow]?.p2} wins` : pB1 > pA1 ? `${teams[thigh]?.p2} wins` : "tied";
+    lines.push(`  Individual: Match 1 — ${ind1} (${pA0} vs ${pB0})`);
+    lines.push(`              Match 2 — ${ind2} (${pA1} vs ${pB1})`);
+    lines.push("");
+  }
+
+  // ── Standings ──
+  const stats = calcLeagueStats(results, handicaps);
+  const sorted = Object.entries(stats.teamStats)
+    .filter(([,s]) => s.played > 0)
+    .sort(([,a],[,b]) => b.totalPts - a.totalPts || b.stab - a.stab);
+
+  lines.push("STANDINGS AFTER WEEK " + week);
+  lines.push(hr());
+  sorted.forEach(([tid, s], i) => {
+    lines.push(`${i+1}. ${teams[tid]?.name || `Team ${tid}`} — ${s.totalPts} pts (W${s.wins} L${s.losses} T${s.ties})`);
+  });
+  lines.push("");
+
+  // ── Top stableford ──
+  if (allPlayerScores.length) {
+    allPlayerScores.sort((a, b) => b.stab - a.stab);
+    lines.push(`TOP STABLEFORD — WEEK ${week}`);
+    lines.push(hr());
+    allPlayerScores.slice(0, 5).forEach((p, i) => {
+      lines.push(`${i+1}. ${p.name} — ${p.stab} pts`);
+    });
+    lines.push("");
+  }
+
+  return lines.join("\n");
+}
+
 export {
   getPlayoffSeeds,
   getKnockdownPairs,
@@ -598,4 +720,5 @@ export {
   getPlayoffWinner,
   getQFSeeds,
   getAllSeeds,
+  buildWeekRecap,
 };
