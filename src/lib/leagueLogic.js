@@ -630,14 +630,21 @@ function buildWeekRecap(week, results, handicaps, schedule=SCHEDULE, teams=TEAMS
           continue;
         }
 
-        let gross = 0, stab = 0;
+        let gross = 0, maxGrossTotal = 0, stab = 0;
         for (let hi = 0; hi < 9; hi++) {
           const effHi = (rec.rainout && hi >= rec.holesPlayed && RAINOUT_SUB[hi] !== undefined) ? RAINOUT_SUB[hi] : hi;
           const g = (scores || [[],[]])[pi]?.[effHi] || 0;
-          if (g > 0) { gross += g; stab += stabPts(g, PAR[hi], hcpStr(hcp, SI[hi])) || 0; }
+          if (g > 0) {
+            const str = hcpStr(hcp, SI[hi]);
+            gross += g;
+            maxGrossTotal += Math.min(g, maxGross(PAR[hi], str));
+            stab += stabPts(g, PAR[hi], str) || 0;
+          }
         }
-        const grossStr = gross > 0 ? `${gross} gross` : "no score";
-        lines.push(`  ${name} (HCP ${hcp}): ${grossStr} — ${stab} stab`);
+        const scoreStr = gross > 0
+          ? (gross !== maxGrossTotal ? `${gross} raw / ${maxGrossTotal} max` : `${gross} raw`)
+          : "no score";
+        lines.push(`  ${name} (HCP ${hcp}): ${scoreStr} — ${stab} stab`);
         teamStab += stab;
         if (gross > 0) allPlayerScores.push({ name, stab });
       }
