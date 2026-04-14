@@ -79,7 +79,7 @@ tr{border-bottom:1.5px solid #ccc}
   setTimeout(() => w.print(), 300);
 }
 
-export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, finalPairs, saveLeague, unlockMatch, clearMatch, clearSeason, isAdmin, adminPin, adminUnlock, adminLock, saveAdminPin, teamStandings, createSnapshot, listSnapshots, restoreSnapshot }) {
+export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, finalPairs, saveLeague, unlockMatch, clearMatch, clearSeason, isAdmin, adminPin, adminUnlock, adminLock, saveAdminPin, teamStandings, createSnapshot, listSnapshots, restoreSnapshot, match, setMatch, activeWeek, activeTeam }) {
   const printYears = Object.keys(PRINT_SCHEDULES).map(Number).sort();
   const [printYear, setPrintYear] = useState(printYears[printYears.length - 1] || SEASON_YEAR);
 
@@ -418,6 +418,42 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Rainout Settings ────────────────────────────────────── */}
+      {match && setMatch && (
+        <div style={{ background: CARD, border: `1px solid ${GOLD}33`, borderRadius: "14px", padding: "20px", marginBottom: "16px" }}>
+          <div style={{ fontSize: "13px", letterSpacing: "0.1em", textTransform: "uppercase", color: M, marginBottom: "4px", fontWeight: 600 }}>
+            ☔ Rainout — Week {activeWeek} · T{activeTeam}
+          </div>
+          <div style={{ fontSize: "12px", color: M, marginBottom: "14px" }}>
+            If the last group completes hole 6, invoke the rainout rule. Holes 7→1 · 8→4 · 9→3.
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "13px", color: match.rainout ? GO : M }}>
+                {match.rainout ? "Rainout active" : "No rainout"}
+              </span>
+              <button onClick={() => setMatch(p => ({ ...p, rainout: !p.rainout }))}
+                style={{
+                  width: "42px", height: "22px", borderRadius: "13px", border: "none", cursor: "pointer",
+                  background: match.rainout ? GOLD : "rgba(255,255,255,0.25)", position: "relative", transition: "background 0.2s"
+                }}>
+                <span style={{
+                  position: "absolute", top: "3px", left: match.rainout ? "22px" : "3px",
+                  width: "16px", height: "16px", borderRadius: "50%",
+                  background: match.rainout ? "#0f2a14" : "#888", transition: "left 0.2s"
+                }} />
+              </button>
+            </div>
+            {match.rainout && (
+              <select value={match.holesPlayed} onChange={e => setMatch(p => ({ ...p, holesPlayed: parseInt(e.target.value) }))}
+                style={{ background: "#fff", border: `1px solid ${GOLD}44`, borderRadius: "7px", color: "#0f2a14", fontFamily: FB, fontSize: "14px", padding: "6px 10px", cursor: "pointer", outline: "none" }}>
+                {[6, 7, 8].map(n => <option key={n} value={n}>Stopped after H{n}</option>)}
+              </select>
+            )}
           </div>
         </div>
       )}

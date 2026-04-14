@@ -696,6 +696,10 @@ const [seasonYear] = useState(SEASON_YEAR);
           createSnapshot={createSnapshot}
           listSnapshots={listSnapshots}
           restoreSnapshot={restoreSnapshot}
+          match={match}
+          setMatch={setMatchUser}
+          activeWeek={selWeek}
+          activeTeam={selTeam}
         />
       )}
     </div>
