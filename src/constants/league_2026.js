@@ -80,22 +80,22 @@ const SCHEDULE = buildSchedule();
 
 
 const DEFAULT_HCP = {
-  1:  [5,4],   // Brian Charles (6), Karl Dagg (6)    ← real Week 1
+  1:  [5,4],   // Brian Charles, Karl Dagg
   2:  [6,10],  // Steve Brosius, Mike Albano
-  3:  [6,6],   // Baz Mistry, Sanjay Reddy
+  3:  [6,7],   // Baz Mistry, Sanjay Reddy
   4:  [9,11],  // Scot Pineno, Scott MacKenzie
-  5:  [2,5],   // Jack Carickhoff (2), Tracy Schantz (6)
-  6:  [13,0],   // Scott Glascott (3), Mark Adler (new member — no prior HCP)
-  7:  [9,9],  // John Harvey, Jeff Rowles
+  5:  [2,8],   // Jack Carickhoff, Tracy Schantz
+  6:  [13,0],  // Scott Glascott, Mark Adler
+  7:  [10,9],  // John Harvey, Jeff Rowles
   8:  [8,10],  // Bob Saenz, Dennis Huston
-  9:  [7,0],   // Chris Fahey (7), Berry Wzorek (TBD — update when known)
-  10: [5,3],   // Tom Mulvey (7), Chris Nelson (4)    ← real Week 1
+  9:  [7,11],  // Chris Fahey, Barry Wzorek
+  10: [5,2],   // Tom Mulvey, Chris Nelson
   11: [11,16], // Jack West, Ron Herman
   12: [13,3],  // Gabe Lorenz, Jake Huckestein
   13: [16,11], // Betsy Wagner, Gordon Hammond
   14: [7,1],   // John Franks, Scott Lightbody
-  15: [9,8],  // Jesse Jurden (10), JC Olivos (8)
-  16: [7,27],  // Rhonda Lukas, Carol Blizard
+  15: [10,10], // Jesse Jurden, JC Olivos
+  16: [7,28],  // Rhonda Lukas, Carol Blizard
   17: [10,9],  // Russ Posey, Aret Minasian
   18: [18,9],  // Barry Pavelik, Mark Mitchell
 };
