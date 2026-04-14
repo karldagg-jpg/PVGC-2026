@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { SCHEDULE_RAW, TEAMS, getTeeTimes, SEASON_YEAR } from "../constants/league";
 import * as L2026 from "../constants/league_2026";
-import { G, M, CREAM, GOLD, CARD, FB, FD, R } from "../constants/theme";
+import { G, GO, M, CREAM, GOLD, CARD, FB, FD, R } from "../constants/theme";
 import { fmtDate } from "../lib/format";
 import { exportStandings, exportHandicaps, exportScores } from "../lib/exportUtils";
 import { matchKey, getOpponent } from "../lib/leagueLogic";
