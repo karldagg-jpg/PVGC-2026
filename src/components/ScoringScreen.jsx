@@ -434,37 +434,17 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
       </div>
     ) : (<>
 
-      {/* Rainout toggle */}
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "7px",
-        background: CARD, border: `1px solid ${match.rainout ? GO + "44" : "rgba(255,255,255,0.95)"}`,
-        borderRadius: "12px", padding: "9px 13px", marginBottom: "13px"
-      }}>
-        <div style={{ fontSize: "14px" }}>☔ Rainout
-          <span style={{ fontSize: "12px", color: M, marginLeft: "7px" }}>H7→H1 · H8→H4 · H9→H3</span>
+      {/* Rainout indicator (read-only — toggle in Admin) */}
+      {match.rainout && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: "8px",
+          background: CARD, border: `1px solid ${GO}44`,
+          borderRadius: "12px", padding: "9px 13px", marginBottom: "13px"
+        }}>
+          <span style={{ fontSize: "14px" }}>☔ Rainout</span>
+          <span style={{ fontSize: "12px", color: GO }}>Stopped H{match.holesPlayed} · H7→H1 · H8→H4 · H9→H3</span>
         </div>
-        <div style={{ display: "flex", gap: "7px", alignItems: "center" }}>
-          {match.rainout && (
-            <select value={match.holesPlayed} onChange={e => setMatch(p => ({ ...p, holesPlayed: parseInt(e.target.value) }))}
-              style={{
-                background: "rgba(255,255,255,0.95)", border: `1px solid ${GOLD}44`,
-                borderRadius: "6px", color: CREAM, fontFamily: FB, fontSize: "13px", padding: "4px 8px", cursor: "pointer", outline: "none"
-              }}>
-              {[6, 7, 8].map(n => <option key={n} value={n}>Stopped H{n}</option>)}
-            </select>
-          )}
-          <button onClick={() => setMatch(p => ({ ...p, rainout: !p.rainout }))}
-            style={{
-              width: "38px", height: "20px", borderRadius: "13px", border: "none", cursor: "pointer",
-              background: match.rainout ? GOLD : "rgba(255,255,255,0.6)", position: "relative", transition: "background 0.2s"
-            }}>
-            <span style={{
-              position: "absolute", top: "2px", left: match.rainout ? "19px" : "2px",
-              width: "16px", height: "16px", borderRadius: "50%", background: match.rainout ? BG : "#888", transition: "left 0.2s"
-            }} />
-          </button>
-        </div>
-      </div>
+      )}
 
       {/* ── 4-ROW SCORECARD ── */}
       {(() => {
