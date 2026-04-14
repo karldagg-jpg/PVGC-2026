@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { TEAMS, SCHEDULE_RAW } from "../constants/league";
 import { G, GO, R, M, CREAM, GOLD, CARD2, FD, FB } from "../constants/theme";
+import { buildWeekRecap } from "../lib/leagueLogic";
 
 // Derive list of regular season weeks from schedule
 const REGULAR_WEEKS = SCHEDULE_RAW
   .filter(([w]) => w <= 17)
   .map(([w, date]) => ({ week: w, date }));
 
-export default function WeeklyScreen({ weeklyTeamPts }) {
+export default function WeeklyScreen({ weeklyTeamPts, results, handicaps }) {
   const pts = weeklyTeamPts || {};
+  const [copied, setCopied] = useState(false);
 
   // Default to most recent week that has data
   const playedWeeks = REGULAR_WEEKS.filter(({ week }) =>
@@ -16,6 +18,14 @@ export default function WeeklyScreen({ weeklyTeamPts }) {
   );
   const defaultWeek = playedWeeks.length ? playedWeeks[playedWeeks.length - 1].week : 1;
   const [selWeek, setSelWeek] = useState(defaultWeek);
+
+  function copyRecap() {
+    const text = buildWeekRecap(selWeek, results || {}, handicaps || {});
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    });
+  }
 
   // Build ranked list for selected week — sorted by team stableford total
   const weekEntries = Object.entries(pts)
@@ -27,8 +37,17 @@ export default function WeeklyScreen({ weeklyTeamPts }) {
 
   return (
     <div style={{ maxWidth: "700px", margin: "0 auto", padding: "22px 14px" }}>
-      <div style={{ fontFamily: FD, fontSize: "28px", marginBottom: "4px", fontWeight: 600, color: CREAM, letterSpacing: "0.02em" }}>
-        Weekly Results
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "4px" }}>
+        <div style={{ fontFamily: FD, fontSize: "28px", fontWeight: 600, color: CREAM, letterSpacing: "0.02em" }}>
+          Weekly Results
+        </div>
+        <button onClick={copyRecap} style={{
+          padding: "7px 14px", borderRadius: "8px", fontFamily: FB, fontSize: "13px",
+          border: `1px solid ${GOLD}44`, background: copied ? G + "22" : "rgba(26,61,36,0.08)",
+          color: copied ? G : CREAM, cursor: "pointer", flexShrink: 0, marginTop: "4px"
+        }}>
+          {copied ? "✓ Copied!" : "Copy Recap"}
+        </button>
       </div>
       <div style={{ color: M, fontSize: "14px", marginBottom: "18px" }}>
         Total stableford points earned per team each week
