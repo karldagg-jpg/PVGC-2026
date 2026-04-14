@@ -163,24 +163,6 @@ function ScheduleScreen({
                       Score →
                     </button>
                   )}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleCancelWeek?.(week);
-                    }}
-                    title={isCancelled ? "Restore week" : "Cancel week — weather"}
-                    style={{
-                      padding: "4px 8px",
-                      borderRadius: "6px",
-                      border: `1px solid ${isCancelled ? "#e6a817" : GOLD + "33"}`,
-                      background: isCancelled ? "#fff3cd" : "transparent",
-                      color: isCancelled ? "#7a4f00" : M,
-                      fontSize: "13px",
-                      cursor: "pointer",
-                    }}
-                  >
-                    {isCancelled ? "↩ Restore" : "⛈"}
-                  </button>
                 </div>
               </div>
               {week === selWeek && (isKnockdown || isPlayoff) && cleanPairs.length === 0 && (
