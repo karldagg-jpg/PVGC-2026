@@ -79,7 +79,7 @@ tr{border-bottom:1.5px solid #ccc}
   setTimeout(() => w.print(), 300);
 }
 
-export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, finalPairs, saveLeague, unlockMatch, clearMatch, clearSeason, isAdmin, adminPin, adminUnlock, adminLock, saveAdminPin, teamStandings, createSnapshot, listSnapshots, restoreSnapshot, match, setMatch, activeWeek, activeTeam }) {
+export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, finalPairs, saveLeague, unlockMatch, clearMatch, clearSeason, isAdmin, adminPin, adminUnlock, adminLock, saveAdminPin, teamStandings, createSnapshot, listSnapshots, restoreSnapshot, match, setMatch, activeWeek, activeTeam, cancelledWeeks, toggleCancelWeek }) {
   const printYears = Object.keys(PRINT_SCHEDULES).map(Number).sort();
   const [printYear, setPrintYear] = useState(printYears[printYears.length - 1] || SEASON_YEAR);
 
@@ -369,6 +369,38 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
         {readOnlyWeeks.length > 0 && (
           <div style={{ marginTop: "12px", fontSize: "12px", color: M }}>
             Locked: {readOnlyWeeks.sort((a,b)=>a-b).map(w => `W${w}`).join(", ")}
+          </div>
+        )}
+      </div>
+
+      {/* ── Cancel Week — Weather ───────────────────────────────── */}
+      <div style={{ background: CARD, border: `1px solid ${GOLD}33`, borderRadius: "14px", padding: "20px", marginBottom: "16px" }}>
+        <div style={{ fontSize: "13px", letterSpacing: "0.1em", textTransform: "uppercase", color: M, marginBottom: "4px", fontWeight: 600 }}>
+          ⛈ Cancel Week — Weather
+        </div>
+        <div style={{ fontSize: "12px", color: M, marginBottom: "14px" }}>
+          Cancels all matches for a week. No points awarded. Toggle again to restore.
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+          {regularWeeks.map(w => {
+            const isCancelled = cancelledWeeks?.has(w);
+            return (
+              <button key={w} onClick={() => toggleCancelWeek?.(w)}
+                style={{
+                  padding: "6px 12px", borderRadius: "7px", fontFamily: FB, fontSize: "13px",
+                  fontWeight: isCancelled ? 700 : 400, cursor: "pointer",
+                  border: isCancelled ? `2px solid #e6a817` : `1px solid ${GOLD}44`,
+                  background: isCancelled ? "#fff3cd" : "transparent",
+                  color: isCancelled ? "#7a4f00" : M,
+                }}>
+                {isCancelled ? "⛈" : ""} W{w}
+              </button>
+            );
+          })}
+        </div>
+        {cancelledWeeks?.size > 0 && (
+          <div style={{ marginTop: "12px", fontSize: "12px", color: "#e6a817" }}>
+            Cancelled: {[...cancelledWeeks].sort((a,b)=>a-b).map(w => `W${w}`).join(", ")}
           </div>
         )}
       </div>
