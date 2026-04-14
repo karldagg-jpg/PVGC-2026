@@ -700,6 +700,13 @@ const [seasonYear] = useState(SEASON_YEAR);
           setMatch={setMatchUser}
           activeWeek={selWeek}
           activeTeam={selTeam}
+          cancelledWeeks={cancelledWeeks}
+          toggleCancelWeek={(w) => {
+            const next = { ...league, cancelledWeeks: toSet(league.cancelledWeeks) };
+            if (next.cancelledWeeks.has(w)) next.cancelledWeeks.delete(w);
+            else next.cancelledWeeks.add(w);
+            saveLeague(next);
+          }}
         />
       )}
     </div>
