@@ -207,37 +207,14 @@ function EntryTab({league, saveLeague, saveMatchDoc, entryWeek, setEntryWeek, en
         </div>
       </div>
 
-      {/* Cancel Week button + cancelled banner */}
-      {(() => {
-        const isCancelled = cancelledWeeks?.has(entryWeek);
-        return (
-          <div style={{marginBottom:"14px"}}>
-            {isCancelled ? (
-              <div style={{background:"#fff3cd",border:"2px solid #e6a817",borderRadius:"13px",
-                padding:"14px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:"12px"}}>
-                <div>
-                  <div style={{fontWeight:700,color:"#7a4f00",fontSize:"15px"}}>⛈ Week {entryWeek} — Cancelled</div>
-                  <div style={{color:"#8a6000",fontSize:"13px",marginTop:"2px"}}>No points awarded. Scores move to the following week.</div>
-                </div>
-                <button onClick={()=>toggleCancelWeek?.(entryWeek)}
-                  style={{padding:"8px 16px",background:"#fff",border:"2px solid #e6a817",borderRadius:"8px",
-                    color:"#7a4f00",fontFamily:FB,fontSize:"13px",fontWeight:600,cursor:"pointer",whiteSpace:"nowrap"}}>
-                  Restore Week
-                </button>
-              </div>
-            ) : (
-              <div style={{display:"flex",justifyContent:"flex-end"}}>
-                <button onClick={()=>toggleCancelWeek?.(entryWeek)}
-                  style={{padding:"7px 16px",background:"transparent",border:`1px solid ${GOLD}55`,borderRadius:"8px",
-                    color:M,fontFamily:FB,fontSize:"12px",fontWeight:600,cursor:"pointer",letterSpacing:"0.06em",
-                    textTransform:"uppercase"}}>
-                  ⛈ Cancel Week
-                </button>
-              </div>
-            )}
-          </div>
-        );
-      })()}
+      {/* Cancelled banner — read only */}
+      {cancelledWeeks?.has(entryWeek) && (
+        <div style={{background:"#fff3cd",border:"2px solid #e6a817",borderRadius:"13px",
+          padding:"14px 18px",marginBottom:"14px"}}>
+          <div style={{fontWeight:700,color:"#7a4f00",fontSize:"15px"}}>⛈ Week {entryWeek} — Cancelled</div>
+          <div style={{color:"#8a6000",fontSize:"13px",marginTop:"2px"}}>No points awarded. Manage in Admin.</div>
+        </div>
+      )}
 
       {/* Opponent banner — hidden when week is cancelled */}
       {!cancelledWeeks?.has(entryWeek) && (
