@@ -250,7 +250,7 @@ const [seasonYear] = useState(SEASON_YEAR);
   }
 
   async function clearSeason(){
-    const fresh = initLeague();
+    const fresh = { ...initLeague(), handicaps: league.handicaps };
     setMatch(initMatch());
     try {
       // Delete all subcollection docs
