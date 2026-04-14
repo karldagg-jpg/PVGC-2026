@@ -615,7 +615,7 @@ const [seasonYear] = useState(SEASON_YEAR);
       )}
 
       {screen==="weekly"&&(
-        <WeeklyScreen weeklyTeamPts={weeklyTeamPts} results={league.results} handicaps={league.handicaps} />
+        <WeeklyScreen weeklyTeamPts={weeklyTeamPts} />
       )}
 
       {screen==="poty"&&(

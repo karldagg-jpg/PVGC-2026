@@ -4,7 +4,7 @@ import * as L2026 from "../constants/league_2026";
 import { G, GO, M, CREAM, GOLD, CARD, FB, FD, R } from "../constants/theme";
 import { fmtDate } from "../lib/format";
 import { exportStandings, exportHandicaps, exportScores } from "../lib/exportUtils";
-import { matchKey, getOpponent } from "../lib/leagueLogic";
+import { matchKey, getOpponent, buildWeekRecap } from "../lib/leagueLogic";
 
 // Add future year modules here as they become available
 const PRINT_SCHEDULES = {
@@ -97,6 +97,17 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
 
   // Reset season state
   const [resetPhase, setResetPhase] = useState(0); // 0=idle, 1=confirm1, 2=confirm2
+
+  // Recap state
+  const [recapWeek, setRecapWeek] = useState(regularWeeks[regularWeeks.length - 1] || 1);
+  const [recapCopied, setRecapCopied] = useState(false);
+  function copyRecap() {
+    const text = buildWeekRecap(recapWeek, league.results || {}, league.handicaps || {});
+    navigator.clipboard.writeText(text).then(() => {
+      setRecapCopied(true);
+      setTimeout(() => setRecapCopied(false), 2500);
+    });
+  }
 
   // Snapshot state
   const [snapshots, setSnapshots] = useState([]);
@@ -453,6 +464,30 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
           </div>
         </div>
       )}
+
+      {/* ── Weekly Recap ────────────────────────────────────────── */}
+      <div style={{ background: CARD, border: `1px solid ${GOLD}33`, borderRadius: "14px", padding: "20px", marginBottom: "16px" }}>
+        <div style={{ fontSize: "13px", letterSpacing: "0.1em", textTransform: "uppercase", color: M, marginBottom: "4px", fontWeight: 600 }}>
+          Weekly Recap
+        </div>
+        <div style={{ fontSize: "12px", color: M, marginBottom: "14px" }}>
+          Copy formatted match data to paste into an AI for a weekly recap.
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+          <select value={recapWeek} onChange={e => setRecapWeek(parseInt(e.target.value))}
+            style={{ background: "#fff", border: `1px solid ${GOLD}44`, borderRadius: "7px", color: "#0f2a14", fontFamily: FB, fontSize: "14px", padding: "6px 10px", cursor: "pointer", outline: "none" }}>
+            {regularWeeks.map(w => <option key={w} value={w}>Week {w}</option>)}
+          </select>
+          <button onClick={copyRecap} style={{
+            padding: "8px 18px", borderRadius: "8px", fontFamily: FB, fontSize: "14px", fontWeight: 600,
+            border: `1px solid ${recapCopied ? G : GOLD}55`,
+            background: recapCopied ? G + "18" : GOLD + "18",
+            color: recapCopied ? G : CREAM, cursor: "pointer"
+          }}>
+            {recapCopied ? "✓ Copied!" : "Copy Recap"}
+          </button>
+        </div>
+      </div>
 
       {/* ── Rainout Settings ────────────────────────────────────── */}
       {match && setMatch && (
