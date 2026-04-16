@@ -1,33 +1,43 @@
 import React, { useState, useMemo } from "react";
 import { TEAMS, ALL_PLAYERS, PAR, SI, RAINOUT_SUB } from "../constants/league";
-import { stabPts, hcpStr } from "../lib/leagueLogic";
+import { hcpStr } from "../lib/leagueLogic";
 import { FD, FB } from "../constants/theme";
 
-// ── Masters palette ────────────────────────────────────────────
-const MG   = "#1a3d24";   // Augusta dark green
-const MG2  = "#0d2316";   // deeper header green
-const MYL  = "#f0c040";   // CBS scoreboard yellow
-const MWHT = "#f8f5ec";   // parchment white rows
-const MRED = "#b91c1c";   // leader red
-const MGRY = "#6b7a6e";   // secondary text
+// ── Masters palette ─────────────────────────────────────────────────────────
+const MG    = "#006747";   // Augusta National green
+const MG2   = "#00402c";   // darker header green
+const MG3   = "#004d38";   // mid header
+const MWHT  = "#ffffff";
+const MROW  = "#f6f6f4";   // alternate row
+const MRED  = "#c41230";   // under par (Masters tradition: red = under par)
+const MBLK  = "#1a1a1a";   // over par / even
+const MGLD  = "#d4af37";   // gold trim
+const MGRY  = "#888";
+const MSEP  = "#e0ddd6";   // row separator
+const SEASON_PAR = 36;     // par per week (9 holes, par 36)
 
-// ── Compute per-player data for one mode ──────────────────────
+function fmtVsPar(diff) {
+  if (diff === 0)  return { label: "E",     color: MBLK };
+  if (diff < 0)    return { label: String(diff), color: MRED };
+  return           { label: "+" + diff,     color: MBLK };
+}
+
+// ── Compute season leaderboard in "strokes vs par" mode ─────────────────────
 function computeLeaderboard(league, mode) {
   const { results, handicaps, cancelledWeeks = new Set() } = league;
 
   const players = ALL_PLAYERS.map(({ tid, pi, name, team }) => {
-    const weekTotals = {}; // w → stab pts | null (cancelled) | undefined (no match)
-    let seasonTotal = 0;
+    const weekScores = {};  // w → { gross, net, par } | null (cancelled)
+    let totalVsPar = 0;
     let weeksPlayed = 0;
 
     for (let w = 1; w <= 17; w++) {
-      if (cancelledWeeks?.has?.(w)) { weekTotals[w] = null; continue; }
+      if (cancelledWeeks?.has?.(w)) { weekScores[w] = null; continue; }
       const weekResults = results[w] || {};
       for (const [key, rec] of Object.entries(weekResults)) {
         if (!rec) continue;
         const parts = key.split("-");
-        const tlow = parseInt(parts[1]);
-        const thigh = parseInt(parts[2]);
+        const tlow = parseInt(parts[1]), thigh = parseInt(parts[2]);
         let tIdx = tlow === tid ? 0 : thigh === tid ? 1 : -1;
         if (tIdx === -1) continue;
 
@@ -35,247 +45,273 @@ function computeLeaderboard(league, mode) {
         const types  = tIdx === 0 ? rec.t1types  : rec.t2types;
         const type   = (types || [])[pi] || "normal";
 
-        if (type === "sub")     { weekTotals[w] = 6;  seasonTotal += 6;  weeksPlayed++; break; }
-        if (type === "phantom") { weekTotals[w] = 2;  seasonTotal += 2;  weeksPlayed++; break; }
+        // Subs / phantoms: no stroke data — skip from stroke leaderboard
+        if (type === "sub" || type === "phantom") break;
 
         const hcp = rec.hcpSnapshot
           ? (rec.hcpSnapshot[tid] || [0, 0])[pi]
           : (handicaps[tid] || [0, 0])[pi];
 
-        let wkTotal = 0;
+        let gross = 0, hcpStrokes = 0;
         let hasScore = false;
 
         for (let hi = 0; hi < 9; hi++) {
           const effHi = (rec.rainout && !((scores[pi] || [])[hi]) && RAINOUT_SUB[hi] !== undefined)
             ? RAINOUT_SUB[hi] : hi;
-          const gross = (scores[pi] || [])[effHi] || 0;
-          if (!gross) continue;
+          const g = (scores[pi] || [])[effHi] || 0;
+          if (!g) continue;
           hasScore = true;
-          const strokes = mode === "net" ? hcpStr(hcp, SI[hi]) : 0;
-          wkTotal += stabPts(gross, PAR[hi], strokes) || 0;
+          gross += g;
+          hcpStrokes += hcpStr(hcp, SI[hi]);
         }
 
         if (hasScore) {
-          weekTotals[w] = wkTotal;
-          seasonTotal += wkTotal;
+          const net      = gross - hcpStrokes;
+          const wkVsPar  = mode === "gross" ? gross - SEASON_PAR : net - SEASON_PAR;
+          weekScores[w]  = { gross, net, vsPar: wkVsPar };
+          totalVsPar    += wkVsPar;
           weeksPlayed++;
         }
-        break; // only one match per team per week
+        break;
       }
     }
 
-    return { tid, pi, name, team, weekTotals, seasonTotal, weeksPlayed };
+    return { tid, pi, name, team, weekScores, totalVsPar, weeksPlayed };
   });
 
-  // Sort descending by total, then by weeks played (more = better data)
-  players.sort((a, b) => b.seasonTotal - a.seasonTotal || b.weeksPlayed - a.weeksPlayed);
+  // Sort ascending (lower strokes = better)
+  players.sort((a, b) => {
+    if (a.weeksPlayed === 0 && b.weeksPlayed === 0) return 0;
+    if (a.weeksPlayed === 0) return 1;
+    if (b.weeksPlayed === 0) return -1;
+    return a.totalVsPar - b.totalVsPar || b.weeksPlayed - a.weeksPlayed;
+  });
 
-  // Assign display positions with ties
   return players.map((p, i, arr) => {
-    const first = arr.findIndex(x => x.seasonTotal === p.seasonTotal);
-    const tied  = arr.filter(x => x.seasonTotal === p.seasonTotal).length > 1;
+    if (p.weeksPlayed === 0) return { ...p, pos: null, tied: false };
+    const first = arr.findIndex(x => x.weeksPlayed > 0 && x.totalVsPar === p.totalVsPar);
+    const tied  = arr.filter(x => x.weeksPlayed > 0 && x.totalVsPar === p.totalVsPar).length > 1;
     return { ...p, pos: first + 1, tied };
   });
 }
 
-// ── Component ─────────────────────────────────────────────────
+// ── Component ────────────────────────────────────────────────────────────────
 export default function MastersBoard({ league }) {
   const [mode, setMode] = useState("net");
   const [showAll, setShowAll] = useState(false);
 
   const rows = useMemo(() => computeLeaderboard(league, mode), [league, mode]);
 
-  // Which weeks have any results
   const playedWeeks = useMemo(() =>
     Array.from({ length: 17 }, (_, i) => i + 1)
       .filter(w => Object.keys(league.results[w] || {}).length > 0),
     [league.results]
   );
 
-  const display = showAll ? rows : rows.slice(0, 20);
-  const leaderTotal = rows[0]?.seasonTotal ?? 0;
+  const played = rows.filter(r => r.weeksPlayed > 0);
+  const notPlayed = rows.filter(r => r.weeksPlayed === 0);
+  const displayPlayed = showAll ? played : played.slice(0, 20);
+  const leaderVsPar = played[0]?.totalVsPar ?? 0;
 
   return (
-    <div style={{ maxWidth: "960px", margin: "0 auto", padding: "22px 14px" }}>
+    <div style={{ maxWidth: "1000px", margin: "0 auto", padding: "22px 14px" }}>
 
-      {/* ── Header board ── */}
+      {/* ── Masters-style header ──────────────────────────────── */}
       <div style={{
-        background: `linear-gradient(160deg, ${MG2} 0%, ${MG} 100%)`,
-        borderRadius: "14px 14px 0 0",
-        padding: "20px 22px 16px",
-        display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: "12px",
-        boxShadow: "0 4px 24px rgba(13,35,22,0.28)"
+        background: `linear-gradient(180deg, ${MG2} 0%, ${MG3} 60%, ${MG} 100%)`,
+        borderRadius: "10px 10px 0 0",
+        padding: "0",
+        boxShadow: "0 2px 12px rgba(0,65,44,0.35)"
       }}>
-        <div>
-          <div style={{
-            fontFamily: FD, fontSize: "26px", fontWeight: 700,
-            color: MYL, letterSpacing: "0.06em", textTransform: "uppercase",
-            textShadow: "0 1px 4px rgba(0,0,0,0.4)"
-          }}>
-            Individual Leaderboard
+        {/* Gold top bar */}
+        <div style={{ height: "4px", background: `linear-gradient(90deg, ${MGLD}, #f0d060, ${MGLD})`, borderRadius: "10px 10px 0 0" }} />
+
+        <div style={{ padding: "18px 24px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
+          <div>
+            <div style={{ fontFamily: FD, fontSize: "28px", fontWeight: 700, color: MGLD, letterSpacing: "0.04em" }}>
+              Individual Leaderboard
+            </div>
+            <div style={{ fontFamily: FB, fontSize: "11px", color: "#7ab89a", marginTop: "3px", letterSpacing: "0.14em", textTransform: "uppercase" }}>
+              Pickering Valley Golf Club &nbsp;·&nbsp; 2026 Season &nbsp;·&nbsp; {playedWeeks.length} Round{playedWeeks.length !== 1 ? "s" : ""} Complete
+            </div>
           </div>
-          <div style={{ fontFamily: FB, fontSize: "12px", color: "#a8c8a0", marginTop: "3px", letterSpacing: "0.12em", textTransform: "uppercase" }}>
-            Pickering Valley · 2026 Season · {playedWeeks.length} week{playedWeeks.length !== 1 ? "s" : ""} played
+
+          {/* NET / GROSS pill */}
+          <div style={{ display: "flex", background: "rgba(0,0,0,0.30)", borderRadius: "6px", padding: "3px", gap: "2px" }}>
+            {[["net", "Net"], ["gross", "Gross"]].map(([m, label]) => (
+              <button key={m} onClick={() => setMode(m)} style={{
+                padding: "6px 20px", borderRadius: "4px", border: "none",
+                background: mode === m ? MGLD : "transparent",
+                color: mode === m ? MG2 : "#7ab89a",
+                fontFamily: FB, fontSize: "12px", fontWeight: mode === m ? 700 : 500,
+                letterSpacing: "0.1em", textTransform: "uppercase",
+                cursor: "pointer"
+              }}>{label}</button>
+            ))}
           </div>
         </div>
 
-        {/* NET / GROSS toggle */}
-        <div style={{
-          display: "flex", background: "rgba(0,0,0,0.35)", borderRadius: "8px", padding: "3px", gap: "2px"
-        }}>
-          {["net", "gross"].map(m => (
-            <button key={m} onClick={() => setMode(m)} style={{
-              padding: "7px 18px", borderRadius: "6px", border: "none",
-              background: mode === m ? MYL : "transparent",
-              color: mode === m ? MG2 : "#a8c8a0",
-              fontFamily: FB, fontSize: "13px", fontWeight: mode === m ? 700 : 500,
-              letterSpacing: "0.08em", textTransform: "uppercase",
-              cursor: "pointer", transition: "all 0.15s"
-            }}>
-              {m === "net" ? "Net" : "Gross"}
-            </button>
-          ))}
-        </div>
+        {/* Column headers */}
+        <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: FB }}>
+          <thead>
+            <tr style={{ borderTop: "1px solid rgba(255,255,255,0.1)" }}>
+              <th style={{ padding: "8px 10px 8px 20px", textAlign: "left",   color: "#7ab89a", fontSize: "11px", letterSpacing: "0.12em", fontWeight: 600, width: "50px" }}>POS</th>
+              <th style={{ padding: "8px 10px",           textAlign: "left",   color: "#7ab89a", fontSize: "11px", letterSpacing: "0.12em", fontWeight: 600 }}>PLAYER</th>
+              <th style={{ padding: "8px 10px",           textAlign: "center", color: MGLD,      fontSize: "11px", letterSpacing: "0.12em", fontWeight: 700, width: "70px" }}>TO PAR</th>
+              <th style={{ padding: "8px 14px 8px 4px",   textAlign: "center", color: "#7ab89a", fontSize: "11px", letterSpacing: "0.12em", fontWeight: 600, width: "60px" }}>TOTAL</th>
+              {playedWeeks.map(w => (
+                <th key={w} style={{ padding: "8px 4px", textAlign: "center", color: "#7ab89a", fontSize: "10px", letterSpacing: "0.06em", fontWeight: 500, width: "38px" }}>
+                  W{w}
+                </th>
+              ))}
+            </tr>
+          </thead>
+        </table>
       </div>
 
-      {/* ── Mode explanation strip ── */}
-      <div style={{
-        background: "#2a5238", padding: "7px 22px",
-        fontSize: "12px", color: "#a8c8a0", letterSpacing: "0.05em",
-        display: "flex", gap: "18px", alignItems: "center"
-      }}>
-        <span style={{ color: MYL, fontWeight: 600 }}>
-          {mode === "net" ? "NET STABLEFORD" : "GROSS STABLEFORD"}
-        </span>
-        <span>
-          {mode === "net"
-            ? "Handicap strokes applied — the competitive scoring format"
-            : "No handicap strokes — raw scoring ability vs par"}
-        </span>
-      </div>
-
-      {/* ── Scoreboard table ── */}
-      <div style={{ background: MWHT, borderRadius: "0 0 14px 14px", overflow: "hidden", boxShadow: "0 4px 24px rgba(13,35,22,0.15)" }}>
+      {/* ── Leaderboard rows ─────────────────────────────────── */}
+      <div style={{ background: MWHT, borderRadius: "0 0 10px 10px", overflow: "hidden", boxShadow: "0 4px 20px rgba(0,65,44,0.12)" }}>
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px", minWidth: playedWeeks.length > 3 ? "640px" : "420px" }}>
-            <thead>
-              <tr style={{ background: MG, color: MWHT }}>
-                <th style={{ padding: "10px 10px 10px 16px", textAlign: "left", fontFamily: FB, fontSize: "11px", letterSpacing: "0.1em", fontWeight: 600, whiteSpace: "nowrap" }}>POS</th>
-                <th style={{ padding: "10px 8px", textAlign: "left", fontFamily: FB, fontSize: "11px", letterSpacing: "0.1em", fontWeight: 600 }}>PLAYER</th>
-                <th style={{ padding: "10px 8px", textAlign: "center", fontFamily: FB, fontSize: "11px", letterSpacing: "0.1em", fontWeight: 600, color: MYL }}>TOTAL</th>
-                {playedWeeks.map(w => (
-                  <th key={w} style={{ padding: "10px 4px", textAlign: "center", fontFamily: FB, fontSize: "11px", letterSpacing: "0.06em", fontWeight: 500, color: "#a8c8a0", minWidth: "30px" }}>
-                    W{w}
-                  </th>
-                ))}
-              </tr>
-            </thead>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: FB, minWidth: playedWeeks.length > 4 ? `${480 + playedWeeks.length * 38}px` : "420px" }}>
             <tbody>
-              {display.map((p, i) => {
+              {displayPlayed.map((p, i) => {
                 const isLeader = p.pos === 1;
-                const top3 = p.pos <= 3;
-                const gap = leaderTotal - p.seasonTotal;
-                const rowBg = i % 2 === 0 ? MWHT : "#f0ede2";
+                const top5 = p.pos <= 5;
+                const { label: toParLabel, color: toParColor } = fmtVsPar(p.totalVsPar);
+                const gap = p.totalVsPar - leaderVsPar; // positive = behind leader
 
                 return (
                   <tr key={`${p.tid}-${p.pi}`} style={{
-                    background: rowBg,
-                    borderBottom: "1px solid #ddd8cc",
-                    transition: "background 0.1s"
+                    background: i % 2 === 0 ? MWHT : MROW,
+                    borderBottom: `1px solid ${MSEP}`,
                   }}>
                     {/* Position */}
-                    <td style={{ padding: "11px 8px 11px 16px", whiteSpace: "nowrap" }}>
+                    <td style={{ padding: "13px 10px 13px 20px", width: "50px", whiteSpace: "nowrap" }}>
                       <span style={{
-                        fontFamily: FD, fontSize: "15px", fontWeight: 700,
-                        color: isLeader ? MRED : top3 ? MG : MGRY,
+                        fontFamily: FB, fontSize: "14px", fontWeight: 700,
+                        color: isLeader ? MRED : top5 ? MG : MGRY,
                       }}>
                         {p.tied && p.pos !== 1 ? "T" : ""}{p.pos}
                       </span>
                     </td>
 
-                    {/* Player name + team */}
-                    <td style={{ padding: "11px 8px" }}>
-                      <div style={{ fontFamily: FB, fontSize: "14px", fontWeight: isLeader ? 700 : 600, color: isLeader ? MRED : "#1a2e1a", whiteSpace: "nowrap" }}>
+                    {/* Player + team */}
+                    <td style={{ padding: "13px 10px" }}>
+                      <div style={{ fontFamily: FB, fontSize: "14px", fontWeight: isLeader ? 700 : 600, color: MBLK }}>
                         {p.name}
                       </div>
-                      <div style={{ fontFamily: FB, fontSize: "11px", color: MGRY, marginTop: "1px", letterSpacing: "0.02em" }}>
+                      <div style={{ fontFamily: FB, fontSize: "11px", color: MGRY, marginTop: "1px" }}>
                         {TEAMS[p.tid]?.name}
                       </div>
                     </td>
 
-                    {/* Season total */}
-                    <td style={{ padding: "11px 8px", textAlign: "center", whiteSpace: "nowrap" }}>
-                      <div style={{
-                        fontFamily: FD, fontSize: "22px", fontWeight: 700, lineHeight: 1,
-                        color: isLeader ? MRED : top3 ? MG : "#1a2e1a"
+                    {/* TO PAR — big hero number */}
+                    <td style={{ padding: "13px 10px", textAlign: "center", width: "70px" }}>
+                      <span style={{
+                        fontFamily: FD, fontSize: "24px", fontWeight: 700, lineHeight: 1,
+                        color: toParColor,
                       }}>
-                        {p.weeksPlayed > 0 ? p.seasonTotal : "—"}
-                      </div>
-                      {p.weeksPlayed > 0 && gap > 0 && (
-                        <div style={{ fontSize: "10px", color: MGRY, lineHeight: 1, marginTop: "2px" }}>
-                          -{gap}
+                        {toParLabel}
+                      </span>
+                      {gap > 0 && (
+                        <div style={{ fontFamily: FB, fontSize: "10px", color: MGRY, marginTop: "1px" }}>
+                          +{gap}
                         </div>
                       )}
                     </td>
 
+                    {/* Raw total strokes */}
+                    <td style={{ padding: "13px 14px 13px 4px", textAlign: "center", width: "60px" }}>
+                      <span style={{ fontFamily: FB, fontSize: "13px", color: "#444" }}>
+                        {mode === "gross"
+                          ? played.find(x => x === p) && Object.values(p.weekScores).filter(Boolean).reduce((s, w) => s + (w?.gross || 0), 0)
+                          : played.find(x => x === p) && Object.values(p.weekScores).filter(Boolean).reduce((s, w) => s + (w?.net || 0), 0)
+                        }
+                      </span>
+                    </td>
+
                     {/* Per-week cells */}
                     {playedWeeks.map(w => {
-                      const wPts = p.weekTotals[w];
-                      const cancelled = wPts === null;
-                      const played = wPts !== undefined && !cancelled;
+                      const wk = p.weekScores[w];
+                      const cancelled = wk === null;
+                      const played = wk !== undefined && !cancelled && wk !== undefined;
+                      if (cancelled) return (
+                        <td key={w} style={{ padding: "13px 4px", textAlign: "center", width: "38px" }}>
+                          <span style={{ fontSize: "11px", color: "#bbb" }}>⛈</span>
+                        </td>
+                      );
+                      if (!played || !wk) return (
+                        <td key={w} style={{ padding: "13px 4px", textAlign: "center", width: "38px" }}>
+                          <span style={{ fontSize: "13px", color: "#ccc" }}>–</span>
+                        </td>
+                      );
+                      const { label, color } = fmtVsPar(wk.vsPar);
                       return (
-                        <td key={w} style={{ padding: "11px 4px", textAlign: "center" }}>
-                          {cancelled ? (
-                            <span style={{ fontSize: "11px", color: "#bbb" }}>⛈</span>
-                          ) : played ? (
-                            <span style={{
-                              fontFamily: FB, fontSize: "13px", fontWeight: 600,
-                              color: wPts >= 18 ? MRED : wPts >= 14 ? MG : wPts <= 8 ? "#9a6a3a" : "#1a2e1a"
-                            }}>
-                              {wPts}
-                            </span>
-                          ) : (
-                            <span style={{ fontSize: "11px", color: "#ccc" }}>·</span>
-                          )}
+                        <td key={w} style={{ padding: "13px 4px", textAlign: "center", width: "38px" }}>
+                          <span style={{ fontFamily: FB, fontSize: "13px", fontWeight: 600, color }}>
+                            {label}
+                          </span>
                         </td>
                       );
                     })}
                   </tr>
                 );
               })}
+
+              {/* Cut line if showing all */}
+              {showAll && notPlayed.length > 0 && (
+                <tr>
+                  <td colSpan={4 + playedWeeks.length} style={{
+                    padding: "6px 20px", background: "#f0ede4",
+                    fontSize: "11px", fontWeight: 700, color: MGRY,
+                    letterSpacing: "0.1em", textTransform: "uppercase",
+                    borderBottom: `2px solid ${MG}44`
+                  }}>
+                    No scores entered
+                  </td>
+                </tr>
+              )}
+              {showAll && notPlayed.map((p, i) => (
+                <tr key={`np-${p.tid}-${p.pi}`} style={{ background: i % 2 === 0 ? MWHT : MROW, borderBottom: `1px solid ${MSEP}`, opacity: 0.5 }}>
+                  <td style={{ padding: "10px 10px 10px 20px", width: "50px" }}>
+                    <span style={{ fontFamily: FB, fontSize: "13px", color: MGRY }}>–</span>
+                  </td>
+                  <td style={{ padding: "10px 10px" }}>
+                    <div style={{ fontFamily: FB, fontSize: "13px", color: MBLK }}>{p.name}</div>
+                    <div style={{ fontFamily: FB, fontSize: "11px", color: MGRY }}>{TEAMS[p.tid]?.name}</div>
+                  </td>
+                  <td colSpan={2 + playedWeeks.length} style={{ padding: "10px", textAlign: "center", fontSize: "12px", color: MGRY }}>–</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
 
         {/* Show all / collapse */}
-        {rows.length > 20 && (
-          <div style={{
-            padding: "12px", textAlign: "center",
-            borderTop: "1px solid #ddd8cc", background: "#f0ede2"
+        <div style={{ padding: "12px", textAlign: "center", borderTop: `1px solid ${MSEP}`, background: MROW }}>
+          <button onClick={() => setShowAll(v => !v)} style={{
+            background: "none", border: `1px solid ${MG}55`,
+            borderRadius: "5px", padding: "7px 22px",
+            fontFamily: FB, fontSize: "12px", color: MG,
+            cursor: "pointer", letterSpacing: "0.08em", textTransform: "uppercase"
           }}>
-            <button onClick={() => setShowAll(v => !v)} style={{
-              background: "none", border: `1px solid ${MG}44`,
-              borderRadius: "6px", padding: "7px 20px",
-              fontFamily: FB, fontSize: "13px", color: MG,
-              cursor: "pointer", letterSpacing: "0.06em"
-            }}>
-              {showAll ? "Show Top 20" : `Show All ${rows.length} Players`}
-            </button>
-          </div>
-        )}
+            {showAll ? "Show Top 20" : `Show All ${rows.length} Players`}
+          </button>
+        </div>
 
-        {/* Legend */}
+        {/* Footer */}
         <div style={{
-          padding: "10px 18px", background: MG, display: "flex", gap: "18px",
-          flexWrap: "wrap", alignItems: "center", borderRadius: "0 0 14px 14px"
+          background: MG, padding: "9px 20px",
+          borderRadius: "0 0 10px 10px",
+          display: "flex", gap: "20px", flexWrap: "wrap", alignItems: "center"
         }}>
-          <div style={{ fontSize: "11px", color: "#a8c8a0", letterSpacing: "0.06em" }}>
-            <span style={{ color: MRED, fontWeight: 700 }}>Red</span> = Leader · {" "}
-            <span style={{ color: MYL }}>≥18 pts</span> excellent · {" "}
-            <span style={{ color: "#a8c8a0" }}>≥14 pts</span> solid
+          <div style={{ fontSize: "11px", color: "#7ab89a" }}>
+            <span style={{ color: MRED, fontWeight: 700 }}>Red</span> = Under par &nbsp;·&nbsp;
+            <span style={{ color: MBLK, background: "#7ab89a", padding: "0 3px", borderRadius: "2px" }}>Black</span> = Over par &nbsp;·&nbsp;
+            <span style={{ color: "#7ab89a" }}>E</span> = Even
           </div>
-          <div style={{ fontSize: "11px", color: "#a8c8a0", marginLeft: "auto" }}>
-            Sub = 6 pts fixed · Phantom = 2 pts fixed
+          <div style={{ fontSize: "11px", color: "#7ab89a", marginLeft: "auto" }}>
+            {mode === "net" ? "Net = Gross strokes − handicap strokes received" : "Gross = Raw strokes, no handicap applied"}
           </div>
         </div>
       </div>
