@@ -19,6 +19,7 @@ import HandicapScreen from "./components/HandicapScreen";
 import RulesScreen from "./components/RulesScreen";
 import AdminScreen from "./components/AdminScreen";
 import PlayoffScreen from "./components/PlayoffScreen";
+import MastersBoard from "./components/MastersBoard";
 import PlayerScreen from "./components/PlayerScreen";
 import {
   getPlayoffSeeds,
@@ -493,7 +494,7 @@ const [seasonYear] = useState(SEASON_YEAR);
 
   const weekBonus=calcWeekBonus(selWeek,league.results,league.handicaps);
 
-  const TABS=["schedule","scoring","entry","standings","weekly","poty","hcp","playoffs","players","rules","admin"];
+  const TABS=["schedule","scoring","entry","standings","masters","weekly","poty","hcp","playoffs","players","rules","admin"];
 
   // Current match doc (for confirm/lock)
   const [cTlow,cThigh] = t1id && t2id ? (t1id<t2id?[t1id,t2id]:[t2id,t1id]) : [0,0];
@@ -555,7 +556,7 @@ const [seasonYear] = useState(SEASON_YEAR);
           </div>
         </div>
         <div style={{display:"flex",gap:"0px",flexWrap:"wrap"}}>
-          {TABS.map(t=><NavBtn key={t} active={screen===t} onClick={()=>setScreen(t)}>{t==="poty"?"POTY":t==="hcp"?"HCP":t==="entry"?"Entry":t==="rules"?"Rules":t==="admin"?"Admin":t==="playoffs"?"Playoffs":t==="players"?"Players":t}</NavBtn>)}
+          {TABS.map(t=><NavBtn key={t} active={screen===t} onClick={()=>setScreen(t)}>{t==="poty"?"POTY":t==="hcp"?"HCP":t==="entry"?"Entry":t==="rules"?"Rules":t==="admin"?"Admin":t==="playoffs"?"Playoffs":t==="players"?"Players":t==="masters"?"Board":t}</NavBtn>)}
         </div>
       </div>
 
@@ -612,6 +613,10 @@ const [seasonYear] = useState(SEASON_YEAR);
 
       {screen==="standings"&&(
         <StandingsScreen teamStandings={teamStandings} />
+      )}
+
+      {screen==="masters"&&(
+        <MastersBoard league={league} />
       )}
 
       {screen==="weekly"&&(

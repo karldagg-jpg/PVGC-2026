@@ -21,7 +21,7 @@ function HandicapScreen({ league, saveLeague, isAdmin }) {
       const hcp = rec.hcpSnapshot ? (rec.hcpSnapshot[tid] || [0,0])[pi] : (league.handicaps[tid] || [0,0])[pi];
       let g = 0;
       for (let hi = 0; hi < 9; hi++) {
-        const effHi = (rec.rainout && hi >= rec.holesPlayed && RAINOUT_SUB[hi] !== undefined)
+        const effHi = (rec.rainout && !((scores[pi] || [])[hi]) && RAINOUT_SUB[hi] !== undefined)
           ? RAINOUT_SUB[hi]
           : hi;
         const raw = (scores[pi] || [])[effHi] || 0;

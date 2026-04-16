@@ -490,6 +490,11 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
         ];
 
         const getGross = (tIdx, pi, hi) => (tIdx === 0 ? match.t1scores : match.t2scores)[pi]?.[hi] || 0;
+        // Score-aware rainout sub: only redirect to substitute hole if actual hole has no score
+        const scoreEffH = (tIdx, pi, hi) => {
+          if (!match.rainout || RAINOUT_SUB[hi] === undefined) return hi;
+          return getGross(tIdx, pi, hi) ? hi : RAINOUT_SUB[hi];
+        };
         const scoreName = (gross, par) => {
           if (!gross) return "";
           const d = gross - par;
@@ -502,19 +507,19 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
           return "+" + d;
         };
         const getNet = (tIdx, pi, tid, hi) => {
-          const gross = getGross(tIdx, pi, effH(hi));
+          const gross = getGross(tIdx, pi, scoreEffH(tIdx, pi, hi));
           if (!gross) return null;
           const strokes = hcpStr(getHcp(tid, pi), SI[hi]);
-          return Math.min(gross, maxGross(PAR[effH(hi)], strokes)) - strokes;
+          return Math.min(gross, maxGross(PAR[scoreEffH(tIdx, pi, hi)], strokes)) - strokes;
         };
-        const getGrossTotal = (tIdx, pi) => Array(9).fill(0).reduce((s, _, h) => s + (getGross(tIdx, pi, effH(h)) || 0), 0);
+        const getGrossTotal = (tIdx, pi) => Array(9).fill(0).reduce((s, _, h) => s + (getGross(tIdx, pi, scoreEffH(tIdx, pi, h)) || 0), 0);
         const getMaxTotal = (tIdx, pi, tid) => Array(9).fill(0).reduce((s, _, h) => {
-          const g = getGross(tIdx, pi, effH(h)); if (!g) return s;
+          const g = getGross(tIdx, pi, scoreEffH(tIdx, pi, h)); if (!g) return s;
           const str = hcpStr(getHcp(tid, pi), SI[h]);
           return s + Math.min(g, maxGross(PAR[h], str));
         }, 0);
         const getNetTotal = (tIdx, pi, tid) => Array(9).fill(0).reduce((s, _, h) => {
-          const g = getGross(tIdx, pi, effH(h)); if (!g) return s;
+          const g = getGross(tIdx, pi, scoreEffH(tIdx, pi, h)); if (!g) return s;
           const str = hcpStr(getHcp(tid, pi), SI[h]);
           return s + Math.min(g, maxGross(PAR[h], str)) - str;
         }, 0);
@@ -524,7 +529,7 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
         const getPtsFor = (tIdx, pi, tid, hi) => {
           const type = getType(tIdx, pi);
           if (type === "sub") return 6;
-          const gross = getGross(tIdx, pi, effH(hi));
+          const gross = getGross(tIdx, pi, scoreEffH(tIdx, pi, hi));
           if (!gross) return null;
           return stabPts(gross, PAR[hi], hcpStr(getHcp(tid, pi), SI[hi]));
         };
@@ -562,7 +567,7 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
             {Array(9).fill(0).map((_, h) => {
               const done = rows.every(r => {
                 const type = getType(r.tIdx, r.pi);
-                return type === "sub" || type === "phantom" || getGross(r.tIdx, r.pi, effH(h)) > 0;
+                return type === "sub" || type === "phantom" || getGross(r.tIdx, r.pi, scoreEffH(r.tIdx, r.pi, h)) > 0;
               });
               return (
                 <button key={h} onClick={() => setHole(h)}
@@ -593,7 +598,7 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
                 <span style={{ fontFamily: FD, fontSize: "19px", color: GOLD }}>Hole {hole + 1}</span>
                 <span style={{ fontSize: "13px", color: M }}>Par {PAR[hole]}</span>
                 <span style={{ fontSize: "13px", color: M }}>SI {SI[hole]}</span>
-                {isRain(hole) && <Tag color={GO}>☔ → H{effH(hole) + 1}</Tag>}
+                {isRain(hole) && <Tag color={GO}>☔ → H{RAINOUT_SUB[hole] + 1}</Tag>}
               </div>
               <div style={{ display: "flex", gap: "4px" }}>
                 <button onClick={() => setHole(h => Math.max(0, h - 1))} disabled={hole === 0}
@@ -616,17 +621,17 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
               const type = getType(r.tIdx, r.pi);
               const hcp = getHcp(r.tid, r.pi);
               const strokes = hcpStr(hcp, SI[hole]);
-              const gross = getGross(r.tIdx, r.pi, effH(hole));
+              const gross = getGross(r.tIdx, r.pi, scoreEffH(r.tIdx, r.pi, hole));
               const pts = getPtsFor(r.tIdx, r.pi, r.tid, hole);
               const pname = TEAMS[r.tid]?.[r.pi === 0 ? "p1" : "p2"] || "";
               const isSep = ri === 2; // separator between team 1 and team 2
 
-              const cap = maxGross(PAR[effH(hole)], strokes);
+              const cap = maxGross(PAR[scoreEffH(r.tIdx, r.pi, hole)], strokes);
               const adjGross = (delta) => {
                 if (isDisabled) return;
-                const cur = getGross(r.tIdx, r.pi, effH(hole));
+                const cur = getGross(r.tIdx, r.pi, scoreEffH(r.tIdx, r.pi, hole));
                 const next = Math.max(1, (cur || PAR[hole]) + delta);
-                setScoreVal(r.tIdx, r.pi, effH(hole), next);
+                setScoreVal(r.tIdx, r.pi, scoreEffH(r.tIdx, r.pi, hole), next);
               };
               const atMax = gross > 0 && gross > cap; // above cap — indicator only, not a blocker
 
@@ -704,7 +709,7 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
                               cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
                               userSelect: "none", touchAction: "manipulation"
                             }}>−</button>
-                          <div onClick={() => !gross && !isDisabled && setScoreVal(r.tIdx, r.pi, effH(hole), PAR[hole])}
+                          <div onClick={() => !gross && !isDisabled && setScoreVal(r.tIdx, r.pi, scoreEffH(r.tIdx, r.pi, hole), PAR[hole])}
                             style={{
                               width: "52px", height: "52px", border: `1px solid ${atMax ? GO + "99" : GOLD + "44"}`,
                               background: atMax ? GO + "12" : "rgba(26,61,36,0.08)", display: "flex", flexDirection: "column",
@@ -918,7 +923,7 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
                             <td key={h} style={{ padding: "7px 4px", textAlign: "center", color: R, fontSize: "13px" }}>P</td>
                           );
                           const pts = getPtsFor(r.tIdx, r.pi, r.tid, h);
-                          const gross = getGross(r.tIdx, r.pi, effH(h));
+                          const gross = getGross(r.tIdx, r.pi, scoreEffH(r.tIdx, r.pi, h));
                           const ptColor2 = pts === null ? (gross ? "#555" : M) : pts >= 3 ? G : pts === 1 ? "#c0a060" : pts === 0 ? M : R;
                           return (
                             <td key={h} onClick={() => setHole(h)}
