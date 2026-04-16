@@ -16,7 +16,7 @@ function getPlayerGross(rec, tIdx, pi) {
   const scores = normScores(tIdx === 0 ? rec.t1scores : rec.t2scores);
   let g = 0;
   for (let hi = 0; hi < 9; hi++) {
-    const effHi = (rec.rainout && hi >= rec.holesPlayed && RAINOUT_SUB[hi] !== undefined)
+    const effHi = (rec.rainout && !(scores[pi]?.[hi]) && RAINOUT_SUB[hi] !== undefined)
       ? RAINOUT_SUB[hi] : hi;
     g += scores[pi]?.[effHi] || 0;
   }
@@ -33,7 +33,7 @@ function getPlayerStab(rec, tIdx, pi, tid) {
   const hcp = snap ? (snap[tid] || [0, 0])[pi] || 0 : 0;
   let total = 0;
   for (let hi = 0; hi < 9; hi++) {
-    const effHi = (rec.rainout && hi >= rec.holesPlayed && RAINOUT_SUB[hi] !== undefined)
+    const effHi = (rec.rainout && !(scores[pi]?.[hi]) && RAINOUT_SUB[hi] !== undefined)
       ? RAINOUT_SUB[hi] : hi;
     const gross = scores[pi]?.[effHi] || 0;
     if (!gross) continue;

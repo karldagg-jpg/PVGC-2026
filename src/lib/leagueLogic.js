@@ -164,7 +164,7 @@ function computeTeamTotal(rec, tIdx, tid, handicaps) {
     if (type==="sub") { total+=6; continue; }
     if (type==="phantom") { total+=2; continue; }
     for (let hi=0; hi<9; hi++) {
-      const effHi = (rec.rainout && hi>=rec.holesPlayed && RAINOUT_SUB[hi]!==undefined) ? RAINOUT_SUB[hi] : hi;
+      const effHi = (rec.rainout && !((scores||[[],[]])[pi]?.[hi]) && RAINOUT_SUB[hi]!==undefined) ? RAINOUT_SUB[hi] : hi;
       const gross = (scores||[[],[]])[pi]?.[effHi]||0;
       if (!gross) continue;
       const hcp = snap ? (snap[tid]||[0,0])[pi]||0 : (handicaps[tid]||[0,0])[pi]||0;
@@ -184,7 +184,7 @@ function computePlayerTotal(rec, tIdx, pi, tid, handicaps) {
   let total = 0;
   const snap = rec.hcpSnapshot;
   for (let hi=0; hi<9; hi++) {
-    const effHi = (rec.rainout && hi>=rec.holesPlayed && RAINOUT_SUB[hi]!==undefined) ? RAINOUT_SUB[hi] : hi;
+    const effHi = (rec.rainout && !((scores||[[],[]])[pi]?.[hi]) && RAINOUT_SUB[hi]!==undefined) ? RAINOUT_SUB[hi] : hi;
     const gross = (scores||[[],[]])[pi]?.[effHi]||0;
     if (!gross) continue;
     const hcp = snap ? (snap[tid]||[0,0])[pi]||0 : (handicaps[tid]||[0,0])[pi]||0;
@@ -440,7 +440,7 @@ function buildGrossHistory(results, upToWeek, defaultHcp=DEFAULT_HCP) {
           const hcp = rec.hcpSnapshot ? (rec.hcpSnapshot[tid] || [0,0])[pi] : (defaultHcp[tid] || [0,0])[pi];
           let gross = 0;
           for (let hi = 0; hi < 9; hi++) {
-            const effHi = (rec.rainout && hi >= rec.holesPlayed && RAINOUT_SUB[hi] !== undefined)
+            const effHi = (rec.rainout && !((scores[pi] || [])[hi]) && RAINOUT_SUB[hi] !== undefined)
               ? RAINOUT_SUB[hi]
               : hi;
             const raw = (scores[pi] || [])[effHi] || 0;
@@ -632,7 +632,7 @@ function buildWeekRecap(week, results, handicaps, schedule=SCHEDULE, teams=TEAMS
 
         let gross = 0, maxGrossTotal = 0, stab = 0;
         for (let hi = 0; hi < 9; hi++) {
-          const effHi = (rec.rainout && hi >= rec.holesPlayed && RAINOUT_SUB[hi] !== undefined) ? RAINOUT_SUB[hi] : hi;
+          const effHi = (rec.rainout && !((scores || [[],[]])[pi]?.[hi]) && RAINOUT_SUB[hi] !== undefined) ? RAINOUT_SUB[hi] : hi;
           const g = (scores || [[],[]])[pi]?.[effHi] || 0;
           if (g > 0) {
             const str = hcpStr(hcp, SI[hi]);
