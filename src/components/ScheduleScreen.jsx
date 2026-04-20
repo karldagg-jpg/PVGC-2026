@@ -144,19 +144,18 @@ function ScheduleScreen({
                       onClick={(e) => {
                         e.stopPropagation();
                         setWeek(week);
-                        if (dynPairs && dynPairs.length > 0) setTeam(dynPairs[0][0]);
                         setScreen("scoring");
                       }}
                       style={{
-                        padding: "4px 10px",
+                        padding: "5px 13px",
                         borderRadius: "6px",
-                        border: `1px solid ${G}44`,
-                        background: GOLD + "18",
-                        color: GOLD,
+                        border: `1px solid ${G}66`,
+                        background: G,
+                        color: "#f0ece0",
                         fontFamily: FM || FB,
                         fontSize: "13px",
-                        letterSpacing: "0.06em",
-                        textTransform: "uppercase",
+                        fontWeight: 700,
+                        letterSpacing: "0.04em",
                         cursor: "pointer",
                       }}
                     >
@@ -228,9 +227,9 @@ function ScheduleScreen({
                             <span style={{ fontWeight: 600 }}>{TEAMS[tb]?.name}</span>
                           </div>
                           {done ? (
-                            <span style={{ fontSize: "12px", color: G, fontWeight: 600 }}>✓</span>
+                            <span style={{ fontSize: "12px", color: G, fontWeight: 600, padding: "3px 8px", borderRadius: "5px", border: `1px solid ${G}44`, background: `${G}10` }}>✓ Done</span>
                           ) : (
-                            <span style={{ fontSize: "11px", color: M, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                            <span style={{ fontSize: "12px", color: G, fontWeight: 700, padding: "3px 10px", borderRadius: "5px", border: `1px solid ${G}66`, background: `${G}15`, letterSpacing: "0.04em", whiteSpace: "nowrap" }}>
                               Score →
                             </span>
                           )}
