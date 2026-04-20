@@ -646,7 +646,7 @@ function buildWeekRecap(week, results, handicaps, schedule=SCHEDULE, teams=TEAMS
           : "no score";
         lines.push(`  ${name} (HCP ${hcp}): ${scoreStr} — ${stab} stab`);
         teamStab += stab;
-        if (gross > 0) allPlayerScores.push({ name, stab });
+        if (gross > 0) allPlayerScores.push({ name, stab, gross });
       }
       lines.push(`  Team stableford: ${teamStab}`);
       lines.push("");
@@ -695,6 +695,40 @@ function buildWeekRecap(week, results, handicaps, schedule=SCHEDULE, teams=TEAMS
       lines.push(`${i+1}. ${p.name} — ${p.stab} pts`);
     });
     lines.push("");
+  }
+
+  // ── Low gross ──
+  if (allPlayerScores.length) {
+    const byGross = [...allPlayerScores].sort((a, b) => a.gross - b.gross);
+    const low = byGross[0].gross;
+    const lowPlayers = byGross.filter(p => p.gross === low);
+    lines.push(`LOW GROSS — WEEK ${week}`);
+    lines.push(hr());
+    lowPlayers.forEach(p => {
+      lines.push(`${p.name} — ${p.gross} strokes`);
+    });
+    // also show top 3 if no tie
+    if (lowPlayers.length === 1 && byGross.length > 1) {
+      byGross.slice(1, 3).forEach((p, i) => {
+        lines.push(`${i+2}. ${p.name} — ${p.gross} strokes`);
+      });
+    }
+    lines.push("");
+  }
+
+  // ── Sub 40 Club ──
+  if (allPlayerScores.length) {
+    const sub40 = [...allPlayerScores]
+      .filter(p => p.gross <= 40)
+      .sort((a, b) => a.gross - b.gross);
+    if (sub40.length) {
+      lines.push(`SUB 40 CLUB — WEEK ${week}`);
+      lines.push(hr());
+      sub40.forEach(p => {
+        lines.push(`${p.name} — ${p.gross} strokes`);
+      });
+      lines.push("");
+    }
   }
 
   return lines.join("\n");
