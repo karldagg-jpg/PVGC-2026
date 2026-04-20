@@ -63,6 +63,7 @@ const [seasonYear] = useState(SEASON_YEAR);
   const [userName] = useState(() => localStorage.getItem("pvgc_user") || "");
   const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem("pvgc_admin") === "1");
   const [adminPin, setAdminPin] = useState(""); // loaded from Firebase
+  const [moreOpen, setMoreOpen] = useState(false);
 
   function changeSeason(year) {
     if (!setSeasonYear(year)) return;
@@ -495,6 +496,10 @@ const [seasonYear] = useState(SEASON_YEAR);
   const weekBonus=calcWeekBonus(selWeek,league.results,league.handicaps);
 
   const TABS=["schedule","scoring","entry","standings","masters","weekly","poty","hcp","playoffs","players","rules","admin"];
+  const PRIMARY_TABS=["schedule","scoring","standings","masters"];
+  const MORE_TABS=["entry","weekly","poty","hcp","playoffs","players","rules","admin"];
+  const TAB_LABEL={schedule:"Schedule",scoring:"Scoring",entry:"Entry",standings:"Standings",masters:"Board",weekly:"Weekly",poty:"POTY",hcp:"HCP",playoffs:"Playoffs",players:"Players",rules:"Rules",admin:"Admin"};
+  const inMore = MORE_TABS.includes(screen);
 
   // Current match doc (for confirm/lock)
   const [cTlow,cThigh] = t1id && t2id ? (t1id<t2id?[t1id,t2id]:[t2id,t1id]) : [0,0];
@@ -555,8 +560,43 @@ const [seasonYear] = useState(SEASON_YEAR);
             </select>
           </div>
         </div>
-        <div style={{display:"flex",gap:"0px",flexWrap:"wrap"}}>
-          {TABS.map(t=><NavBtn key={t} active={screen===t} onClick={()=>setScreen(t)}>{t==="poty"?"POTY":t==="hcp"?"HCP":t==="entry"?"Entry":t==="rules"?"Rules":t==="admin"?"Admin":t==="playoffs"?"Playoffs":t==="players"?"Players":t==="masters"?"Board":t}</NavBtn>)}
+        <div style={{display:"flex",gap:"0px",flexWrap:"wrap",position:"relative"}}>
+          {PRIMARY_TABS.map(t=>(
+            <NavBtn key={t} active={screen===t} onClick={()=>{setScreen(t);setMoreOpen(false);}}>
+              {TAB_LABEL[t]}
+            </NavBtn>
+          ))}
+          {/* More button */}
+          <div style={{position:"relative"}}>
+            <NavBtn active={inMore} onClick={()=>setMoreOpen(o=>!o)}>
+              {inMore ? TAB_LABEL[screen] : "More"} ▾
+            </NavBtn>
+            {moreOpen&&(
+              <>
+                {/* invisible overlay to close on outside click */}
+                <div onClick={()=>setMoreOpen(false)} style={{position:"fixed",inset:0,zIndex:29}} />
+                <div style={{
+                  position:"absolute",top:"100%",right:0,zIndex:30,
+                  background:"#fff",border:`1px solid ${G}33`,
+                  borderRadius:"8px",boxShadow:"0 6px 24px rgba(26,61,36,0.18)",
+                  minWidth:"130px",padding:"4px 0",marginTop:"4px"
+                }}>
+                  {MORE_TABS.map(t=>(
+                    <div key={t} onClick={()=>{setScreen(t);setMoreOpen(false);}}
+                      style={{
+                        padding:"10px 18px",fontSize:"14px",fontFamily:FB,
+                        color:screen===t?G:CREAM,fontWeight:screen===t?700:500,
+                        background:screen===t?`${G}10`:"transparent",
+                        cursor:"pointer",letterSpacing:"0.02em",
+                        borderLeft:screen===t?`3px solid ${G}`:"3px solid transparent",
+                      }}>
+                      {TAB_LABEL[t]}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
