@@ -711,17 +711,24 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
                             }}>−</button>
                           <div onClick={() => !gross && !isDisabled && setScoreVal(r.tIdx, r.pi, scoreEffH(r.tIdx, r.pi, hole), PAR[hole])}
                             style={{
-                              width: "52px", height: "52px", border: `1px solid ${atMax ? GO + "99" : GOLD + "44"}`,
-                              background: atMax ? GO + "12" : "rgba(26,61,36,0.08)", display: "flex", flexDirection: "column",
+                              width: "52px", height: "52px",
+                              border: !gross && !isDisabled
+                                ? `2px dashed ${G}99`
+                                : `1px solid ${atMax ? GO + "99" : GOLD + "44"}`,
+                              background: !gross && !isDisabled
+                                ? `${G}18`
+                                : atMax ? GO + "12" : "rgba(26,61,36,0.08)",
+                              display: "flex", flexDirection: "column",
                               alignItems: "center", justifyContent: "center", gap: "1px",
                               cursor: !gross && !isDisabled ? "pointer" : "default",
                               touchAction: "manipulation",
+                              borderRadius: "2px",
                             }}>
-                            <span style={{ fontSize: "20px", fontWeight: 700, color: gross ? ptColor : M, lineHeight: 1 }}>
-                              {gross || PAR[hole]}
+                            <span style={{ fontSize: !gross ? "11px" : "20px", fontWeight: 700, color: gross ? ptColor : G, lineHeight: 1 }}>
+                              {gross ? gross : "PAR"}
                             </span>
-                            <span style={{ fontSize: "10px", lineHeight: 1, color: gross ? ptColor : M }}>
-                              {!gross ? "tap par" : scoreName(gross, PAR[hole])}
+                            <span style={{ fontSize: "10px", lineHeight: 1, color: gross ? ptColor : G, opacity: gross ? 1 : 0.8 }}>
+                              {!gross ? `tap = ${PAR[hole]}` : scoreName(gross, PAR[hole])}
                             </span>
                           </div>
                           <button onClick={() => adjGross(+1)}
