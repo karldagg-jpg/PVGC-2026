@@ -560,44 +560,29 @@ const [seasonYear] = useState(SEASON_YEAR);
             </select>
           </div>
         </div>
-        <div style={{display:"flex",gap:"0px",flexWrap:"wrap",position:"relative"}}>
+        <div style={{display:"flex",gap:"0px",flexWrap:"wrap"}}>
           {PRIMARY_TABS.map(t=>(
             <NavBtn key={t} active={screen===t} onClick={()=>{setScreen(t);setMoreOpen(false);}}>
               {TAB_LABEL[t]}
             </NavBtn>
           ))}
-          {/* More button */}
-          <div style={{position:"relative"}}>
-            <NavBtn active={inMore} onClick={()=>setMoreOpen(o=>!o)}>
-              {inMore ? TAB_LABEL[screen] : "More"} ▾
-            </NavBtn>
-            {moreOpen&&(
-              <>
-                {/* invisible overlay to close on outside click */}
-                <div onClick={()=>setMoreOpen(false)} style={{position:"fixed",inset:0,zIndex:29}} />
-                <div style={{
-                  position:"absolute",top:"100%",right:0,zIndex:30,
-                  background:"#fff",border:`1px solid ${G}33`,
-                  borderRadius:"8px",boxShadow:"0 6px 24px rgba(26,61,36,0.18)",
-                  minWidth:"130px",padding:"4px 0",marginTop:"4px"
-                }}>
-                  {MORE_TABS.map(t=>(
-                    <div key={t} onClick={()=>{setScreen(t);setMoreOpen(false);}}
-                      style={{
-                        padding:"10px 18px",fontSize:"14px",fontFamily:FB,
-                        color:screen===t?G:CREAM,fontWeight:screen===t?700:500,
-                        background:screen===t?`${G}10`:"transparent",
-                        cursor:"pointer",letterSpacing:"0.02em",
-                        borderLeft:screen===t?`3px solid ${G}`:"3px solid transparent",
-                      }}>
-                      {TAB_LABEL[t]}
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+          <NavBtn active={inMore||moreOpen} onClick={()=>setMoreOpen(o=>!o)}>
+            {inMore ? TAB_LABEL[screen] : "More"} {moreOpen?"▴":"▾"}
+          </NavBtn>
         </div>
+        {moreOpen&&(
+          <div style={{
+            width:"100%", borderTop:`1px solid ${G}22`,
+            display:"flex", flexWrap:"wrap", gap:"0px",
+            background:"#f8f5ee", paddingBottom:"6px"
+          }}>
+            {MORE_TABS.map(t=>(
+              <NavBtn key={t} active={screen===t} onClick={()=>{setScreen(t);setMoreOpen(false);}}>
+                {TAB_LABEL[t]}
+              </NavBtn>
+            ))}
+          </div>
+        )}
       </div>
 
       {screen==="schedule"&&(
