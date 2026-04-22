@@ -1,0 +1,127 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//PVGC//League 2026//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:PVGC 2026 — Charles & Dagg
+X-WR-TIMEZONE:America/New_York
+BEGIN:VEVENT
+DTSTART;TZID=America/New_York:20260415T165000
+DTEND;TZID=America/New_York:20260415T195000
+SUMMARY:PVGC W1 — vs Mulvey-Nelson
+LOCATION:Pickering Valley Golf Club
+DESCRIPTION:PVGC 2026 League · Week 1 · Charles-Dagg vs Mulvey-Nelson
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=America/New_York:20260422T164000
+DTEND;TZID=America/New_York:20260422T194000
+SUMMARY:PVGC W2 — vs Lukas-Blizard
+LOCATION:Pickering Valley Golf Club
+DESCRIPTION:PVGC 2026 League · Week 2 · Charles-Dagg vs Lukas-Blizard
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=America/New_York:20260429T171000
+DTEND;TZID=America/New_York:20260429T201000
+SUMMARY:PVGC W3 — vs Franks-Lightbody
+LOCATION:Pickering Valley Golf Club
+DESCRIPTION:PVGC 2026 League · Week 3 · Charles-Dagg vs Franks-Lightbody
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=America/New_York:20260506T173000
+DTEND;TZID=America/New_York:20260506T203000
+SUMMARY:PVGC W4 — vs Glascott-Adler
+LOCATION:Pickering Valley Golf Club
+DESCRIPTION:PVGC 2026 League · Week 4 · Charles-Dagg vs Glascott-Adler
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=America/New_York:20260513T172000
+DTEND;TZID=America/New_York:20260513T202000
+SUMMARY:PVGC W5 — vs Pineno-MacKenzie
+LOCATION:Pickering Valley Golf Club
+DESCRIPTION:PVGC 2026 League · Week 5 · Charles-Dagg vs Pineno-MacKenzie
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=America/New_York:20260520T170000
+DTEND;TZID=America/New_York:20260520T200000
+SUMMARY:PVGC W6 — vs Jurden-Olivos
+LOCATION:Pickering Valley Golf Club
+DESCRIPTION:PVGC 2026 League · Week 6 · Charles-Dagg vs Jurden-Olivos
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=America/New_York:20260527T165000
+DTEND;TZID=America/New_York:20260527T195000
+SUMMARY:PVGC W7 — vs Saenz-Huston
+LOCATION:Pickering Valley Golf Club
+DESCRIPTION:PVGC 2026 League · Week 7 · Charles-Dagg vs Saenz-Huston
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=America/New_York:20260603T173000
+DTEND;TZID=America/New_York:20260603T203000
+SUMMARY:PVGC W8 — vs Brosius-Albano
+LOCATION:Pickering Valley Golf Club
+DESCRIPTION:PVGC 2026 League · Week 8 · Charles-Dagg vs Brosius-Albano
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=America/New_York:20260610T172000
+DTEND;TZID=America/New_York:20260610T202000
+SUMMARY:PVGC W9 — vs Lorenz-Huckestein
+LOCATION:Pickering Valley Golf Club
+DESCRIPTION:PVGC 2026 League · Week 9 · Charles-Dagg vs Lorenz-Huckestein
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=America/New_York:20260617T170000
+DTEND;TZID=America/New_York:20260617T200000
+SUMMARY:PVGC W10 — vs West-Herman
+LOCATION:Pickering Valley Golf Club
+DESCRIPTION:PVGC 2026 League · Week 10 · Charles-Dagg vs West-Herman
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=America/New_York:20260624T163000
+DTEND;TZID=America/New_York:20260624T193000
+SUMMARY:PVGC W11 — vs Harvey-Rowles
+LOCATION:Pickering Valley Golf Club
+DESCRIPTION:PVGC 2026 League · Week 11 · Charles-Dagg vs Harvey-Rowles
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=America/New_York:20260708T173000
+DTEND;TZID=America/New_York:20260708T203000
+SUMMARY:PVGC W12 — vs Carickhoff-Schantz
+LOCATION:Pickering Valley Golf Club
+DESCRIPTION:PVGC 2026 League · Week 12 · Charles-Dagg vs Carickhoff-Schantz
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=America/New_York:20260715T162000
+DTEND;TZID=America/New_York:20260715T192000
+SUMMARY:PVGC W13 — vs Pavelik-Mitchell
+LOCATION:Pickering Valley Golf Club
+DESCRIPTION:PVGC 2026 League · Week 13 · Charles-Dagg vs Pavelik-Mitchell
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=America/New_York:20260722T161000
+DTEND;TZID=America/New_York:20260722T191000
+SUMMARY:PVGC W14 — vs Wagner-Hammond
+LOCATION:Pickering Valley Golf Club
+DESCRIPTION:PVGC 2026 League · Week 14 · Charles-Dagg vs Wagner-Hammond
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=America/New_York:20260729T172000
+DTEND;TZID=America/New_York:20260729T202000
+SUMMARY:PVGC W15 — vs Posey-Minasian
+LOCATION:Pickering Valley Golf Club
+DESCRIPTION:PVGC 2026 League · Week 15 · Charles-Dagg vs Posey-Minasian
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=America/New_York:20260805T173000
+DTEND;TZID=America/New_York:20260805T203000
+SUMMARY:PVGC W16 — vs Fahey-Wzorek
+LOCATION:Pickering Valley Golf Club
+DESCRIPTION:PVGC 2026 League · Week 16 · Charles-Dagg vs Fahey-Wzorek
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=America/New_York:20260812T172000
+DTEND;TZID=America/New_York:20260812T202000
+SUMMARY:PVGC W17 — vs Mistry-Reddy
+LOCATION:Pickering Valley Golf Club
+DESCRIPTION:PVGC 2026 League · Week 17 · Charles-Dagg vs Mistry-Reddy
+END:VEVENT
+END:VCALENDAR
