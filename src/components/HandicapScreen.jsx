@@ -56,14 +56,16 @@ function HandicapScreen({ league, saveLeague, isAdmin }) {
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", minWidth: "900px" }}>
           <thead>
             <tr style={{ borderBottom: `2px solid ${GOLD}33`, background: "rgba(26,61,36,0.07)" }}>
-              <td style={{ padding: "9px 12px", fontWeight: 700, color: CREAM, fontSize: "13px", position: "sticky", left: 0, background: "rgba(240,236,224,0.98)", zIndex: 2, whiteSpace: "nowrap" }}>Player</td>
-              <td style={{ padding: "9px 8px", fontWeight: 700, color: M, fontSize: "11px", letterSpacing: "0.06em", textTransform: "uppercase", whiteSpace: "nowrap" }}>Team</td>
-              <td style={{ padding: "9px 8px", fontWeight: 700, color: GOLD, fontSize: "12px", textAlign: "center", borderRight: `2px solid ${GOLD}44` }}>Start</td>
+              <td style={{ padding: "9px 12px", fontWeight: 700, color: CREAM, fontSize: "13px", position: "sticky", left: 0, top: 0, background: "rgba(240,236,224,0.98)", zIndex: 3, whiteSpace: "nowrap", borderBottom: `2px solid ${GOLD}33` }}>Player</td>
+              <td style={{ padding: "9px 8px", fontWeight: 700, color: M, fontSize: "11px", letterSpacing: "0.06em", textTransform: "uppercase", whiteSpace: "nowrap", position: "sticky", top: 0, background: "rgba(240,236,224,0.98)", zIndex: 2, borderBottom: `2px solid ${GOLD}33` }}>Team</td>
+              <td style={{ padding: "9px 8px", fontWeight: 700, color: GOLD, fontSize: "12px", textAlign: "center", borderRight: `2px solid ${GOLD}44`, position: "sticky", top: 0, background: "rgba(240,236,224,0.98)", zIndex: 2, borderBottom: `2px solid ${GOLD}33` }}>Start</td>
               {Array.from({ length: 18 }, (_, i) => i + 1).map((w) => (
                 <td key={w} style={{
                   padding: "9px 6px", fontWeight: 600, color: M, fontSize: "11px",
                   textAlign: "center", letterSpacing: "0.04em",
                   borderRight: w === 18 ? `2px solid ${GOLD}44` : `1px solid ${GOLD}11`,
+                  position: "sticky", top: 0, background: "rgba(240,236,224,0.98)", zIndex: 2,
+                  borderBottom: `2px solid ${GOLD}33`,
                 }}>W{w}</td>
               ))}
             </tr>

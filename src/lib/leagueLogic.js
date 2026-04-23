@@ -12,6 +12,7 @@ import {
   NEW_MEMBER_HCP_PCT,
   PLAYOFF_START_WEEK,
   isNewMember,
+  getTeeTimes,
 } from "../constants/league";
 
 const REGULAR_SEASON_MAX_WEEK = PLAYOFF_START_WEEK - 1;
@@ -193,8 +194,30 @@ function computePlayerTotal(rec, tIdx, pi, tid, handicaps) {
   return total;
 }
 
+// ── Match completeness check ────────────────────────────────────
+// A match is "complete" only when every normal player has at least one
+// real score entered. Sub/phantom slots are always considered complete
+// since their points are deterministic.
+function isMatchComplete(rec) {
+  if (!rec) return false;
+  for (let tIdx = 0; tIdx < 2; tIdx++) {
+    const scores = tIdx === 0 ? rec.t1scores : rec.t2scores;
+    const types  = tIdx === 0 ? rec.t1types  : rec.t2types;
+    for (let pi = 0; pi < 2; pi++) {
+      const type = (types || [])[pi] || "normal";
+      if (type === "sub" || type === "phantom") continue;
+      const holeScores = (scores || [])[pi] || [];
+      const hasScore = Array.isArray(holeScores)
+        ? holeScores.some(s => s > 0)
+        : Object.values(holeScores).some(s => s > 0);
+      if (!hasScore) return false;
+    }
+  }
+  return true;
+}
+
 // ── Bonus points: rank all 9 team totals in a week ─────────────
-// Returns {teamId: bonusPts} — only if ALL 9 matches scored
+// Returns {teamId: bonusPts} — only if ALL 9 matches are fully scored
 function calcWeekBonus(week, results, handicaps, schedule=SCHEDULE) {
   const w = schedule[week];
   if (!w?.pairs?.length) return null;
@@ -202,7 +225,7 @@ function calcWeekBonus(week, results, handicaps, schedule=SCHEDULE) {
   for (const [ta,tb] of w.pairs) {
     const key = matchKey(week,ta,tb);
     const rec = results[week]?.[key];
-    if (!rec) return null; // not all scored yet
+    if (!isMatchComplete(rec)) return null; // wait for all real scores
     const [tlow,thigh] = ta<tb?[ta,tb]:[tb,ta];
     totals.push({tid:tlow,  total:computeTeamTotal(rec,0,tlow,handicaps)});
     totals.push({tid:thigh, total:computeTeamTotal(rec,1,thigh,handicaps)});
@@ -582,6 +605,19 @@ function buildWeekRecap(week, results, handicaps, schedule=SCHEDULE, teams=TEAMS
   lines.push(hr("="));
   lines.push("");
 
+  // ── Tee Times ──
+  const teeTimes = getTeeTimes(week);
+  lines.push("TEE TIMES");
+  lines.push(hr());
+  (weekInfo.pairs || []).forEach((pair, i) => {
+    if (!Array.isArray(pair)) return;
+    const [ta, tb] = pair;
+    const [tlow, thigh] = ta < tb ? [ta, tb] : [tb, ta];
+    const time = teeTimes[i] || "";
+    lines.push(`${time}  ${teams[tlow]?.name || `Team ${tlow}`} vs ${teams[thigh]?.name || `Team ${thigh}`}`);
+  });
+  lines.push("");
+
   // ── Match Results ──
   lines.push("MATCH RESULTS");
   lines.push(hr());
@@ -747,6 +783,7 @@ export {
   stabPts,
   computeTeamTotal,
   computePlayerTotal,
+  isMatchComplete,
   calcWeekBonus,
   calcLeagueStats,
   calcWeeklyTeamPts,

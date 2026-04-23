@@ -1,5 +1,6 @@
+import { useEffect, useRef } from "react";
 import { SCHEDULE_RAW, TEAMS, getTeeTimes, SEASON_YEAR } from "../constants/league";
-import { calcWeekBonus, matchKey } from "../lib/leagueLogic";
+import { calcWeekBonus, matchKey, isMatchComplete } from "../lib/leagueLogic";
 import { CARD, CREAM, G, GO, GOLD, M, FB, FM } from "../constants/theme";
 import { Tag } from "./ui";
 import { fmtDate } from "../lib/format";
@@ -18,6 +19,11 @@ function ScheduleScreen({
   cancelledWeeks,
   toggleCancelWeek,
 }) {
+  const currentWeekRef = useRef(null);
+  useEffect(() => {
+    currentWeekRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, []);
+
   return (
     <div style={{ maxWidth: "900px", margin: "0 auto", padding: "22px 14px" }}>
       <div
@@ -51,9 +57,8 @@ function ScheduleScreen({
                     : []
                   : null;
           const cleanPairs = dynPairs || (pairs || []).filter(Array.isArray);
-          const scored = cleanPairs.filter(
-            ([ta, tb]) =>
-              !!league.results[week]?.[matchKey(week, Math.min(ta, tb), Math.max(ta, tb))],
+          const scored = cleanPairs.filter(([ta, tb]) =>
+            isMatchComplete(league.results[week]?.[matchKey(week, Math.min(ta, tb), Math.max(ta, tb))])
           ).length;
           const allDone = cleanPairs.length > 0 && scored === cleanPairs.length;
           const bonus =
@@ -64,6 +69,7 @@ function ScheduleScreen({
           return (
             <div
               key={week}
+              ref={week === selWeek ? currentWeekRef : null}
               style={{
                 background: isCancelled ? "rgba(230,168,23,0.06)" : CARD,
                 border: `1px solid ${isCancelled ? "#e6a81755" : week === selWeek ? G + "55" : "rgba(26,61,36,0.06)"}`,
