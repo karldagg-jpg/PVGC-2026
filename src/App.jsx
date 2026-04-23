@@ -16,9 +16,7 @@ function calcCurrentWeek() {
     const d = SCHEDULE[w]?.date;
     if (!d) continue;
     const matchDate = new Date(d + "T12:00:00");
-    const sundayBefore = new Date(matchDate);
-    sundayBefore.setDate(matchDate.getDate() - 3);
-    if (today <= sundayBefore) return w;
+    if (today <= matchDate) return w;
   }
   return 17;
 }
