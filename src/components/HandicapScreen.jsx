@@ -52,7 +52,8 @@ function HandicapScreen({ league, saveLeague, isAdmin }) {
       )}
 
       {/* Week-by-week table */}
-      <div style={{ overflowX: "auto", background: CARD2, border: `1px solid ${GOLD}22`, borderRadius: "12px" }}>
+      <div style={{ background: CARD2, border: `1px solid ${GOLD}22`, borderRadius: "12px", overflow: "clip" }}>
+      <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", minWidth: "900px" }}>
           <thead>
             <tr style={{ borderBottom: `2px solid ${GOLD}33`, background: "rgba(26,61,36,0.07)" }}>
@@ -206,6 +207,7 @@ function HandicapScreen({ league, saveLeague, isAdmin }) {
             })}
           </tbody>
         </table>
+      </div>
       </div>
 
       <div style={{ marginTop: "10px", fontSize: "12px", color: M, display: "flex", gap: "16px", flexWrap: "wrap" }}>

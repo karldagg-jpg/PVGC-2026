@@ -27,7 +27,7 @@ function StandingsScreen({ teamStandings }) {
           background: CARD2,
           border: `1px solid ${GOLD}22`,
           borderRadius: "12px",
-          overflow: "hidden",
+          overflow: "clip",
           marginBottom: "20px",
         }}
       >
