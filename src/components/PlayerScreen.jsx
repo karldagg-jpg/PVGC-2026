@@ -99,12 +99,13 @@ function buildPlayerStats(tid, pi, league) {
     ? getEffectiveHcp(tid, pi, REGULAR_WEEKS[REGULAR_WEEKS.length - 1] + 1, league.results, league.handicaps, league.hcpOverrides || {})
     : (league.handicaps?.[tid]?.[pi] ?? 0);
 
-  // HCP trend by week
-  const hcpTrend = REGULAR_WEEKS.map(w => ({
-    week: w,
-    hcp: getEffectiveHcpRaw(tid, pi, w, league.results, league.handicaps, league.hcpOverrides || {}),
-    played: rounds.some(r => r.week === w),
-  }));
+  // HCP progression: starting HCP + HCP earned after each played round
+  const startHcp = (league.handicaps?.[tid] || [0, 0])[pi];
+  const hcpTrend = [{ week: 0, hcp: startHcp }];
+  for (const r of rounds) {
+    const earned = getEffectiveHcpRaw(tid, pi, r.week + 1, league.results, league.handicaps, league.hcpOverrides || {});
+    hcpTrend.push({ week: r.week, hcp: earned });
+  }
 
   // Head-to-head vs each opponent
   const h2h = {};
@@ -118,24 +119,23 @@ function buildPlayerStats(tid, pi, league) {
   return { rounds, played, avgGross, bestGross, totalStab, wins, losses, ties, currentHcp, hcpTrend, h2h };
 }
 
-// Full SVG sparkline showing HCP at every played round
+// Full SVG sparkline showing HCP progression: start + after each played round
 // Y-axis inverted: lower HCP = higher on chart (improving = line goes up)
 const VB_W = 300;
 function HcpSparkline({ trend }) {
-  const played = trend.filter(t => t.played);
-  if (played.length < 2) return null;
-  const vals = played.map(t => t.hcp);
+  if (trend.length < 2) return null;
+  const vals = trend.map(t => t.hcp);
   const minV = Math.min(...vals);
   const maxV = Math.max(...vals);
   const range = maxV - minV || 1;
   const H = 44;
-  const pts = played.map((t, i) => {
-    const x = (i / (played.length - 1)) * VB_W;
+  const pts = trend.map((t, i) => {
+    const x = (i / (trend.length - 1)) * VB_W;
     const y = ((t.hcp - minV) / range) * H;
     return { x, y, hcp: t.hcp, week: t.week };
   });
   const ptStr = pts.map(p => `${p.x},${p.y}`).join(" ");
-  const first = played[0], last = played[played.length - 1];
+  const first = trend[0], last = trend[trend.length - 1];
   const improving = last.hcp < first.hcp;
   const lineColor = improving ? G : last.hcp > first.hcp ? R : GOLD;
 
@@ -149,7 +149,7 @@ function HcpSparkline({ trend }) {
             {p.hcp}
           </text>
           <text x={p.x} y={p.y + 25} textAnchor="middle" fontSize="8" fill={M} opacity="0.6">
-            W{p.week}
+            {p.week === 0 ? "Start" : `W${p.week}`}
           </text>
         </g>
       ))}
@@ -309,7 +309,7 @@ function PlayerProfile({ tid, pi, league, onBack }) {
           <div style={{ fontSize: "11px", color: M, letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 600, marginBottom: "6px" }}>
             Handicap Trend
           </div>
-          {stats.hcpTrend.filter(t => t.played).length >= 2 ? (
+          {stats.hcpTrend.length >= 2 ? (
             <HcpSparkline trend={stats.hcpTrend} />
           ) : (
             <div style={{ fontSize: "12px", color: M }}>Not enough rounds</div>
