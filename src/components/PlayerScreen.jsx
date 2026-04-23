@@ -131,7 +131,7 @@ function HcpSparkline({ trend }) {
   const H = 44;
   const pts = trend.map((t, i) => {
     const x = (i / (trend.length - 1)) * VB_W;
-    const y = ((t.hcp - minV) / range) * H;
+    const y = ((maxV - t.hcp) / range) * H;
     return { x, y, hcp: t.hcp, week: t.week };
   });
   const ptStr = pts.map(p => `${p.x},${p.y}`).join(" ");
