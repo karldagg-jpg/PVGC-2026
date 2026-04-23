@@ -118,32 +118,41 @@ function buildPlayerStats(tid, pi, league) {
   return { rounds, played, avgGross, bestGross, totalStab, wins, losses, ties, currentHcp, hcpTrend, h2h };
 }
 
-// Simple SVG sparkline for HCP trend
-// Y-axis is INVERTED (golf-intuitive): lower HCP = higher on chart, improving = line goes up
-function HcpSparkline({ trend, width = 200, height = 40 }) {
+// Full SVG sparkline showing HCP at every played round
+// Y-axis inverted: lower HCP = higher on chart (improving = line goes up)
+const VB_W = 300;
+function HcpSparkline({ trend }) {
   const played = trend.filter(t => t.played);
   if (played.length < 2) return null;
   const vals = played.map(t => t.hcp);
   const minV = Math.min(...vals);
   const maxV = Math.max(...vals);
   const range = maxV - minV || 1;
+  const H = 44;
   const pts = played.map((t, i) => {
-    const x = (i / (played.length - 1)) * width;
-    // Inverted: lower HCP → lower y value → higher on screen
-    const y = ((t.hcp - minV) / range) * height;
-    return `${x},${y}`;
-  }).join(" ");
-  const lastPt = played[played.length - 1];
-  const lastX = width;
-  const lastY = ((lastPt.hcp - minV) / range) * height;
-  const firstPt = played[0];
-  const improving = lastPt.hcp < firstPt.hcp;
-  const lineColor = improving ? G : lastPt.hcp > firstPt.hcp ? R : GOLD;
+    const x = (i / (played.length - 1)) * VB_W;
+    const y = ((t.hcp - minV) / range) * H;
+    return { x, y, hcp: t.hcp, week: t.week };
+  });
+  const ptStr = pts.map(p => `${p.x},${p.y}`).join(" ");
+  const first = played[0], last = played[played.length - 1];
+  const improving = last.hcp < first.hcp;
+  const lineColor = improving ? G : last.hcp > first.hcp ? R : GOLD;
 
   return (
-    <svg width={width} height={height + 4} style={{ overflow: "visible" }}>
-      <polyline points={pts} fill="none" stroke={lineColor} strokeWidth="1.5" strokeLinejoin="round" />
-      <circle cx={lastX} cy={lastY} r="3" fill={lineColor} />
+    <svg viewBox={`-6 -6 ${VB_W + 12} ${H + 28}`} style={{ width: "100%", display: "block" }}>
+      <polyline points={ptStr} fill="none" stroke={lineColor} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
+      {pts.map((p, i) => (
+        <g key={i}>
+          <circle cx={p.x} cy={p.y} r="3.5" fill={lineColor} />
+          <text x={p.x} y={p.y + 15} textAnchor="middle" fontSize="9.5" fill={i === 0 ? M : i === pts.length - 1 ? GOLD : CREAM} fontWeight={i === pts.length - 1 ? "700" : "400"}>
+            {p.hcp}
+          </text>
+          <text x={p.x} y={p.y + 25} textAnchor="middle" fontSize="8" fill={M} opacity="0.6">
+            W{p.week}
+          </text>
+        </g>
+      ))}
     </svg>
   );
 }
@@ -300,22 +309,9 @@ function PlayerProfile({ tid, pi, league, onBack }) {
           <div style={{ fontSize: "11px", color: M, letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 600, marginBottom: "6px" }}>
             Handicap Trend
           </div>
-          {stats.hcpTrend.filter(t => t.played).length >= 2 ? (() => {
-            const startHcp = (league.handicaps?.[tid]?.[pi]) ?? stats.currentHcp;
-            return (
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <div style={{ textAlign: "center", minWidth: "28px" }}>
-                  <div style={{ fontSize: "18px", fontWeight: 700, color: M }}>{startHcp}</div>
-                  <div style={{ fontSize: "9px", color: M, opacity: 0.7 }}>start</div>
-                </div>
-                <HcpSparkline trend={stats.hcpTrend} width={120} height={36} />
-                <div style={{ textAlign: "center", minWidth: "28px" }}>
-                  <div style={{ fontSize: "18px", fontWeight: 700, color: GOLD }}>{stats.currentHcp}</div>
-                  <div style={{ fontSize: "9px", color: M, opacity: 0.7 }}>now</div>
-                </div>
-              </div>
-            );
-          })() : (
+          {stats.hcpTrend.filter(t => t.played).length >= 2 ? (
+            <HcpSparkline trend={stats.hcpTrend} />
+          ) : (
             <div style={{ fontSize: "12px", color: M }}>Not enough rounds</div>
           )}
         </div>
