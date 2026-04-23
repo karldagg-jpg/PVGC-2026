@@ -42,7 +42,7 @@ function PotyScreen({ potyTab, setPotyTab, potyList, weeklyPoty, cancelledWeeks 
             ⚡ Season total drops the <span style={{ color: GO }}>3 lowest rounds</span> per player at season end.
             Scores shown are current running totals (all rounds included until season ends).
           </div>
-          <div style={{ background: CARD2, border: `1px solid ${GOLD}22`, borderRadius: "12px", overflow: "hidden" }}>
+          <div style={{ background: CARD2, border: `1px solid ${GOLD}22`, borderRadius: "12px", overflow: "clip" }}>
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px", minWidth: "460px" }}>
                 <thead>
