@@ -43,7 +43,7 @@ function PotyScreen({ potyTab, setPotyTab, potyList, weeklyPoty, cancelledWeeks 
             Scores shown are current running totals (all rounds included until season ends).
           </div>
           <div style={{ background: CARD2, border: `1px solid ${GOLD}22`, borderRadius: "12px", overflow: "clip" }}>
-            <div style={{ overflowX: "auto" }}>
+            <div style={{ overflowX: "auto", overflowY: "auto", maxHeight: "72vh" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px", minWidth: "460px" }}>
                 <thead>
                   <tr style={{ borderBottom: `1px solid ${GOLD}33`, background: "rgba(26,61,36,0.05)" }}>
