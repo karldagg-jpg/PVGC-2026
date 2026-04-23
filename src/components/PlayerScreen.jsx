@@ -301,28 +301,18 @@ function PlayerProfile({ tid, pi, league, onBack }) {
             Handicap Trend
           </div>
           {stats.hcpTrend.filter(t => t.played).length >= 2 ? (() => {
-            const playedTrend = stats.hcpTrend.filter(t => t.played);
-            const first = playedTrend[0].hcp;
-            const last = playedTrend[playedTrend.length - 1].hcp;
-            const diff = last - first;
-            const improving = diff < 0;
-            const unchanged = diff === 0;
-            const arrow = improving ? "↑" : unchanged ? "→" : "↓";
-            const arrowColor = improving ? G : unchanged ? GOLD : R;
-            const arrowLabel = improving ? "improving" : unchanged ? "steady" : "rising";
+            const startHcp = (league.handicaps?.[tid]?.[pi]) ?? stats.currentHcp;
             return (
-              <div>
-                <div style={{ display: "flex", alignItems: "flex-end", gap: "10px" }}>
-                  <HcpSparkline trend={stats.hcpTrend} width={120} height={36} />
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                      <span style={{ fontSize: "18px", fontWeight: 700, color: GOLD }}>{stats.currentHcp}</span>
-                      <span style={{ fontSize: "16px", fontWeight: 700, color: arrowColor }}>{arrow}</span>
-                    </div>
-                    <div style={{ fontSize: "10px", color: arrowColor, fontWeight: 600 }}>{arrowLabel}</div>
-                  </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <div style={{ textAlign: "center", minWidth: "28px" }}>
+                  <div style={{ fontSize: "18px", fontWeight: 700, color: M }}>{startHcp}</div>
+                  <div style={{ fontSize: "9px", color: M, opacity: 0.7 }}>start</div>
                 </div>
-                <div style={{ fontSize: "10px", color: M, marginTop: "5px", opacity: 0.7 }}>↑ = improving (lower HCP)</div>
+                <HcpSparkline trend={stats.hcpTrend} width={120} height={36} />
+                <div style={{ textAlign: "center", minWidth: "28px" }}>
+                  <div style={{ fontSize: "18px", fontWeight: 700, color: GOLD }}>{stats.currentHcp}</div>
+                  <div style={{ fontSize: "9px", color: M, opacity: 0.7 }}>now</div>
+                </div>
               </div>
             );
           })() : (
