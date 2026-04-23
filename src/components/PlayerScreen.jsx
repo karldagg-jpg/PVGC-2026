@@ -119,6 +119,7 @@ function buildPlayerStats(tid, pi, league) {
 }
 
 // Simple SVG sparkline for HCP trend
+// Y-axis is INVERTED (golf-intuitive): lower HCP = higher on chart, improving = line goes up
 function HcpSparkline({ trend, width = 200, height = 40 }) {
   const played = trend.filter(t => t.played);
   if (played.length < 2) return null;
@@ -128,17 +129,21 @@ function HcpSparkline({ trend, width = 200, height = 40 }) {
   const range = maxV - minV || 1;
   const pts = played.map((t, i) => {
     const x = (i / (played.length - 1)) * width;
-    const y = height - ((t.hcp - minV) / range) * height;
+    // Inverted: lower HCP → lower y value → higher on screen
+    const y = ((t.hcp - minV) / range) * height;
     return `${x},${y}`;
   }).join(" ");
   const lastPt = played[played.length - 1];
   const lastX = width;
-  const lastY = height - ((lastPt.hcp - minV) / range) * height;
+  const lastY = ((lastPt.hcp - minV) / range) * height;
+  const firstPt = played[0];
+  const improving = lastPt.hcp < firstPt.hcp;
+  const lineColor = improving ? G : lastPt.hcp > firstPt.hcp ? R : GOLD;
 
   return (
     <svg width={width} height={height + 4} style={{ overflow: "visible" }}>
-      <polyline points={pts} fill="none" stroke={GOLD} strokeWidth="1.5" strokeLinejoin="round" />
-      <circle cx={lastX} cy={lastY} r="3" fill={GOLD} />
+      <polyline points={pts} fill="none" stroke={lineColor} strokeWidth="1.5" strokeLinejoin="round" />
+      <circle cx={lastX} cy={lastY} r="3" fill={lineColor} />
     </svg>
   );
 }
@@ -295,15 +300,32 @@ function PlayerProfile({ tid, pi, league, onBack }) {
           <div style={{ fontSize: "11px", color: M, letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 600, marginBottom: "6px" }}>
             Handicap Trend
           </div>
-          {stats.hcpTrend.filter(t => t.played).length >= 2 ? (
-            <div style={{ display: "flex", alignItems: "flex-end", gap: "10px" }}>
-              <HcpSparkline trend={stats.hcpTrend} width={120} height={36} />
+          {stats.hcpTrend.filter(t => t.played).length >= 2 ? (() => {
+            const playedTrend = stats.hcpTrend.filter(t => t.played);
+            const first = playedTrend[0].hcp;
+            const last = playedTrend[playedTrend.length - 1].hcp;
+            const diff = last - first;
+            const improving = diff < 0;
+            const unchanged = diff === 0;
+            const arrow = improving ? "↑" : unchanged ? "→" : "↓";
+            const arrowColor = improving ? G : unchanged ? GOLD : R;
+            const arrowLabel = improving ? "improving" : unchanged ? "steady" : "rising";
+            return (
               <div>
-                <div style={{ fontSize: "18px", fontWeight: 700, color: GOLD }}>{stats.currentHcp}</div>
-                <div style={{ fontSize: "10px", color: M }}>current</div>
+                <div style={{ display: "flex", alignItems: "flex-end", gap: "10px" }}>
+                  <HcpSparkline trend={stats.hcpTrend} width={120} height={36} />
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                      <span style={{ fontSize: "18px", fontWeight: 700, color: GOLD }}>{stats.currentHcp}</span>
+                      <span style={{ fontSize: "16px", fontWeight: 700, color: arrowColor }}>{arrow}</span>
+                    </div>
+                    <div style={{ fontSize: "10px", color: arrowColor, fontWeight: 600 }}>{arrowLabel}</div>
+                  </div>
+                </div>
+                <div style={{ fontSize: "10px", color: M, marginTop: "5px", opacity: 0.7 }}>↑ = improving (lower HCP)</div>
               </div>
-            </div>
-          ) : (
+            );
+          })() : (
             <div style={{ fontSize: "12px", color: M }}>Not enough rounds</div>
           )}
         </div>
