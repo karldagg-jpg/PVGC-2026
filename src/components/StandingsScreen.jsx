@@ -68,6 +68,11 @@ function StandingsScreen({ teamStandings }) {
                       fontSize: "12px",
                       letterSpacing: "0.08em",
                       textTransform: "uppercase",
+                      position: "sticky",
+                      top: 0,
+                      zIndex: 2,
+                      background: CARD2,
+                      borderBottom: `1px solid ${GOLD}33`,
                     }}
                   >
                     {h}

@@ -48,7 +48,7 @@ function PotyScreen({ potyTab, setPotyTab, potyList, weeklyPoty, cancelledWeeks 
                 <thead>
                   <tr style={{ borderBottom: `1px solid ${GOLD}33`, background: "rgba(26,61,36,0.05)" }}>
                     {["#", "Player", "Team", "Rounds", "Cur. Total", "Drop-3 Total", ""].map((h, i) => (
-                      <td key={i} style={{ padding: "9px 10px", color: M, textAlign: i >= 3 ? "center" : "left", fontSize: "12px", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                      <td key={i} style={{ padding: "9px 10px", color: M, textAlign: i >= 3 ? "center" : "left", fontSize: "12px", letterSpacing: "0.08em", textTransform: "uppercase", position: "sticky", top: 0, zIndex: 2, background: CARD2, borderBottom: `1px solid ${GOLD}33` }}>
                         {h}
                       </td>
                     ))}

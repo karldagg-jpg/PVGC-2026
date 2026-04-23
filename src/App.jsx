@@ -5,8 +5,23 @@ import {
   AVAILABLE_SEASONS,
   SEASON_YEAR,
   PLAYOFF_START_WEEK,
+  SCHEDULE,
   setSeasonYear,
 } from "./constants/league";
+
+function calcCurrentWeek() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  for (let w = 1; w <= 17; w++) {
+    const d = SCHEDULE[w]?.date;
+    if (!d) continue;
+    const matchDate = new Date(d + "T12:00:00");
+    const sundayBefore = new Date(matchDate);
+    sundayBefore.setDate(matchDate.getDate() - 3);
+    if (today <= sundayBefore) return w;
+  }
+  return 17;
+}
 import { G, R, M, BG, CREAM, GOLD, FD, FB } from "./constants/theme";
 import { NavBtn } from "./components/ui";
 import EntryTab from "./components/EntryTab";
@@ -42,7 +57,7 @@ import { applySnapshotToLeague, applyWeekScoreDoc, removeWeekScoreDoc, normalize
 function App() {
   const [screen,  setScreen]  = useState("schedule");
   const [league,  setLeague]  = useState(initLeague);
-  const [selWeek, setWeek]    = useState(1);
+  const [selWeek, setWeek]    = useState(calcCurrentWeek);
   const [selTeam, setTeam]    = useState(1);
   const [match,   setMatch]   = useState(initMatch());
   const matchDirty = useRef(false);
