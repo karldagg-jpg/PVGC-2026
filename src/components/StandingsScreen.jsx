@@ -22,16 +22,8 @@ function StandingsScreen({ teamStandings }) {
         8/6/4/2)
       </div>
 
-      <div
-        style={{
-          background: CARD2,
-          border: `1px solid ${GOLD}22`,
-          borderRadius: "12px",
-          overflow: "clip",
-          marginBottom: "20px",
-        }}
-      >
-        <div style={{ overflowX: "auto" }}>
+      <div style={{ background: CARD2, border: `1px solid ${GOLD}22`, borderRadius: "12px", overflow: "clip", marginBottom: "20px" }}>
+        <div style={{ overflowX: "auto", overflowY: "auto", maxHeight: "72vh" }}>
           <table
             style={{
               width: "100%",
@@ -143,7 +135,7 @@ function StandingsScreen({ teamStandings }) {
               })}
             </tbody>
           </table>
-        </div>
+        </div>{/* end scroll container */}
         <div
           style={{
             padding: "10px 14px",
