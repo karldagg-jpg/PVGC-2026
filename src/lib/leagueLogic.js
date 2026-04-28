@@ -310,8 +310,18 @@ function calcLeagueStats(results, handicaps, cancelledWeeksIn=null, maxWeek=REGU
       teamStats[tlow].played++;
       teamStats[thigh].played++;
 
-      // Points: p0 vs p0, p1 vs p1 (index-based, matching spreadsheet roster position)
-      const pairings = [{piA:0,piB:0},{piA:1,piB:1}];
+      // Points: pair by handicap order (lower hcp vs lower hcp, higher vs higher).
+      // Some teams list their higher-hcp player as p0 — this corrects the matchup.
+      const snap = rec.hcpSnapshot;
+      const getHcp = (tid, pi) => {
+        if (snap) { const s = snap[tid] ?? snap[String(tid)]; if (s) return s[pi] ?? 0; }
+        return (handicaps[tid]??[0,0])[pi]??0;
+      };
+      const hcpA0 = getHcp(tlow,0), hcpA1 = getHcp(tlow,1);
+      const hcpB0 = getHcp(thigh,0), hcpB1 = getHcp(thigh,1);
+      const piA_lo = hcpA0 <= hcpA1 ? 0 : 1, piA_hi = 1 - piA_lo;
+      const piB_lo = hcpB0 <= hcpB1 ? 0 : 1, piB_hi = 1 - piB_lo;
+      const pairings = [{piA:piA_lo,piB:piB_lo},{piA:piA_hi,piB:piB_hi}];
       let winsA=0, winsB=0;
       for (const {piA,piB} of pairings) {
         const pA = computePlayerTotal(rec,0,piA,tlow,handicaps);
