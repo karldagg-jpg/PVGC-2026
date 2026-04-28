@@ -6,6 +6,46 @@ import { fmtDate } from "../lib/format";
 import { exportStandings, exportHandicaps, exportScores } from "../lib/exportUtils";
 import { matchKey, getOpponent, buildWeekRecap } from "../lib/leagueLogic";
 
+function AccordionSection({ id, open, onToggle, title, icon, badge, hint, danger, children }) {
+  const accent = danger ? R : GOLD;
+  return (
+    <div style={{
+      background: CARD, border: `1px solid ${accent}33`,
+      borderRadius: "14px", marginBottom: "10px", overflow: "hidden",
+    }}>
+      <button
+        onClick={() => onToggle(id)}
+        style={{
+          width: "100%", background: "none", border: "none", cursor: "pointer",
+          padding: "14px 18px", display: "flex", alignItems: "center", gap: "10px",
+          textAlign: "left",
+        }}
+      >
+        {icon && <span style={{ fontSize: "15px", flexShrink: 0 }}>{icon}</span>}
+        <span style={{ flex: 1, fontSize: "13px", fontWeight: 700, color: danger ? R + "cc" : CREAM, letterSpacing: "0.02em" }}>
+          {title}
+        </span>
+        {badge != null && (
+          <span style={{
+            fontSize: "11px", fontWeight: 600, padding: "2px 8px",
+            borderRadius: "5px", background: accent + "22", color: accent,
+            border: `1px solid ${accent}44`, flexShrink: 0,
+          }}>{badge}</span>
+        )}
+        {!open && hint && (
+          <span style={{ fontSize: "11px", color: M, flexShrink: 0 }}>{hint}</span>
+        )}
+        <span style={{ fontSize: "11px", color: M, flexShrink: 0, marginLeft: "2px" }}>{open ? "▲" : "▼"}</span>
+      </button>
+      {open && (
+        <div style={{ padding: "4px 18px 18px", borderTop: `1px solid ${accent}22` }}>
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Add future year modules here as they become available
 const PRINT_SCHEDULES = {
   2026: { scheduleRaw: L2026.SCHEDULE_RAW, getTeeTimes: L2026.getTeeTimes, teams: L2026.TEAMS },
@@ -97,6 +137,15 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
 
   // Reset season state
   const [resetPhase, setResetPhase] = useState(0); // 0=idle, 1=confirm1, 2=confirm2
+
+  // Accordion state — open by default: access + starter
+  const [openSections, setOpenSections] = useState(() => new Set(["access", "starter"]));
+  const isOpen = (id) => openSections.has(id);
+  const toggleSection = (id) => setOpenSections(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
 
   // Recap state
   const [recapWeek, setRecapWeek] = useState(1);
@@ -195,13 +244,17 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
 
   return (
     <div style={{ maxWidth: "600px", margin: "0 auto", padding: "24px 16px" }}>
-      <div style={{ fontFamily: FD, fontSize: "26px", fontWeight: 600, color: CREAM, marginBottom: "20px" }}>
+      <div style={{ fontFamily: FD, fontSize: "26px", fontWeight: 600, color: CREAM, marginBottom: "16px" }}>
         Admin
       </div>
 
-      {/* ── Admin Lock ──────────────────────────────────────────── */}
-      <div style={{ background: CARD, border: `1px solid ${isAdmin ? G + "55" : GOLD}33`, borderRadius: "14px", padding: "16px 18px", marginBottom: "16px" }}>
-        {isAdmin ? (
+      {/* ── Admin Access ──────────────────────────────────────────── */}
+      <AccordionSection
+        id="access" open={isOpen("access")} onToggle={toggleSection}
+        title="Admin Access" icon={isAdmin ? "🔓" : "🔒"}
+        hint={isAdmin ? "Unlocked" : "Locked"}
+      >
+      {isAdmin ? (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <span style={{ fontSize: "16px" }}>🔓</span>
@@ -284,14 +337,15 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
             </div>
           </div>
         )}
-      </div>
+      </AccordionSection>
 
       {/* ── Print Starter Sheet ──────────────────────────────────── */}
-      <div style={{ background: CARD, border: `1px solid ${GOLD}33`, borderRadius: "14px", padding: "20px", marginBottom: "16px" }}>
-        <div style={{ fontSize: "13px", letterSpacing: "0.1em", textTransform: "uppercase", color: M, marginBottom: "14px", fontWeight: 600 }}>
-          Print Starter Sheet
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+      <AccordionSection
+        id="starter" open={isOpen("starter")} onToggle={toggleSection}
+        title="Starter Sheet" icon="🖨"
+        hint={`Week ${selWeek} · ${pairs.length} groups`}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap", paddingTop: "8px" }}>
           {printYears.length > 1 && (
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <span style={{ fontSize: "13px", color: M }}>Year</span>
@@ -342,25 +396,27 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
             </span>
           )}
         </div>
-      </div>
+      </AccordionSection>
 
       {/* ── Admin-only sections ─────────────────────────────────── */}
       {!isAdmin && (
-        <div style={{ textAlign: "center", padding: "20px", fontSize: "13px", color: M }}>
-          Unlock admin to manage read-only weeks, clear matches, and reset season.
+        <div style={{ textAlign: "center", padding: "16px", fontSize: "13px", color: M }}>
+          Unlock admin to access week controls, match management, and data tools.
         </div>
       )}
       {isAdmin && <>
 
-      {/* ── Read-Only Weeks ──────────────────────────────────────── */}
-      <div style={{ background: CARD, border: `1px solid ${GOLD}33`, borderRadius: "14px", padding: "20px", marginBottom: "16px" }}>
-        <div style={{ fontSize: "13px", letterSpacing: "0.1em", textTransform: "uppercase", color: M, marginBottom: "4px", fontWeight: 600 }}>
-          Read-Only Weeks
+      {/* ── Week Controls ─────────────────────────────────────── */}
+      <AccordionSection
+        id="week-controls" open={isOpen("week-controls")} onToggle={toggleSection}
+        title="Week Controls" icon="📅"
+        badge={readOnlyWeeks.length > 0 || (cancelledWeeks?.size > 0) ? `${readOnlyWeeks.length + (cancelledWeeks?.size||0)} active` : null}
+      >
+        <div style={{ fontSize: "11px", fontWeight: 700, color: M, letterSpacing: "0.08em", textTransform: "uppercase", marginTop: "12px", marginBottom: "8px" }}>
+          🔒 Read-Only Weeks
+          <span style={{ fontSize: "11px", fontWeight: 400, marginLeft: "6px", textTransform: "none" }}>— lock past weeks from editing</span>
         </div>
-        <div style={{ fontSize: "12px", color: M, marginBottom: "14px" }}>
-          Lock a past week so scores can't be edited by anyone.
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "8px" }}>
           {regularWeeks.map(w => {
             const isRO = readOnlyWeeks.includes(w);
             return (
@@ -378,19 +434,14 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
           })}
         </div>
         {readOnlyWeeks.length > 0 && (
-          <div style={{ marginTop: "12px", fontSize: "12px", color: M }}>
+          <div style={{ fontSize: "12px", color: M, marginBottom: "16px" }}>
             Locked: {readOnlyWeeks.sort((a,b)=>a-b).map(w => `W${w}`).join(", ")}
           </div>
         )}
-      </div>
 
-      {/* ── Cancel Week — Weather ───────────────────────────────── */}
-      <div style={{ background: CARD, border: `1px solid ${GOLD}33`, borderRadius: "14px", padding: "20px", marginBottom: "16px" }}>
-        <div style={{ fontSize: "13px", letterSpacing: "0.1em", textTransform: "uppercase", color: M, marginBottom: "4px", fontWeight: 600 }}>
+        <div style={{ fontSize: "11px", fontWeight: 700, color: M, letterSpacing: "0.08em", textTransform: "uppercase", marginTop: "8px", marginBottom: "8px" }}>
           ⛈ Cancel Week — Weather
-        </div>
-        <div style={{ fontSize: "12px", color: M, marginBottom: "14px" }}>
-          Cancels all matches for a week. No points awarded. Toggle again to restore.
+          <span style={{ fontSize: "11px", fontWeight: 400, marginLeft: "6px", textTransform: "none" }}>— no points awarded</span>
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
           {regularWeeks.map(w => {
@@ -410,19 +461,54 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
           })}
         </div>
         {cancelledWeeks?.size > 0 && (
-          <div style={{ marginTop: "12px", fontSize: "12px", color: "#e6a817" }}>
+          <div style={{ marginTop: "8px", fontSize: "12px", color: "#e6a817" }}>
             Cancelled: {[...cancelledWeeks].sort((a,b)=>a-b).map(w => `W${w}`).join(", ")}
           </div>
         )}
-      </div>
 
-      {/* ── Confirmed / Locked Matches ───────────────────────────── */}
-      {lockedMatches.length > 0 && (
-        <div style={{ background: CARD, border: `1px solid ${GOLD}33`, borderRadius: "14px", padding: "20px" }}>
-          <div style={{ fontSize: "13px", letterSpacing: "0.1em", textTransform: "uppercase", color: M, marginBottom: "14px", fontWeight: 600 }}>
-            Confirmed Matches
+        {/* Rainout — inline when match context available */}
+        {match && setMatch && (
+          <>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: M, letterSpacing: "0.08em", textTransform: "uppercase", marginTop: "16px", marginBottom: "8px" }}>
+              ☔ Rainout — Week {activeWeek} · T{activeTeam}
+              <span style={{ fontSize: "11px", fontWeight: 400, marginLeft: "6px", textTransform: "none" }}>— H7→H1 · H8→H4 · H9→H3</span>
+            </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "13px", color: match.rainout ? GO : M }}>
+                {match.rainout ? "Rainout active" : "No rainout"}
+              </span>
+              <button onClick={() => setMatch(p => ({ ...p, rainout: !p.rainout }))}
+                style={{
+                  width: "42px", height: "22px", borderRadius: "13px", border: "none", cursor: "pointer",
+                  background: match.rainout ? GOLD : "rgba(255,255,255,0.25)", position: "relative", transition: "background 0.2s"
+                }}>
+                <span style={{
+                  position: "absolute", top: "3px", left: match.rainout ? "22px" : "3px",
+                  width: "16px", height: "16px", borderRadius: "50%",
+                  background: match.rainout ? "#0f2a14" : "#888", transition: "left 0.2s"
+                }} />
+              </button>
+            </div>
+            {match.rainout && (
+              <select value={match.holesPlayed} onChange={e => setMatch(p => ({ ...p, holesPlayed: parseInt(e.target.value) }))}
+                style={{ background: "#fff", border: `1px solid ${GOLD}44`, borderRadius: "7px", color: "#0f2a14", fontFamily: FB, fontSize: "14px", padding: "6px 10px", cursor: "pointer", outline: "none" }}>
+                {[6, 7, 8].map(n => <option key={n} value={n}>Stopped after H{n}</option>)}
+              </select>
+            )}
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          </>
+        )}
+      </AccordionSection>
+
+      {/* ── Confirmed Matches ────────────────────────────────────── */}
+      {lockedMatches.length > 0 && (
+        <AccordionSection
+          id="locked" open={isOpen("locked")} onToggle={toggleSection}
+          title="Confirmed Matches" icon="✅"
+          badge={`${lockedMatches.length}`}
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px", paddingTop: "10px" }}>
             {lockedMatches.map(({ week, mk, rec }) => {
               const parts = mk.split("-");
               const tlow = parseInt(parts[1]), thigh = parseInt(parts[2]);
@@ -449,12 +535,7 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
                   </div>
                   {rec.locked && unlockMatch && (
                     <button onClick={() => unlockMatch(week, mk)}
-                      style={{
-                        padding: "5px 12px", borderRadius: "6px",
-                        border: `1px solid ${R}44`, background: R + "10",
-                        color: R, fontFamily: FB, fontSize: "12px",
-                        fontWeight: 600, cursor: "pointer"
-                      }}>
+                      style={{ padding: "5px 12px", borderRadius: "6px", border: `1px solid ${R}44`, background: R + "10", color: R, fontFamily: FB, fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
                       Unlock
                     </button>
                   )}
@@ -462,15 +543,16 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
               );
             })}
           </div>
-        </div>
+        </AccordionSection>
       )}
 
-      {/* ── Weekly Recap ────────────────────────────────────────── */}
-      <div style={{ background: CARD, border: `1px solid ${GOLD}33`, borderRadius: "14px", padding: "20px", marginBottom: "16px" }}>
-        <div style={{ fontSize: "13px", letterSpacing: "0.1em", textTransform: "uppercase", color: M, marginBottom: "4px", fontWeight: 600 }}>
-          Weekly Recap
-        </div>
-        <div style={{ fontSize: "12px", color: M, marginBottom: "14px" }}>
+      {/* ── Weekly Recap ─────────────────────────────────────────── */}
+      <AccordionSection
+        id="recap" open={isOpen("recap")} onToggle={toggleSection}
+        title="Weekly Recap" icon="📋"
+        hint="copy for AI"
+      >
+        <div style={{ fontSize: "12px", color: M, margin: "10px 0 14px" }}>
           Copy formatted match data to paste into an AI for a weekly recap.
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
@@ -487,50 +569,15 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
             {recapCopied ? "✓ Copied!" : "Copy Recap"}
           </button>
         </div>
-      </div>
+      </AccordionSection>
 
-      {/* ── Rainout Settings ────────────────────────────────────── */}
-      {match && setMatch && (
-        <div style={{ background: CARD, border: `1px solid ${GOLD}33`, borderRadius: "14px", padding: "20px", marginBottom: "16px" }}>
-          <div style={{ fontSize: "13px", letterSpacing: "0.1em", textTransform: "uppercase", color: M, marginBottom: "4px", fontWeight: 600 }}>
-            ☔ Rainout — Week {activeWeek} · T{activeTeam}
-          </div>
-          <div style={{ fontSize: "12px", color: M, marginBottom: "14px" }}>
-            If the last group completes hole 6, invoke the rainout rule. Holes 7→1 · 8→4 · 9→3.
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span style={{ fontSize: "13px", color: match.rainout ? GO : M }}>
-                {match.rainout ? "Rainout active" : "No rainout"}
-              </span>
-              <button onClick={() => setMatch(p => ({ ...p, rainout: !p.rainout }))}
-                style={{
-                  width: "42px", height: "22px", borderRadius: "13px", border: "none", cursor: "pointer",
-                  background: match.rainout ? GOLD : "rgba(255,255,255,0.25)", position: "relative", transition: "background 0.2s"
-                }}>
-                <span style={{
-                  position: "absolute", top: "3px", left: match.rainout ? "22px" : "3px",
-                  width: "16px", height: "16px", borderRadius: "50%",
-                  background: match.rainout ? "#0f2a14" : "#888", transition: "left 0.2s"
-                }} />
-              </button>
-            </div>
-            {match.rainout && (
-              <select value={match.holesPlayed} onChange={e => setMatch(p => ({ ...p, holesPlayed: parseInt(e.target.value) }))}
-                style={{ background: "#fff", border: `1px solid ${GOLD}44`, borderRadius: "7px", color: "#0f2a14", fontFamily: FB, fontSize: "14px", padding: "6px 10px", cursor: "pointer", outline: "none" }}>
-                {[6, 7, 8].map(n => <option key={n} value={n}>Stopped after H{n}</option>)}
-              </select>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ── Clear Match ─────────────────────────────────────────── */}
-      <div style={{ background: CARD, border: `1px solid ${GOLD}33`, borderRadius: "14px", padding: "20px", marginBottom: "16px", marginTop: "16px" }}>
-        <div style={{ fontSize: "13px", letterSpacing: "0.1em", textTransform: "uppercase", color: M, marginBottom: "4px", fontWeight: 600 }}>
-          Clear Match Scores
-        </div>
-        <div style={{ fontSize: "12px", color: M, marginBottom: "14px" }}>
+      {/* ── Clear Match ──────────────────────────────────────────── */}
+      <AccordionSection
+        id="clear" open={isOpen("clear")} onToggle={toggleSection}
+        title="Clear Match" icon="🗑"
+        hint="delete a match's scores"
+      >
+        <div style={{ fontSize: "12px", color: M, margin: "10px 0 14px" }}>
           Delete scores for a single match. All other data is untouched.
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
@@ -553,14 +600,11 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
           {clearOpp && (
             <span style={{ fontSize: "13px", color: M }}>
               vs <span style={{ color: CREAM, fontWeight: 600 }}>T{clearOpp} {TEAMS[clearOpp]?.name}</span>
-              {clearHasData
-                ? <span style={{ color: GOLD, marginLeft: "8px" }}>● has scores</span>
-                : <span style={{ color: M, marginLeft: "8px" }}>○ no data</span>}
+              {clearHasData ? <span style={{ color: GOLD, marginLeft: "8px" }}>● has scores</span> : <span style={{ color: M, marginLeft: "8px" }}>○ no data</span>}
             </span>
           )}
           {!clearOpp && <span style={{ fontSize: "13px", color: M }}>No match this week</span>}
         </div>
-
         {clearOpp && clearHasData && (
           <div style={{ marginTop: "12px", display: "flex", alignItems: "center", gap: "10px" }}>
             {!clearConfirm ? (
@@ -571,12 +615,7 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
             ) : (
               <>
                 <span style={{ fontSize: "13px", color: R, fontWeight: 600 }}>Delete W{clearWeek} T{clearTeam} vs T{clearOpp}?</span>
-                <button onClick={async () => {
-                  await clearMatch?.(clearWeek, clearMk);
-                  setClearConfirm(false);
-                  setClearMsg("✓ Cleared");
-                  setTimeout(() => setClearMsg(""), 3000);
-                }}
+                <button onClick={async () => { await clearMatch?.(clearWeek, clearMk); setClearConfirm(false); setClearMsg("✓ Cleared"); setTimeout(() => setClearMsg(""), 3000); }}
                   style={{ padding: "7px 16px", borderRadius: "7px", border: `1px solid ${R}`, background: R, color: "#fff", fontFamily: FB, fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
                   Yes, delete
                 </button>
@@ -589,80 +628,26 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
             {clearMsg && <span style={{ fontSize: "13px", color: G, fontWeight: 600 }}>{clearMsg}</span>}
           </div>
         )}
-      </div>
+      </AccordionSection>
 
-      {/* ── Reset Season (admin only) ───────────────────────────── */}
-      <div style={{ background: CARD, border: `1px solid ${R}33`, borderRadius: "14px", padding: "20px" }}>
-        <div style={{ fontSize: "13px", letterSpacing: "0.1em", textTransform: "uppercase", color: R + "cc", marginBottom: "4px", fontWeight: 600 }}>
-          Reset Entire Season
+      {/* ── Data + Snapshots ─────────────────────────────────────── */}
+      <AccordionSection
+        id="data" open={isOpen("data")} onToggle={toggleSection}
+        title="Export &amp; Snapshots" icon="💾"
+        badge={snapshots.length > 0 ? `${snapshots.length} snapshots` : null}
+      >
+        <div style={{ fontSize: "11px", fontWeight: 700, color: M, letterSpacing: "0.08em", textTransform: "uppercase", marginTop: "12px", marginBottom: "10px" }}>
+          Export CSV
         </div>
-        <div style={{ fontSize: "12px", color: M, marginBottom: "14px" }}>
-          Deletes all match scores for every week. Handicaps, rules, and settings are preserved.
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "20px" }}>
+          <button onClick={() => exportStandings(teamStandings || [])} style={exportBtn}>↓ Standings</button>
+          <button onClick={() => exportHandicaps(league)} style={exportBtn}>↓ Handicaps</button>
+          <button onClick={() => exportScores(league)} style={exportBtn}>↓ All Scores</button>
         </div>
-        {resetPhase === 0 && (
-          <button onClick={() => setResetPhase(1)}
-            style={{ padding: "8px 18px", borderRadius: "8px", border: `1px solid ${R}55`, background: R + "12", color: R, fontFamily: FB, fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>
-            Reset Season…
-          </button>
-        )}
-        {resetPhase === 1 && (
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-            <span style={{ fontSize: "13px", color: R, fontWeight: 600 }}>This will delete ALL scores. Are you sure?</span>
-            <button onClick={() => setResetPhase(2)}
-              style={{ padding: "7px 16px", borderRadius: "7px", border: `1px solid ${R}`, background: R + "20", color: R, fontFamily: FB, fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
-              Yes, continue
-            </button>
-            <button onClick={() => setResetPhase(0)}
-              style={{ padding: "7px 14px", borderRadius: "7px", border: `1px solid ${GOLD}44`, background: "transparent", color: M, fontFamily: FB, fontSize: "13px", cursor: "pointer" }}>
-              Cancel
-            </button>
-          </div>
-        )}
-        {resetPhase === 2 && (
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-            <span style={{ fontSize: "13px", color: R, fontWeight: 700 }}>Last chance — this cannot be undone.</span>
-            <button onClick={async () => { setResetPhase(0); await clearSeason?.(); }}
-              style={{ padding: "7px 16px", borderRadius: "7px", border: `1px solid ${R}`, background: R, color: "#fff", fontFamily: FB, fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
-              Delete everything
-            </button>
-            <button onClick={() => setResetPhase(0)}
-              style={{ padding: "7px 14px", borderRadius: "7px", border: `1px solid ${GOLD}44`, background: "transparent", color: M, fontFamily: FB, fontSize: "13px", cursor: "pointer" }}>
-              Cancel
-            </button>
-          </div>
-        )}
-      </div>
-      {/* ── Data Export ─────────────────────────────────────────── */}
-      <div style={{ background: CARD, border: `1px solid ${GOLD}33`, borderRadius: "14px", padding: "20px" }}>
-        <div style={{ fontSize: "13px", letterSpacing: "0.1em", textTransform: "uppercase", color: GOLD, marginBottom: "4px", fontWeight: 600 }}>
-          Export Data
-        </div>
-        <div style={{ fontSize: "12px", color: M, marginBottom: "14px" }}>
-          Download season data as CSV files — open in Excel or Google Sheets.
-        </div>
-        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-          <button onClick={() => exportStandings(teamStandings || [])}
-            style={exportBtn}>
-            ↓ Standings
-          </button>
-          <button onClick={() => exportHandicaps(league)}
-            style={exportBtn}>
-            ↓ Handicaps
-          </button>
-          <button onClick={() => exportScores(league)}
-            style={exportBtn}>
-            ↓ All Scores
-          </button>
-        </div>
-      </div>
 
-      {/* ── Snapshots ────────────────────────────────────────────── */}
-      <div style={{ background: CARD, border: `1px solid ${GOLD}33`, borderRadius: "14px", padding: "20px" }}>
-        <div style={{ fontSize: "13px", letterSpacing: "0.1em", textTransform: "uppercase", color: GOLD, marginBottom: "4px", fontWeight: 600 }}>
+        <div style={{ fontSize: "11px", fontWeight: 700, color: M, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "10px" }}>
           Snapshots
-        </div>
-        <div style={{ fontSize: "12px", color: M, marginBottom: "14px" }}>
-          Save a full backup of all scores and settings to Firestore. Restore any snapshot to roll back the season.
+          <span style={{ fontSize: "11px", fontWeight: 400, marginLeft: "6px", textTransform: "none" }}>— full Firestore backups</span>
         </div>
 
         {/* Create snapshot */}
@@ -717,24 +702,23 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
             ))}
           </div>
         )}
-      </div>
+      </AccordionSection>
 
       {/* ── Weekly Points Table ─────────────────────────────────── */}
       {weeklyTeamPts && (() => {
-        // Find weeks that have at least one entry
         const weeksWithData = [];
         for (let w = 1; w <= 17; w++) {
           if (Object.values(weeklyTeamPts).some(tw => tw[w] != null)) weeksWithData.push(w);
         }
         if (!weeksWithData.length) return null;
-        // Sort teams by current total pts (same order as standings)
         const sorted = [...teamStandings];
         return (
-          <div style={{ background: CARD, border: `1px solid ${GOLD}22`, borderRadius: "14px", padding: "16px 18px", marginBottom: "16px" }}>
-            <div style={{ fontSize: "13px", fontWeight: 700, color: CREAM, marginBottom: "12px" }}>
-              Weekly Points (Match + Bonus)
-            </div>
-            <div style={{ overflowX: "auto" }}>
+          <AccordionSection
+            id="weekly-pts" open={isOpen("weekly-pts")} onToggle={toggleSection}
+            title="Weekly Points Table" icon="📊"
+            hint={`${weeksWithData.length} weeks`}
+          >
+            <div style={{ overflowX: "auto", marginTop: "10px" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", fontFamily: FB }}>
                 <thead>
                   <tr style={{ borderBottom: `1px solid ${GOLD}33` }}>
@@ -759,11 +743,7 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
                           const entry = tw[w];
                           return (
                             <td key={w} style={{ textAlign: "center", padding: "5px 6px", color: entry ? CREAM : M }}>
-                              {entry ? (
-                                <span title={`Match: ${entry.matchPts}  Bonus: ${entry.bonusPts}`}>
-                                  {entry.totalPts}
-                                </span>
-                              ) : "—"}
+                              {entry ? <span title={`Match: ${entry.matchPts}  Bonus: ${entry.bonusPts}`}>{entry.totalPts}</span> : "—"}
                             </td>
                           );
                         })}
@@ -775,9 +755,52 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
               </table>
             </div>
             <div style={{ fontSize: "10px", color: M, marginTop: "8px" }}>Hover a cell to see match vs bonus split</div>
-          </div>
+          </AccordionSection>
         );
       })()}
+
+      {/* ── Reset Season ─────────────────────────────────────────── */}
+      <AccordionSection
+        id="reset" open={isOpen("reset")} onToggle={toggleSection}
+        title="Reset Season" icon="⚠️" danger
+        hint="destructive"
+      >
+        <div style={{ fontSize: "12px", color: M, margin: "10px 0 14px" }}>
+          Deletes all match scores for every week. Handicaps, rules, and settings are preserved.
+        </div>
+        {resetPhase === 0 && (
+          <button onClick={() => setResetPhase(1)}
+            style={{ padding: "8px 18px", borderRadius: "8px", border: `1px solid ${R}55`, background: R + "12", color: R, fontFamily: FB, fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>
+            Reset Season…
+          </button>
+        )}
+        {resetPhase === 1 && (
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <span style={{ fontSize: "13px", color: R, fontWeight: 600 }}>This will delete ALL scores. Are you sure?</span>
+            <button onClick={() => setResetPhase(2)}
+              style={{ padding: "7px 16px", borderRadius: "7px", border: `1px solid ${R}`, background: R + "20", color: R, fontFamily: FB, fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+              Yes, continue
+            </button>
+            <button onClick={() => setResetPhase(0)}
+              style={{ padding: "7px 14px", borderRadius: "7px", border: `1px solid ${GOLD}44`, background: "transparent", color: M, fontFamily: FB, fontSize: "13px", cursor: "pointer" }}>
+              Cancel
+            </button>
+          </div>
+        )}
+        {resetPhase === 2 && (
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <span style={{ fontSize: "13px", color: R, fontWeight: 700 }}>Last chance — this cannot be undone.</span>
+            <button onClick={async () => { setResetPhase(0); await clearSeason?.(); }}
+              style={{ padding: "7px 16px", borderRadius: "7px", border: `1px solid ${R}`, background: R, color: "#fff", fontFamily: FB, fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+              Delete everything
+            </button>
+            <button onClick={() => setResetPhase(0)}
+              style={{ padding: "7px 14px", borderRadius: "7px", border: `1px solid ${GOLD}44`, background: "transparent", color: M, fontFamily: FB, fontSize: "13px", cursor: "pointer" }}>
+              Cancel
+            </button>
+          </div>
+        )}
+      </AccordionSection>
 
       </>}
     </div>
