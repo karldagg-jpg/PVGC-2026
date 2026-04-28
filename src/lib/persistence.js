@@ -45,9 +45,18 @@ function encodeResults(results = {}) {
 }
 
 // Apply a single weekScores subcollection doc into league state
-function applyWeekScoreDoc(prevLeague, docData) {
-  const week = parseInt(docData.week);
-  const mk = docData.matchKey;
+// docId is optional — used as fallback when docData lacks week/matchKey (older saves)
+function applyWeekScoreDoc(prevLeague, docData, docId) {
+  let week = parseInt(docData.week);
+  let mk = docData.matchKey;
+  // Derive from doc ID (format: "${week}_${matchKey}") if fields are missing
+  if (docId && (!week || !mk)) {
+    const idx = docId.indexOf("_");
+    if (idx > 0) {
+      week = week || parseInt(docId.slice(0, idx));
+      mk = mk || docId.slice(idx + 1);
+    }
+  }
   if (!week || !mk) return prevLeague;
   const normalized = normalizeMatch(docData);
   return {

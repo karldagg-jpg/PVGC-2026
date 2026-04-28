@@ -107,7 +107,7 @@ const [seasonYear] = useState(SEASON_YEAR);
         let next = applySnapshotToLeague(prev, p, DEFAULT_HCP);
         // Apply subcollection docs on top (they override legacy)
         scoresSnap.docs.forEach(d => {
-          next = applyWeekScoreDoc(next, d.data());
+          next = applyWeekScoreDoc(next, d.data(), d.id);
         });
         return next;
       });
@@ -154,7 +154,7 @@ const [seasonYear] = useState(SEASON_YEAR);
           const mk = rest.join("_");
           setLeague(prev => removeWeekScoreDoc(prev, parseInt(weekStr), mk));
         } else {
-          setLeague(prev => applyWeekScoreDoc(prev, change.doc.data()));
+          setLeague(prev => applyWeekScoreDoc(prev, change.doc.data(), change.doc.id));
         }
       });
     }, err => console.warn("WeekScores snapshot error:", err));
