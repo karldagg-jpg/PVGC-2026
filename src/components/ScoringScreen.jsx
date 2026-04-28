@@ -988,22 +988,20 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
             const t1grand = t1matchTotal + (t1bonus || 0);
             const t2grand = t2matchTotal + (t2bonus || 0);
 
-            const Row = ({ label, t1v, t2v, t1color, t2color, tag, sub }) => (
-              <div style={{
-                padding: "9px 14px", borderBottom: `1px solid ${GOLD}18`,
-                display: "flex", alignItems: "center", gap: "8px"
-              }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: "11px", color: M, letterSpacing: "0.07em", textTransform: "uppercase" }}>{label}</div>
-                  {sub && <div style={{ fontSize: "11px", color: M, marginTop: "1px" }}>{sub}</div>}
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
-                  <span style={{ fontWeight: 700, fontSize: "16px", color: t1color, minWidth: "22px", textAlign: "right" }}>{t1v}</span>
-                  <span style={{ color: M, fontSize: "12px" }}>—</span>
-                  <span style={{ fontWeight: 700, fontSize: "16px", color: t2color, minWidth: "22px" }}>{t2v}</span>
-                  {tag && <Tag color={tag.color}>{tag.text}</Tag>}
-                </div>
-              </div>
+            // Fixed-width score cell — all rows share the same column widths
+            const scoreCell = (val, color, align = "right") => (
+              <td style={{ width: "36px", textAlign: align, fontWeight: 700, fontSize: "15px", color, padding: "9px 4px", whiteSpace: "nowrap" }}>{val}</td>
+            );
+            const dashCell = () => (
+              <td style={{ width: "18px", textAlign: "center", color: M, fontSize: "12px", padding: "9px 0" }}>—</td>
+            );
+            const tagCell = (text, color) => (
+              <td style={{ width: "76px", textAlign: "right", padding: "9px 14px 9px 4px" }}>
+                <span style={{
+                  fontSize: "11px", fontWeight: 600, padding: "2px 7px", borderRadius: "5px",
+                  background: color + "22", color, border: `1px solid ${color}44`, whiteSpace: "nowrap"
+                }}>{text}</span>
+              </td>
             );
 
             return (
@@ -1017,103 +1015,91 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
                   display: "flex", justifyContent: "space-between", alignItems: "center"
                 }}>
                   <span style={{ fontSize: "12px", letterSpacing: "0.1em", textTransform: "uppercase", color: M }}>Match Summary</span>
-                  <div style={{ fontSize: "12px", color: M }}>
+                  <div style={{ fontSize: "12px" }}>
                     <span style={{ color: G, fontWeight: 700 }}>{TEAMS[t1id]?.name}</span>
                     <span style={{ color: M, margin: "0 6px" }}>vs</span>
                     <span style={{ color: GO, fontWeight: 700 }}>{TEAMS[t2id]?.name}</span>
                   </div>
                 </div>
 
-                {/* Individual matchup rows */}
-                {matchResults.map((m, i) => {
-                  const t1w = m.t1pts > m.t2pts, t2w = m.t2pts > m.t1pts, tied = m.t1pts === m.t2pts;
-                  return (
-                    <div key={i} style={{
-                      padding: "9px 14px", borderBottom: `1px solid ${GOLD}18`,
-                      display: "flex", alignItems: "center", gap: "8px"
-                    }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: "11px", color: M, letterSpacing: "0.07em", textTransform: "uppercase" }}>{m.label}</div>
-                        <div style={{ fontSize: "12px", marginTop: "2px" }}>
-                          <span style={{ color: t1w ? G : CREAM, fontWeight: t1w ? 700 : 400 }}>{m.t1name}</span>
-                          <span style={{ color: M, margin: "0 5px" }}>vs</span>
-                          <span style={{ color: t2w ? GO : CREAM, fontWeight: t2w ? 700 : 400 }}>{m.t2name}</span>
-                        </div>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
-                        <span style={{ fontWeight: 700, fontSize: "15px", color: t1w ? G : tied ? CREAM : "#555", minWidth: "22px", textAlign: "right" }}>{m.t1pts}</span>
-                        <span style={{ color: M, fontSize: "12px" }}>—</span>
-                        <span style={{ fontWeight: 700, fontSize: "15px", color: t2w ? GO : tied ? CREAM : "#555", minWidth: "22px" }}>{m.t2pts}</span>
-                        <Tag color={t1w ? G : t2w ? GO : M}>{t1w ? "+2" : t2w ? "+2" : "Split 1-1"}</Tag>
-                      </div>
-                    </div>
-                  );
-                })}
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <tbody>
+                    {/* Individual matchup rows */}
+                    {matchResults.map((m, i) => {
+                      const t1w = m.t1pts > m.t2pts, t2w = m.t2pts > m.t1pts, tied = m.t1pts === m.t2pts;
+                      return (
+                        <tr key={i} style={{ borderBottom: `1px solid ${GOLD}18` }}>
+                          <td style={{ padding: "9px 8px 9px 14px" }}>
+                            <div style={{ fontSize: "11px", color: M, letterSpacing: "0.06em", textTransform: "uppercase" }}>{m.label}</div>
+                            <div style={{ fontSize: "12px", marginTop: "2px" }}>
+                              <span style={{ color: t1w ? G : CREAM, fontWeight: t1w ? 700 : 400 }}>{m.t1name}</span>
+                              <span style={{ color: M, margin: "0 5px" }}>vs</span>
+                              <span style={{ color: t2w ? GO : CREAM, fontWeight: t2w ? 700 : 400 }}>{m.t2name}</span>
+                            </div>
+                          </td>
+                          {scoreCell(m.t1pts, t1w ? G : tied ? CREAM : "#555")}
+                          {dashCell()}
+                          {scoreCell(m.t2pts, t2w ? GO : tied ? CREAM : "#555", "left")}
+                          {tagCell(t1w ? "+2" : t2w ? "+2" : "1 — 1", t1w ? G : t2w ? GO : M)}
+                        </tr>
+                      );
+                    })}
 
-                {/* Team match row */}
-                <Row
-                  label="Team Match"
-                  sub={`${t1teamTotal} vs ${t2teamTotal} stab · tie splits 2-2`}
-                  t1v={t1teamTotal}
-                  t2v={t2teamTotal}
-                  t1color={t1teamPts === 4 ? G : t1teamPts === 2 ? CREAM : "#555"}
-                  t2color={t2teamPts === 4 ? GO : t2teamPts === 2 ? CREAM : "#555"}
-                  tag={t1teamTotal > t2teamTotal ? { color: G, text: `T${t1id} +4` } : t2teamTotal > t1teamTotal ? { color: GO, text: `T${t2id} +4` } : { color: M, text: "Tie +2 ea" }}
-                />
+                    {/* Team match row */}
+                    <tr style={{ borderBottom: `1px solid ${GOLD}18` }}>
+                      <td style={{ padding: "9px 8px 9px 14px" }}>
+                        <div style={{ fontSize: "11px", color: M, letterSpacing: "0.06em", textTransform: "uppercase" }}>Team Match</div>
+                        <div style={{ fontSize: "11px", color: M, marginTop: "2px" }}>stab totals · tie splits 2–2</div>
+                      </td>
+                      {scoreCell(t1teamTotal, t1teamPts === 4 ? G : t1teamPts === 2 ? CREAM : "#555")}
+                      {dashCell()}
+                      {scoreCell(t2teamTotal, t2teamPts === 4 ? GO : t2teamPts === 2 ? CREAM : "#555", "left")}
+                      {tagCell(
+                        t1teamTotal > t2teamTotal ? "+4" : t2teamTotal > t1teamTotal ? "+4" : "2 — 2",
+                        t1teamTotal > t2teamTotal ? G : t2teamTotal > t1teamTotal ? GO : M
+                      )}
+                    </tr>
 
-                {/* Match pts total */}
-                <div style={{
-                  padding: "9px 14px", borderBottom: weekBonus ? `1px solid ${GOLD}18` : "none",
-                  display: "flex", alignItems: "center", gap: "8px",
-                  background: "rgba(26,61,36,0.06)"
-                }}>
-                  <div style={{ flex: 1, fontSize: "12px", fontWeight: 700, color: CREAM, letterSpacing: "0.04em" }}>
-                    Match Points
-                    <span style={{ fontSize: "10px", color: M, fontWeight: 400, marginLeft: "6px" }}>/ 8</span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
-                    <span style={{ fontWeight: 700, fontSize: "17px", color: t1matchTotal > t2matchTotal ? G : t1matchTotal === t2matchTotal ? CREAM : "#555", minWidth: "22px", textAlign: "right" }}>{t1matchTotal}</span>
-                    <span style={{ color: M, fontSize: "12px" }}>—</span>
-                    <span style={{ fontWeight: 700, fontSize: "17px", color: t2matchTotal > t1matchTotal ? GO : t2matchTotal === t1matchTotal ? CREAM : "#555", minWidth: "22px" }}>{t2matchTotal}</span>
-                    <div style={{ width: "62px" }} />
-                  </div>
-                </div>
+                    {/* Match pts subtotal */}
+                    <tr style={{
+                      borderBottom: weekBonus ? `1px solid ${GOLD}18` : "none",
+                      background: "rgba(26,61,36,0.07)"
+                    }}>
+                      <td style={{ padding: "9px 8px 9px 14px", fontSize: "12px", fontWeight: 700, color: CREAM }}>
+                        Match Points
+                        <span style={{ fontSize: "10px", color: M, fontWeight: 400, marginLeft: "5px" }}>of 8</span>
+                      </td>
+                      {scoreCell(t1matchTotal, t1matchTotal > t2matchTotal ? G : t1matchTotal === t2matchTotal ? CREAM : "#555")}
+                      {dashCell()}
+                      {scoreCell(t2matchTotal, t2matchTotal > t1matchTotal ? GO : t2matchTotal === t1matchTotal ? CREAM : "#555", "left")}
+                      <td />
+                    </tr>
 
-                {/* Bonus + grand total — only when bonus is available */}
-                {weekBonus && (
-                  <>
-                    <div style={{
-                      padding: "9px 14px", borderBottom: `1px solid ${GOLD}18`,
-                      display: "flex", alignItems: "center", gap: "8px"
-                    }}>
-                      <div style={{ flex: 1, fontSize: "11px", color: GOLD, letterSpacing: "0.07em", textTransform: "uppercase" }}>
-                        Bonus Points
-                        <span style={{ fontSize: "10px", color: M, fontWeight: 400, marginLeft: "6px", textTransform: "none" }}>all matches scored</span>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
-                        <span style={{ fontWeight: 700, fontSize: "16px", color: GOLD, minWidth: "22px", textAlign: "right" }}>{t1bonus}</span>
-                        <span style={{ color: M, fontSize: "12px" }}>—</span>
-                        <span style={{ fontWeight: 700, fontSize: "16px", color: GOLD, minWidth: "22px" }}>{t2bonus}</span>
-                        <div style={{ width: "62px" }} />
-                      </div>
-                    </div>
-                    <div style={{
-                      padding: "10px 14px",
-                      display: "flex", alignItems: "center", gap: "8px",
-                      background: "rgba(26,61,36,0.08)"
-                    }}>
-                      <div style={{ flex: 1, fontSize: "13px", fontWeight: 700, color: CREAM }}>
-                        Total This Week
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
-                        <span style={{ fontWeight: 800, fontSize: "20px", color: t1grand > t2grand ? G : t1grand === t2grand ? CREAM : "#555", minWidth: "22px", textAlign: "right" }}>{t1grand}</span>
-                        <span style={{ color: M, fontSize: "12px" }}>—</span>
-                        <span style={{ fontWeight: 800, fontSize: "20px", color: t2grand > t1grand ? GO : t2grand === t1grand ? CREAM : "#555", minWidth: "22px" }}>{t2grand}</span>
-                        <div style={{ width: "62px" }} />
-                      </div>
-                    </div>
-                  </>
-                )}
+                    {/* Bonus row */}
+                    {weekBonus && (
+                      <tr style={{ borderBottom: `1px solid ${GOLD}18` }}>
+                        <td style={{ padding: "9px 8px 9px 14px", fontSize: "11px", color: GOLD, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                          Bonus Points
+                        </td>
+                        {scoreCell(t1bonus, GOLD)}
+                        {dashCell()}
+                        {scoreCell(t2bonus, GOLD, "left")}
+                        <td />
+                      </tr>
+                    )}
+
+                    {/* Grand total row */}
+                    {weekBonus && (
+                      <tr style={{ background: "rgba(26,61,36,0.1)" }}>
+                        <td style={{ padding: "10px 8px 10px 14px", fontSize: "13px", fontWeight: 700, color: CREAM }}>Total This Week</td>
+                        {scoreCell(t1grand, t1grand > t2grand ? G : t1grand === t2grand ? CREAM : "#555")}
+                        {dashCell()}
+                        {scoreCell(t2grand, t2grand > t1grand ? GO : t2grand === t1grand ? CREAM : "#555", "left")}
+                        <td />
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             );
           })()}
