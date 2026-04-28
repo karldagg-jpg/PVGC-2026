@@ -751,7 +751,7 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
                     const weekTotal = weeksWithData.reduce((sum, w) => sum + (tw[w]?.totalPts || 0), 0);
                     return (
                       <tr key={s.id} style={{ borderBottom: `1px solid ${GOLD}11`, background: i % 2 === 0 ? "transparent" : `${GOLD}08` }}>
-                        <td style={{ padding: "5px 8px", color: CREAM, whiteSpace: "nowrap", position: "sticky", left: 0, background: i % 2 === 0 ? CARD : `#2a2518` }}>
+                        <td style={{ padding: "5px 8px", color: CREAM, whiteSpace: "nowrap", position: "sticky", left: 0, background: i % 2 === 0 ? CARD : `${GOLD}12` }}>
                           <span style={{ fontSize: "10px", color: M, marginRight: "5px" }}>T{s.id}</span>
                           {TEAMS[s.id]?.name || `Team ${s.id}`}
                         </td>
