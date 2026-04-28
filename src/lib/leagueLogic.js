@@ -577,7 +577,11 @@ function calcWeeklyTeamPts(results, handicaps, cancelledWeeksIn=null, maxWeek=RE
       const totB = computeTeamTotal(rec, 1, thigh, handicaps);
 
       let mA = 0, mB = 0;
-      for (const {piA, piB} of [{piA:0,piB:0},{piA:1,piB:1}]) {
+      const snap2 = rec.hcpSnapshot;
+      const getHcp2 = (tid, pi) => { if (snap2) { const s = snap2[tid]??snap2[String(tid)]; if (s) return s[pi]??0; } return (handicaps[tid]??[0,0])[pi]??0; };
+      const hA0=getHcp2(tlow,0),hA1=getHcp2(tlow,1),hB0=getHcp2(thigh,0),hB1=getHcp2(thigh,1);
+      const plo=hA0<=hA1?0:1,phi=1-plo,qlo=hB0<=hB1?0:1,qhi=1-qlo;
+      for (const {piA, piB} of [{piA:plo,piB:qlo},{piA:phi,piB:qhi}]) {
         const pA = computePlayerTotal(rec, 0, piA, tlow, handicaps);
         const pB = computePlayerTotal(rec, 1, piB, thigh, handicaps);
         if (pA > pB) mA += 2; else if (pB > pA) mB += 2; else { mA += 1; mB += 1; }

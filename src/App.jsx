@@ -736,6 +736,7 @@ const [seasonYear] = useState(SEASON_YEAR);
           adminLock={adminLock}
           saveAdminPin={saveAdminPin}
           teamStandings={teamStandings}
+          weeklyTeamPts={weeklyTeamPts}
           createSnapshot={createSnapshot}
           listSnapshots={listSnapshots}
           restoreSnapshot={restoreSnapshot}
