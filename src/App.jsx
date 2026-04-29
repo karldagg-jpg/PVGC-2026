@@ -500,11 +500,11 @@ const [seasonYear] = useState(SEASON_YEAR);
     return ()=>clearTimeout(autoSaveTimer.current);
   },[match]);
 
-  const {teamStats,potyList,weeklyPoty,cancelledWeeks}=calcLeagueStats(league.results,league.handicaps,league.cancelledWeeks);
+  const {teamStats,potyList,weeklyPoty,cancelledWeeks}=calcLeagueStats(league.results,league.handicaps,league.cancelledWeeks,undefined,undefined,undefined,undefined,league.loHiOverrides);
   const teamStandings=Object.entries(teamStats)
     .map(([id,s])=>({id:parseInt(id),...s}))
     .sort((a,b)=>b.totalPts-a.totalPts||b.stab-a.stab);
-  const weeklyTeamPts=calcWeeklyTeamPts(league.results,league.handicaps,league.cancelledWeeks);
+  const weeklyTeamPts=calcWeeklyTeamPts(league.results,league.handicaps,league.cancelledWeeks,undefined,undefined,league.loHiOverrides);
 
   const weekBonus=calcWeekBonus(selWeek,league.results,league.handicaps);
 

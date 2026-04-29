@@ -268,7 +268,7 @@ function isWeekCancelled(weekResults) {
 }
 
 // ── Full league stats ──────────────────────────────────────────
-function calcLeagueStats(results, handicaps, cancelledWeeksIn=null, maxWeek=REGULAR_SEASON_MAX_WEEK, schedule=SCHEDULE, allPlayers=ALL_PLAYERS, teams=TEAMS) {
+function calcLeagueStats(results, handicaps, cancelledWeeksIn=null, maxWeek=REGULAR_SEASON_MAX_WEEK, schedule=SCHEDULE, allPlayers=ALL_PLAYERS, teams=TEAMS, loHiOverrides=null) {
   // Team stats: matchPts, bonusPts, totalPts, stab, wins, losses, ties, played
   const teamStats = {};
   for (let t=1;t<=18;t++) teamStats[t] = {matchPts:0,bonusPts:0,totalPts:0,stab:0,wins:0,losses:0,ties:0,played:0};
@@ -319,8 +319,9 @@ function calcLeagueStats(results, handicaps, cancelledWeeksIn=null, maxWeek=REGU
       };
       const hcpA0 = getHcp(tlow,0), hcpA1 = getHcp(tlow,1);
       const hcpB0 = getHcp(thigh,0), hcpB1 = getHcp(thigh,1);
-      const piA_lo = hcpA0 <= hcpA1 ? 0 : 1, piA_hi = 1 - piA_lo;
-      const piB_lo = hcpB0 <= hcpB1 ? 0 : 1, piB_hi = 1 - piB_lo;
+      const ovA = loHiOverrides?.[`${tlow}-${w}`], ovB = loHiOverrides?.[`${thigh}-${w}`];
+      const piA_lo = ovA !== undefined ? ovA : (hcpA0 <= hcpA1 ? 0 : 1), piA_hi = 1 - piA_lo;
+      const piB_lo = ovB !== undefined ? ovB : (hcpB0 <= hcpB1 ? 0 : 1), piB_hi = 1 - piB_lo;
       const pairings = [{piA:piA_lo,piB:piB_lo},{piA:piA_hi,piB:piB_hi}];
       let winsA=0, winsB=0;
       for (const {piA,piB} of pairings) {
@@ -554,7 +555,7 @@ function calcSuggestedHcps(results, currentWeek, defaultHcp=DEFAULT_HCP, newMemb
 }
 
 // Returns per-week points earned by each team: { [teamId]: { [week]: { matchPts, bonusPts, totalPts } } }
-function calcWeeklyTeamPts(results, handicaps, cancelledWeeksIn=null, maxWeek=REGULAR_SEASON_MAX_WEEK, schedule=SCHEDULE) {
+function calcWeeklyTeamPts(results, handicaps, cancelledWeeksIn=null, maxWeek=REGULAR_SEASON_MAX_WEEK, schedule=SCHEDULE, loHiOverrides=null) {
   const weekly = {};
   for (let t = 1; t <= 18; t++) weekly[t] = {};
 
@@ -580,7 +581,8 @@ function calcWeeklyTeamPts(results, handicaps, cancelledWeeksIn=null, maxWeek=RE
       const snap2 = rec.hcpSnapshot;
       const getHcp2 = (tid, pi) => { if (snap2) { const s = snap2[tid]??snap2[String(tid)]; if (s) return s[pi]??0; } return (handicaps[tid]??[0,0])[pi]??0; };
       const hA0=getHcp2(tlow,0),hA1=getHcp2(tlow,1),hB0=getHcp2(thigh,0),hB1=getHcp2(thigh,1);
-      const plo=hA0<=hA1?0:1,phi=1-plo,qlo=hB0<=hB1?0:1,qhi=1-qlo;
+      const ov2A=loHiOverrides?.[`${tlow}-${w}`], ov2B=loHiOverrides?.[`${thigh}-${w}`];
+      const plo=ov2A!==undefined?ov2A:(hA0<=hA1?0:1),phi=1-plo,qlo=ov2B!==undefined?ov2B:(hB0<=hB1?0:1),qhi=1-qlo;
       for (const {piA, piB} of [{piA:plo,piB:qlo},{piA:phi,piB:qhi}]) {
         const pA = computePlayerTotal(rec, 0, piA, tlow, handicaps);
         const pB = computePlayerTotal(rec, 1, piB, thigh, handicaps);
