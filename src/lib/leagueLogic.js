@@ -313,15 +313,9 @@ function calcLeagueStats(results, handicaps, cancelledWeeksIn=null, maxWeek=REGU
       // Points: pair by handicap order (lower hcp vs lower hcp, higher vs higher).
       // Some teams list their higher-hcp player as p0 — this corrects the matchup.
       const snap = rec.hcpSnapshot;
-      const getHcp = (tid, pi) => {
-        if (snap) { const s = snap[tid] ?? snap[String(tid)]; if (s) return s[pi] ?? 0; }
-        return (handicaps[tid]??[0,0])[pi]??0;
-      };
-      const hcpA0 = getHcp(tlow,0), hcpA1 = getHcp(tlow,1);
-      const hcpB0 = getHcp(thigh,0), hcpB1 = getHcp(thigh,1);
-      const ovA = loHiOverrides?.[`${tlow}-${w}`], ovB = loHiOverrides?.[`${thigh}-${w}`];
-      const piA_lo = ovA !== undefined ? ovA : (hcpA0 <= hcpA1 ? 0 : 1), piA_hi = 1 - piA_lo;
-      const piB_lo = ovB !== undefined ? ovB : (hcpB0 <= hcpB1 ? 0 : 1), piB_hi = 1 - piB_lo;
+      const loHiCtx = { loHiOverrides: loHiOverrides || {}, results, handicaps, hcpOverrides: {} };
+      const { loPi: piA_lo, hiPi: piA_hi } = getLoHiOrder(tlow, w, loHiCtx, snap);
+      const { loPi: piB_lo, hiPi: piB_hi } = getLoHiOrder(thigh, w, loHiCtx, snap);
       const pairings = [{piA:piA_lo,piB:piB_lo},{piA:piA_hi,piB:piB_hi}];
       let winsA=0, winsB=0;
       for (const {piA,piB} of pairings) {
@@ -542,6 +536,23 @@ function getEffectiveHcp(tid, pi, week, results, handicaps, hcpOverrides, defaul
   return calcAutoHcp(history[tid][pi], startHcp, newMemberFn(tid, pi));
 }
 
+// Returns { loPi, hiPi } — the pi index of the low and high HCP player for tid in week.
+// Priority: loHiOverrides → hcpSnapshot → getEffectiveHcpRaw
+// loHiCtx must have { loHiOverrides, results, handicaps, hcpOverrides }
+function getLoHiOrder(tid, week, loHiCtx, hcpSnapshot = null) {
+  const ov = (loHiCtx.loHiOverrides || {})[`${tid}-${week}`];
+  if (ov !== undefined) return { loPi: ov, hiPi: 1 - ov };
+  const snapEntry = hcpSnapshot?.[tid] ?? hcpSnapshot?.[String(tid)];
+  if (snapEntry) {
+    const loPi = (snapEntry[0] || 0) <= (snapEntry[1] || 0) ? 0 : 1;
+    return { loPi, hiPi: 1 - loPi };
+  }
+  const r0 = getEffectiveHcpRaw(tid, 0, week, loHiCtx.results, loHiCtx.handicaps, loHiCtx.hcpOverrides || {});
+  const r1 = getEffectiveHcpRaw(tid, 1, week, loHiCtx.results, loHiCtx.handicaps, loHiCtx.hcpOverrides || {});
+  const loPi = r0 <= r1 ? 0 : 1;
+  return { loPi, hiPi: 1 - loPi };
+}
+
 function calcSuggestedHcps(results, currentWeek, defaultHcp=DEFAULT_HCP, newMemberFn=isNewMember) {
   const history = buildGrossHistory(results, currentWeek, defaultHcp);
   const suggested = {};
@@ -578,11 +589,9 @@ function calcWeeklyTeamPts(results, handicaps, cancelledWeeksIn=null, maxWeek=RE
       const totB = computeTeamTotal(rec, 1, thigh, handicaps);
 
       let mA = 0, mB = 0;
-      const snap2 = rec.hcpSnapshot;
-      const getHcp2 = (tid, pi) => { if (snap2) { const s = snap2[tid]??snap2[String(tid)]; if (s) return s[pi]??0; } return (handicaps[tid]??[0,0])[pi]??0; };
-      const hA0=getHcp2(tlow,0),hA1=getHcp2(tlow,1),hB0=getHcp2(thigh,0),hB1=getHcp2(thigh,1);
-      const ov2A=loHiOverrides?.[`${tlow}-${w}`], ov2B=loHiOverrides?.[`${thigh}-${w}`];
-      const plo=ov2A!==undefined?ov2A:(hA0<=hA1?0:1),phi=1-plo,qlo=ov2B!==undefined?ov2B:(hB0<=hB1?0:1),qhi=1-qlo;
+      const loHiCtx2 = { loHiOverrides: loHiOverrides || {}, results, handicaps, hcpOverrides: {} };
+      const { loPi: plo, hiPi: phi } = getLoHiOrder(tlow, w, loHiCtx2, rec.hcpSnapshot);
+      const { loPi: qlo, hiPi: qhi } = getLoHiOrder(thigh, w, loHiCtx2, rec.hcpSnapshot);
       for (const {piA, piB} of [{piA:plo,piB:qlo},{piA:phi,piB:qhi}]) {
         const pA = computePlayerTotal(rec, 0, piA, tlow, handicaps);
         const pB = computePlayerTotal(rec, 1, piB, thigh, handicaps);
@@ -808,6 +817,7 @@ export {
   buildGrossHistory,
   getEffectiveHcp,
   getEffectiveHcpRaw,
+  getLoHiOrder,
   calcSuggestedHcps,
   initMatch,
   isWeekCancelled,

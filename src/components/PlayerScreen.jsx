@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { ALL_PLAYERS, TEAMS, PAR, SI, RAINOUT_SUB, SCHEDULE } from "../constants/league";
-import { getEffectiveHcp, getEffectiveHcpRaw, getOpponent, matchKey, stabPts, hcpStr } from "../lib/leagueLogic";
+import { getEffectiveHcp, getEffectiveHcpRaw, getOpponent, matchKey, stabPts, hcpStr, getLoHiOrder } from "../lib/leagueLogic";
 import { G, GO, R, M, CREAM, GOLD, CARD, CARD2, FB, FD } from "../constants/theme";
 
 const REGULAR_WEEKS = Array.from({ length: 17 }, (_, i) => i + 1);
@@ -62,28 +62,11 @@ function buildPlayerStats(tid, pi, league) {
     const hcp = getEffectiveHcp(tid, pi, w, league.results, league.handicaps, league.hcpOverrides || {});
 
     // Individual head-to-head: lo vs lo, hi vs hi
-    // Mirror calcLeagueStats: check loHiOverrides first, then hcpSnapshot, then effective HCP
     const snap = rec.hcpSnapshot;
-    const loHiOv = (league.loHiOverrides || {})[`${tid}-${w}`];
-    let isLo;
-    if (loHiOv !== undefined) {
-      isLo = pi === loHiOv;
-    } else {
-      const r0 = snap?.[tid] ? (snap[tid][0] || 0) : getEffectiveHcpRaw(tid, 0, w, league.results, league.handicaps, league.hcpOverrides || {});
-      const r1 = snap?.[tid] ? (snap[tid][1] || 0) : getEffectiveHcpRaw(tid, 1, w, league.results, league.handicaps, league.hcpOverrides || {});
-      isLo = (r0 <= r1) ? (pi === 0) : (pi === 1);
-    }
-
-    // Find rival using same logic for opponent
-    const oppLoHiOv = (league.loHiOverrides || {})[`${opp}-${w}`];
-    let rivalPi;
-    if (oppLoHiOv !== undefined) {
-      rivalPi = isLo ? oppLoHiOv : (1 - oppLoHiOv);
-    } else {
-      const oppR0 = snap?.[opp] ? (snap[opp][0] || 0) : getEffectiveHcpRaw(opp, 0, w, league.results, league.handicaps, league.hcpOverrides || {});
-      const oppR1 = snap?.[opp] ? (snap[opp][1] || 0) : getEffectiveHcpRaw(opp, 1, w, league.results, league.handicaps, league.hcpOverrides || {});
-      rivalPi = isLo ? (oppR0 <= oppR1 ? 0 : 1) : (oppR0 <= oppR1 ? 1 : 0);
-    }
+    const { loPi: tidLoPi } = getLoHiOrder(tid, w, league, snap);
+    const isLo = pi === tidLoPi;
+    const { loPi: oppLoPi } = getLoHiOrder(opp, w, league, snap);
+    const rivalPi = isLo ? oppLoPi : (1 - oppLoPi);
     const oppTIdx = opp < tid ? 0 : 1;
     const rivalStab = getPlayerStab(rec, oppTIdx, rivalPi, opp);
 

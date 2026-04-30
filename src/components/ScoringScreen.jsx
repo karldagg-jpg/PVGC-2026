@@ -1,5 +1,5 @@
 import { PAR, SI, RAINOUT_SUB, TEAMS, SCHEDULE } from "../constants/league";
-import { stabPts, hcpStr, maxGross, getEffectiveHcp, getEffectiveHcpRaw, computeTeamTotal, matchKey } from "../lib/leagueLogic";
+import { stabPts, hcpStr, maxGross, getEffectiveHcp, getEffectiveHcpRaw, computeTeamTotal, matchKey, getLoHiOrder } from "../lib/leagueLogic";
 import { BG, CARD, CARD2, CREAM, FB, FD, G, GO, GOLD, M, R } from "../constants/theme";
 import { fmtDate } from "../lib/format";
 import { Tag, PtsBadge } from "./ui";
@@ -236,19 +236,14 @@ function ScoringScreen({
   function printScorecard() {
     if (!opp) return;
     const getHcpForPrint = (tid, pi) => getEffectiveHcp(tid, pi, selWeek, league.results, league.handicaps, league.hcpOverrides || {});
-    const getOrderForPrint = (tid) => {
-      const ov = (league.loHiOverrides || {})[`${tid}-${selWeek}`];
-      if (ov !== undefined) return ov === 0 ? { low: 0, high: 1 } : { low: 1, high: 0 };
-      const r0 = getEffectiveHcpRaw(tid, 0, selWeek, league.results, league.handicaps, league.hcpOverrides || {});
-      const r1 = getEffectiveHcpRaw(tid, 1, selWeek, league.results, league.handicaps, league.hcpOverrides || {});
-      return r0 <= r1 ? { low: 0, high: 1 } : { low: 1, high: 0 };
-    };
-    const o1 = getOrderForPrint(t1id), o2 = getOrderForPrint(t2id);
+    const snap = matchDoc?.hcpSnapshot;
+    const { loPi: o1lo, hiPi: o1hi } = getLoHiOrder(t1id, selWeek, league, snap);
+    const { loPi: o2lo, hiPi: o2hi } = getLoHiOrder(t2id, selWeek, league, snap);
     const players = [
-      { tid: t1id, tIdx: 0, pi: o1.low,  label: "Low"  },
-      { tid: t1id, tIdx: 0, pi: o1.high, label: "High" },
-      { tid: t2id, tIdx: 1, pi: o2.low,  label: "Low"  },
-      { tid: t2id, tIdx: 1, pi: o2.high, label: "High" },
+      { tid: t1id, tIdx: 0, pi: o1lo, label: "Low"  },
+      { tid: t1id, tIdx: 0, pi: o1hi, label: "High" },
+      { tid: t2id, tIdx: 1, pi: o2lo, label: "Low"  },
+      { tid: t2id, tIdx: 1, pi: o2hi, label: "High" },
     ].map(p => {
       const hcp = getHcpForPrint(p.tid, p.pi);
       // strokes per hole (0, 1, or 2)
@@ -469,24 +464,17 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
       {/* ── 4-ROW SCORECARD ── */}
       {(() => {
         // Build the 4 players in match order
-        // Low hcp = pi with smaller hcp, High hcp = other pi
-        const getOrder = (tid) => {
-          const loHiKey = `${tid}-${selWeek}`;
-          const loHiOv = (league.loHiOverrides || {})[loHiKey];
-          if (loHiOv !== undefined) return loHiOv === 0 ? { low: 0, high: 1 } : { low: 1, high: 0 };
-          const r0 = getEffectiveHcpRaw(tid, 0, selWeek, league.results, league.handicaps, league.hcpOverrides||{});
-          const r1 = getEffectiveHcpRaw(tid, 1, selWeek, league.results, league.handicaps, league.hcpOverrides||{});
-          return r0 <= r1 ? { low: 0, high: 1 } : { low: 1, high: 0 };
-        };
-        const o1 = getOrder(t1id), o2 = getOrder(t2id);
+        const hcpSnap = matchDoc?.hcpSnapshot;
+        const { loPi: o1lo, hiPi: o1hi } = getLoHiOrder(t1id, selWeek, league, hcpSnap);
+        const { loPi: o2lo, hiPi: o2hi } = getLoHiOrder(t2id, selWeek, league, hcpSnap);
 
         // rows: [{label, tIdx, pi, tid, color, rival: {tIdx,pi,tid}}]
         // Grouped by team: T1-Low, T1-High, T2-Low, T2-High
         const rows = [
-          { label: "Low", tIdx: 0, pi: o1.low, tid: t1id, color: G, rivalTIdx: 1, rivalPi: o2.low },
-          { label: "High", tIdx: 0, pi: o1.high, tid: t1id, color: G, rivalTIdx: 1, rivalPi: o2.high },
-          { label: "Low", tIdx: 1, pi: o2.low, tid: t2id, color: GO, rivalTIdx: 0, rivalPi: o1.low },
-          { label: "High", tIdx: 1, pi: o2.high, tid: t2id, color: GO, rivalTIdx: 0, rivalPi: o1.high },
+          { label: "Low",  tIdx: 0, pi: o1lo, tid: t1id, color: G,  rivalTIdx: 1, rivalPi: o2lo },
+          { label: "High", tIdx: 0, pi: o1hi, tid: t1id, color: G,  rivalTIdx: 1, rivalPi: o2hi },
+          { label: "Low",  tIdx: 1, pi: o2lo, tid: t2id, color: GO, rivalTIdx: 0, rivalPi: o1lo },
+          { label: "High", tIdx: 1, pi: o2hi, tid: t2id, color: GO, rivalTIdx: 0, rivalPi: o1hi },
         ];
 
         const getGross = (tIdx, pi, hi) => (tIdx === 0 ? match.t1scores : match.t2scores)[pi]?.[hi] || 0;
