@@ -62,15 +62,28 @@ function buildPlayerStats(tid, pi, league) {
     const hcp = getEffectiveHcp(tid, pi, w, league.results, league.handicaps, league.hcpOverrides || {});
 
     // Individual head-to-head: lo vs lo, hi vs hi
-    // Determine if this player is lo or hi
-    const r0 = getEffectiveHcpRaw(tid, 0, w, league.results, league.handicaps, league.hcpOverrides || {});
-    const r1 = getEffectiveHcpRaw(tid, 1, w, league.results, league.handicaps, league.hcpOverrides || {});
-    const isLo = (r0 <= r1) ? (pi === 0) : (pi === 1);
+    // Mirror calcLeagueStats: check loHiOverrides first, then hcpSnapshot, then effective HCP
+    const snap = rec.hcpSnapshot;
+    const loHiOv = (league.loHiOverrides || {})[`${tid}-${w}`];
+    let isLo;
+    if (loHiOv !== undefined) {
+      isLo = pi === loHiOv;
+    } else {
+      const r0 = snap?.[tid] ? (snap[tid][0] || 0) : getEffectiveHcpRaw(tid, 0, w, league.results, league.handicaps, league.hcpOverrides || {});
+      const r1 = snap?.[tid] ? (snap[tid][1] || 0) : getEffectiveHcpRaw(tid, 1, w, league.results, league.handicaps, league.hcpOverrides || {});
+      isLo = (r0 <= r1) ? (pi === 0) : (pi === 1);
+    }
 
-    // Find rival
-    const oppR0 = getEffectiveHcpRaw(opp, 0, w, league.results, league.handicaps, league.hcpOverrides || {});
-    const oppR1 = getEffectiveHcpRaw(opp, 1, w, league.results, league.handicaps, league.hcpOverrides || {});
-    const rivalPi = isLo ? (oppR0 <= oppR1 ? 0 : 1) : (oppR0 <= oppR1 ? 1 : 0);
+    // Find rival using same logic for opponent
+    const oppLoHiOv = (league.loHiOverrides || {})[`${opp}-${w}`];
+    let rivalPi;
+    if (oppLoHiOv !== undefined) {
+      rivalPi = isLo ? oppLoHiOv : (1 - oppLoHiOv);
+    } else {
+      const oppR0 = snap?.[opp] ? (snap[opp][0] || 0) : getEffectiveHcpRaw(opp, 0, w, league.results, league.handicaps, league.hcpOverrides || {});
+      const oppR1 = snap?.[opp] ? (snap[opp][1] || 0) : getEffectiveHcpRaw(opp, 1, w, league.results, league.handicaps, league.hcpOverrides || {});
+      rivalPi = isLo ? (oppR0 <= oppR1 ? 0 : 1) : (oppR0 <= oppR1 ? 1 : 0);
+    }
     const oppTIdx = opp < tid ? 0 : 1;
     const rivalStab = getPlayerStab(rec, oppTIdx, rivalPi, opp);
 
