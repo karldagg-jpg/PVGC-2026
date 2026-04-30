@@ -5,6 +5,7 @@ import { G, GO, M, CREAM, GOLD, CARD, FB, FD, R } from "../constants/theme";
 import { fmtDate } from "../lib/format";
 import { exportStandings, exportHandicaps, exportScores } from "../lib/exportUtils";
 import { matchKey, getOpponent, buildWeekRecap } from "../lib/leagueLogic";
+import { Tag } from "./ui";
 
 function AccordionSection({ id, open, onToggle, title, icon, badge, hint, danger, children }) {
   const accent = danger ? R : GOLD;
@@ -703,6 +704,57 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
           </div>
         )}
       </AccordionSection>
+
+      {/* ── Leaderboard ─────────────────────────────────────────── */}
+      {teamStandings?.length > 0 && (
+        <AccordionSection
+          id="leaderboard" open={isOpen("leaderboard")} onToggle={toggleSection}
+          title="Leaderboard" icon="🏆"
+          badge={`${teamStandings.length} teams`}
+        >
+          <div style={{ overflowX: "auto", marginTop: "4px" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", minWidth: "520px" }}>
+              <thead>
+                <tr style={{ borderBottom: `1px solid ${GOLD}33` }}>
+                  {["#","Team","W","L","T","Match","Bonus","Total","Played",""].map((h, i) => (
+                    <td key={i} style={{ padding: "7px 8px", color: M, fontSize: "11px", letterSpacing: "0.07em", textTransform: "uppercase", textAlign: i >= 2 ? "center" : "left" }}>{h}</td>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {teamStandings.map((s, idx) => {
+                  const rank = idx + 1;
+                  const inPlayoffs = rank <= 8;
+                  const rc = rank === 1 ? GO : rank <= 3 ? G : inPlayoffs ? CREAM : M;
+                  return (
+                    <tr key={s.id} style={{ borderBottom: `1px solid ${GOLD}11` }}>
+                      <td style={{ padding: "8px", fontWeight: 700, color: rc, fontSize: "12px" }}>{rank}</td>
+                      <td style={{ padding: "8px" }}>
+                        <div style={{ fontSize: "13px", color: inPlayoffs ? CREAM : M }}>{TEAMS[s.id]?.name}</div>
+                        <div style={{ fontSize: "10px", color: M }}>{TEAMS[s.id]?.p1} · {TEAMS[s.id]?.p2}</div>
+                      </td>
+                      <td style={{ padding: "8px", textAlign: "center", color: G, fontWeight: 600 }}>{s.wins}</td>
+                      <td style={{ padding: "8px", textAlign: "center", color: R }}>{s.losses}</td>
+                      <td style={{ padding: "8px", textAlign: "center", color: M }}>{s.ties}</td>
+                      <td style={{ padding: "8px", textAlign: "center", color: "#c0a060" }}>{s.matchPts}</td>
+                      <td style={{ padding: "8px", textAlign: "center", color: G }}>{s.bonusPts}</td>
+                      <td style={{ padding: "8px", textAlign: "center", fontWeight: 700, color: inPlayoffs ? G : M }}>{s.totalPts}</td>
+                      <td style={{ padding: "8px", textAlign: "center", color: M }}>{s.played}</td>
+                      <td style={{ padding: "8px" }}>
+                        {rank <= 8 && s.played > 0 && <Tag color={G}>Playoffs</Tag>}
+                        {(rank === 8 || rank === 9) && <Tag color={GO}>Bubble</Tag>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ fontSize: "11px", color: M, marginTop: "10px" }}>
+            Match pts: Win=2, Tie=1, Loss=0 · Bonus: 1st-2nd=8, 3rd-4th=6, 5th-6th=4, 7th-8th+=2
+          </div>
+        </AccordionSection>
+      )}
 
       {/* ── Weekly Points Table ─────────────────────────────────── */}
       {weeklyTeamPts && (() => {
