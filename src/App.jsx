@@ -650,7 +650,7 @@ const [seasonYear] = useState(SEASON_YEAR);
       })()}
 
       {screen==="standings"&&(
-        <WeeklyScreen weeklyTeamPts={weeklyTeamPts} />
+        <StandingsScreen teamStandings={teamStandings} weeklyTeamPts={weeklyTeamPts} />
       )}
 
       {screen==="masters"&&(
@@ -658,7 +658,7 @@ const [seasonYear] = useState(SEASON_YEAR);
       )}
 
       {screen==="weekly"&&(
-        <StandingsScreen teamStandings={teamStandings} />
+        <WeeklyScreen weeklyTeamPts={weeklyTeamPts} />
       )}
 
       {screen==="poty"&&(
