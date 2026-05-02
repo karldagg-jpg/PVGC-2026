@@ -535,17 +535,17 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
         const matchResults = [
           {
             label: "Low vs Low",
-            t1name: TEAMS[t1id]?.[o1.low === 0 ? "p1" : "p2"],
-            t2name: TEAMS[t2id]?.[o2.low === 0 ? "p1" : "p2"],
-            t1pts: getRunTotal(0, o1.low, t1id),
-            t2pts: getRunTotal(1, o2.low, t2id)
+            t1name: TEAMS[t1id]?.[o1lo === 0 ? "p1" : "p2"],
+            t2name: TEAMS[t2id]?.[o2lo === 0 ? "p1" : "p2"],
+            t1pts: getRunTotal(0, o1lo, t1id),
+            t2pts: getRunTotal(1, o2lo, t2id)
           },
           {
             label: "High vs High",
-            t1name: TEAMS[t1id]?.[o1.high === 0 ? "p1" : "p2"],
-            t2name: TEAMS[t2id]?.[o2.high === 0 ? "p1" : "p2"],
-            t1pts: getRunTotal(0, o1.high, t1id),
-            t2pts: getRunTotal(1, o2.high, t2id)
+            t1name: TEAMS[t1id]?.[o1hi === 0 ? "p1" : "p2"],
+            t2name: TEAMS[t2id]?.[o2hi === 0 ? "p1" : "p2"],
+            t1pts: getRunTotal(0, o1hi, t1id),
+            t2pts: getRunTotal(1, o2hi, t2id)
           },
         ];
 
