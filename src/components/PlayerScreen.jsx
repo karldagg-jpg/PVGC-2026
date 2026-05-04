@@ -5,19 +5,25 @@ import { G, GO, R, M, CREAM, GOLD, CARD, CARD2, FB, FD } from "../constants/them
 
 const REGULAR_WEEKS = Array.from({ length: 17 }, (_, i) => i + 1);
 const ALL_SEASON_WEEKS = Array.from({ length: 18 }, (_, i) => i + 1); // includes knockdown (W18)
-const SEASON_ROUNDS = 18;
-const MIN_ELIGIBLE_ROUNDS = Math.ceil(SEASON_ROUNDS * (2 / 3)); // 12
 
-// Returns { played, weeksLeft, eligible, atRisk }
+// Returns { played, missed, weeksLeft, minEligible, totalEligible, status }
+// status: "eligible" | "onPace" | "atRisk" | "ineligible"
+// Denominator shrinks for cancelled/rainout weeks.
 function getEligibility(tid, pi, league) {
-  // Count how many of the 18 weeks have ANY league results (so we know weeks remaining)
-  const weeksWithData = ALL_SEASON_WEEKS.filter(w =>
+  const cancelled = league.cancelledWeeks || new Set();
+
+  // Eligible weeks = season weeks that were not cancelled
+  const eligibleWeeks = ALL_SEASON_WEEKS.filter(w => !cancelled.has(w));
+  const minEligible = Math.ceil(eligibleWeeks.length * (2 / 3));
+
+  // Weeks the league has actually played so far (has data, not cancelled)
+  const weeksWithData = eligibleWeeks.filter(w =>
     league.results[w] && Object.keys(league.results[w]).length > 0
   ).length;
-  const weeksLeft = SEASON_ROUNDS - weeksWithData;
+  const weeksLeft = eligibleWeeks.length - weeksWithData;
 
   let played = 0;
-  for (const w of ALL_SEASON_WEEKS) {
+  for (const w of eligibleWeeks) {
     const opp = getOpponent(tid, w);
     if (!opp) continue;
     const mk = matchKey(w, Math.min(tid, opp), Math.max(tid, opp));
@@ -30,9 +36,16 @@ function getEligibility(tid, pi, league) {
     played++;
   }
 
-  const eligible = played >= MIN_ELIGIBLE_ROUNDS;
-  const atRisk = !eligible && (played + weeksLeft >= MIN_ELIGIBLE_ROUNDS);
-  return { played, weeksLeft, eligible, atRisk };
+  const missed = weeksWithData - played; // available weeks they didn't play
+  const canQualify = played + weeksLeft >= minEligible;
+
+  let status;
+  if (played >= minEligible)   status = "eligible";
+  else if (!canQualify)         status = "ineligible";
+  else if (missed === 0)        status = "onPace";
+  else                          status = "atRisk";
+
+  return { played, missed, weeksLeft, weeksWithData, minEligible, totalEligible: eligibleWeeks.length, status };
 }
 
 // Normalize scores whether stored as array-of-arrays or {p0,p1} object
@@ -201,9 +214,9 @@ function PlayerCard({ tid, pi, league, onClick }) {
     if (getPlayerGross(rec, tIdx, pi) === 0) continue;
     totalStab += getPlayerStab(rec, tIdx, pi, tid);
   }
-  const { played, eligible, atRisk } = getEligibility(tid, pi, league);
-  const eligColor = eligible ? G : atRisk ? GO : R;
-  const eligLabel = eligible ? "Eligible" : atRisk ? "At Risk" : "Ineligible";
+  const { played, status, minEligible, totalEligible } = getEligibility(tid, pi, league);
+  const eligColor = status === "eligible" ? G : status === "onPace" ? G : status === "atRisk" ? GO : R;
+  const eligLabel = { eligible: "✓ Eligible", onPace: "On Pace", atRisk: "At Risk", ineligible: "✗ Ineligible" }[status];
 
   return (
     <div onClick={onClick}
@@ -244,7 +257,7 @@ function PlayerCard({ tid, pi, league, onClick }) {
         </div>
         <div style={{ textAlign: "center", flex: 1 }}>
           <div style={{ fontSize: "10px", color: M, letterSpacing: "0.06em", textTransform: "uppercase" }}>Rounds</div>
-          <div style={{ fontSize: "16px", fontWeight: 700, color: CREAM }}>{played}<span style={{ fontSize: "11px", color: M, fontWeight: 400 }}>/18</span></div>
+          <div style={{ fontSize: "16px", fontWeight: 700, color: CREAM }}>{played}<span style={{ fontSize: "11px", color: M, fontWeight: 400 }}>/{totalEligible}</span></div>
         </div>
         <div style={{ textAlign: "center", flex: 1 }}>
           <div style={{ fontSize: "10px", color: G, letterSpacing: "0.06em", textTransform: "uppercase" }}>Stab</div>
@@ -306,10 +319,17 @@ function PlayerProfile({ tid, pi, league, onBack }) {
 
       {/* Playoff eligibility */}
       {(() => {
-        const { played, weeksLeft, eligible, atRisk } = getEligibility(tid, pi, league);
-        const needed = Math.max(0, MIN_ELIGIBLE_ROUNDS - played);
-        const eligColor = eligible ? G : atRisk ? GO : R;
-        const pct = Math.min(played / MIN_ELIGIBLE_ROUNDS, 1);
+        const { played, missed, weeksLeft, minEligible, totalEligible, status } = getEligibility(tid, pi, league);
+        const needed = Math.max(0, minEligible - played);
+        const eligColor = status === "eligible" ? G : status === "onPace" ? G : status === "atRisk" ? GO : R;
+        const statusLabel = { eligible: "✓ Eligible", onPace: "On Pace", atRisk: "At Risk", ineligible: "✗ Ineligible" }[status];
+        const statusNote = {
+          eligible: "Playoff eligibility confirmed",
+          onPace:   `Playing every week — need ${needed} more to lock in`,
+          atRisk:   `${missed} missed · need ${needed} of ${weeksLeft} remaining`,
+          ineligible: "Cannot reach the required rounds",
+        }[status];
+        const pct = Math.min(played / minEligible, 1);
         return (
           <div style={{ background: CARD2, border: `1px solid ${eligColor}33`, borderRadius: "12px", padding: "14px 16px", marginBottom: "14px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
@@ -319,26 +339,27 @@ function PlayerProfile({ tid, pi, league, onBack }) {
               <span style={{
                 fontSize: "11px", fontWeight: 700, padding: "2px 8px", borderRadius: "5px",
                 background: eligColor + "20", color: eligColor, border: `1px solid ${eligColor}44`,
-              }}>
-                {eligible ? "✓ Eligible" : atRisk ? "⚠ At Risk" : "✗ Ineligible"}
-              </span>
+              }}>{statusLabel}</span>
             </div>
-            <div style={{ display: "flex", gap: "20px", marginBottom: "10px" }}>
+            <div style={{ display: "flex", gap: "20px", marginBottom: "8px" }}>
               <div>
-                <div style={{ fontSize: "22px", fontWeight: 700, color: eligColor }}>{played}<span style={{ fontSize: "13px", color: M, fontWeight: 400 }}> / {SEASON_ROUNDS}</span></div>
+                <div style={{ fontSize: "22px", fontWeight: 700, color: eligColor }}>
+                  {played}<span style={{ fontSize: "13px", color: M, fontWeight: 400 }}> / {totalEligible}</span>
+                </div>
                 <div style={{ fontSize: "11px", color: M }}>rounds played</div>
               </div>
               <div>
-                <div style={{ fontSize: "22px", fontWeight: 700, color: CREAM }}>{MIN_ELIGIBLE_ROUNDS}</div>
+                <div style={{ fontSize: "22px", fontWeight: 700, color: CREAM }}>{minEligible}</div>
                 <div style={{ fontSize: "11px", color: M }}>required (66%)</div>
               </div>
-              {!eligible && (
+              {status !== "eligible" && (
                 <div>
-                  <div style={{ fontSize: "22px", fontWeight: 700, color: atRisk ? GO : R }}>{needed}</div>
-                  <div style={{ fontSize: "11px", color: M }}>{atRisk ? `needed (${weeksLeft} left)` : "can't reach"}</div>
+                  <div style={{ fontSize: "22px", fontWeight: 700, color: eligColor }}>{needed}</div>
+                  <div style={{ fontSize: "11px", color: M }}>still needed</div>
                 </div>
               )}
             </div>
+            <div style={{ fontSize: "11px", color: M, marginBottom: "8px" }}>{statusNote}</div>
             <div style={{ height: "6px", borderRadius: "3px", background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
               <div style={{ height: "100%", borderRadius: "3px", background: eligColor, width: `${pct * 100}%`, transition: "width 0.3s" }} />
             </div>
