@@ -4,6 +4,36 @@ import { getEffectiveHcp, getEffectiveHcpRaw, getOpponent, matchKey, stabPts, hc
 import { G, GO, R, M, CREAM, GOLD, CARD, CARD2, FB, FD } from "../constants/theme";
 
 const REGULAR_WEEKS = Array.from({ length: 17 }, (_, i) => i + 1);
+const ALL_SEASON_WEEKS = Array.from({ length: 18 }, (_, i) => i + 1); // includes knockdown (W18)
+const SEASON_ROUNDS = 18;
+const MIN_ELIGIBLE_ROUNDS = Math.ceil(SEASON_ROUNDS * (2 / 3)); // 12
+
+// Returns { played, weeksLeft, eligible, atRisk }
+function getEligibility(tid, pi, league) {
+  // Count how many of the 18 weeks have ANY league results (so we know weeks remaining)
+  const weeksWithData = ALL_SEASON_WEEKS.filter(w =>
+    league.results[w] && Object.keys(league.results[w]).length > 0
+  ).length;
+  const weeksLeft = SEASON_ROUNDS - weeksWithData;
+
+  let played = 0;
+  for (const w of ALL_SEASON_WEEKS) {
+    const opp = getOpponent(tid, w);
+    if (!opp) continue;
+    const mk = matchKey(w, Math.min(tid, opp), Math.max(tid, opp));
+    const rec = league.results[w]?.[mk];
+    if (!rec) continue;
+    const tIdx = tid < opp ? 0 : 1;
+    const types = (tIdx === 0 ? rec.t1types : rec.t2types) || [];
+    if ((types[pi] || "normal") !== "normal") continue;
+    if (getPlayerGross(rec, tIdx, pi) === 0) continue;
+    played++;
+  }
+
+  const eligible = played >= MIN_ELIGIBLE_ROUNDS;
+  const atRisk = !eligible && (played + weeksLeft >= MIN_ELIGIBLE_ROUNDS);
+  return { played, weeksLeft, eligible, atRisk };
+}
 
 // Normalize scores whether stored as array-of-arrays or {p0,p1} object
 function normScores(s) {
@@ -158,9 +188,6 @@ function PlayerCard({ tid, pi, league, onClick }) {
   const team = TEAMS[tid];
   const name = pi === 0 ? team?.p1 : team?.p2;
   const hcp = getEffectiveHcp(tid, pi, 18, league.results, league.handicaps, league.hcpOverrides || {});
-  const opp = getOpponent(tid, 1);
-  // Count played rounds quickly
-  let played = 0;
   let totalStab = 0;
   for (const w of REGULAR_WEEKS) {
     const o = getOpponent(tid, w);
@@ -171,11 +198,12 @@ function PlayerCard({ tid, pi, league, onClick }) {
     const tIdx = tid < o ? 0 : 1;
     const types = (tIdx === 0 ? rec.t1types : rec.t2types) || [];
     if ((types[pi] || "normal") !== "normal") continue;
-    const gross = getPlayerGross(rec, tIdx, pi);
-    if (gross === 0) continue;
-    played++;
+    if (getPlayerGross(rec, tIdx, pi) === 0) continue;
     totalStab += getPlayerStab(rec, tIdx, pi, tid);
   }
+  const { played, eligible, atRisk } = getEligibility(tid, pi, league);
+  const eligColor = eligible ? G : atRisk ? GO : R;
+  const eligLabel = eligible ? "Eligible" : atRisk ? "At Risk" : "Ineligible";
 
   return (
     <div onClick={onClick}
@@ -195,7 +223,7 @@ function PlayerCard({ tid, pi, league, onClick }) {
         }}>
           {name?.charAt(0)}
         </div>
-        <div style={{ minWidth: 0 }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ fontSize: "14px", fontWeight: 700, color: CREAM, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {name}
           </div>
@@ -203,6 +231,11 @@ function PlayerCard({ tid, pi, league, onClick }) {
             {team?.name}
           </div>
         </div>
+        <span style={{
+          fontSize: "10px", fontWeight: 700, padding: "2px 7px", borderRadius: "5px",
+          background: eligColor + "20", color: eligColor, border: `1px solid ${eligColor}44`,
+          flexShrink: 0,
+        }}>{eligLabel}</span>
       </div>
       <div style={{ display: "flex", gap: "10px" }}>
         <div style={{ textAlign: "center", flex: 1 }}>
@@ -211,7 +244,7 @@ function PlayerCard({ tid, pi, league, onClick }) {
         </div>
         <div style={{ textAlign: "center", flex: 1 }}>
           <div style={{ fontSize: "10px", color: M, letterSpacing: "0.06em", textTransform: "uppercase" }}>Rounds</div>
-          <div style={{ fontSize: "16px", fontWeight: 700, color: CREAM }}>{played}</div>
+          <div style={{ fontSize: "16px", fontWeight: 700, color: CREAM }}>{played}<span style={{ fontSize: "11px", color: M, fontWeight: 400 }}>/18</span></div>
         </div>
         <div style={{ textAlign: "center", flex: 1 }}>
           <div style={{ fontSize: "10px", color: G, letterSpacing: "0.06em", textTransform: "uppercase" }}>Stab</div>
@@ -270,6 +303,48 @@ function PlayerProfile({ tid, pi, league, onBack }) {
           ))}
         </div>
       </div>
+
+      {/* Playoff eligibility */}
+      {(() => {
+        const { played, weeksLeft, eligible, atRisk } = getEligibility(tid, pi, league);
+        const needed = Math.max(0, MIN_ELIGIBLE_ROUNDS - played);
+        const eligColor = eligible ? G : atRisk ? GO : R;
+        const pct = Math.min(played / MIN_ELIGIBLE_ROUNDS, 1);
+        return (
+          <div style={{ background: CARD2, border: `1px solid ${eligColor}33`, borderRadius: "12px", padding: "14px 16px", marginBottom: "14px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+              <div style={{ fontSize: "11px", color: M, letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 600 }}>
+                Playoff Eligibility
+              </div>
+              <span style={{
+                fontSize: "11px", fontWeight: 700, padding: "2px 8px", borderRadius: "5px",
+                background: eligColor + "20", color: eligColor, border: `1px solid ${eligColor}44`,
+              }}>
+                {eligible ? "✓ Eligible" : atRisk ? "⚠ At Risk" : "✗ Ineligible"}
+              </span>
+            </div>
+            <div style={{ display: "flex", gap: "20px", marginBottom: "10px" }}>
+              <div>
+                <div style={{ fontSize: "22px", fontWeight: 700, color: eligColor }}>{played}<span style={{ fontSize: "13px", color: M, fontWeight: 400 }}> / {SEASON_ROUNDS}</span></div>
+                <div style={{ fontSize: "11px", color: M }}>rounds played</div>
+              </div>
+              <div>
+                <div style={{ fontSize: "22px", fontWeight: 700, color: CREAM }}>{MIN_ELIGIBLE_ROUNDS}</div>
+                <div style={{ fontSize: "11px", color: M }}>required (66%)</div>
+              </div>
+              {!eligible && (
+                <div>
+                  <div style={{ fontSize: "22px", fontWeight: 700, color: atRisk ? GO : R }}>{needed}</div>
+                  <div style={{ fontSize: "11px", color: M }}>{atRisk ? `needed (${weeksLeft} left)` : "can't reach"}</div>
+                </div>
+              )}
+            </div>
+            <div style={{ height: "6px", borderRadius: "3px", background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+              <div style={{ height: "100%", borderRadius: "3px", background: eligColor, width: `${pct * 100}%`, transition: "width 0.3s" }} />
+            </div>
+          </div>
+        );
+      })()}
 
       {/* W/L record + HCP sparkline */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "14px" }}>
