@@ -12,7 +12,7 @@ const TEAMS = {
   6:  {name:"Glascott - Adler",       p1:"Scott Glascott",  p2:"Mark Adler"},
   7:  {name:"Harvey - Rowles",        p1:"John Harvey",     p2:"Jeff Rowles"},
   8:  {name:"Saenz - Huston",         p1:"Bob Saenz",       p2:"Dennis Huston"},
-  9:  {name:"Fahey - Wzorek",         p1:"Chris Fahey",     p2:"Berry Wzorek"},
+  9:  {name:"Fahey - Wzorek",         p1:"Chris Fahey",     p2:"Barry Wzorek"},
   10: {name:"Mulvey - Nelson",        p1:"Tom Mulvey",      p2:"Chris Nelson"},
   11: {name:"West - Herman",          p1:"Jack West",       p2:"Ron Herman"},
   12: {name:"Lorenz - Huckestein",    p1:"Gabe Lorenz",     p2:"Jake Huckestein"},
