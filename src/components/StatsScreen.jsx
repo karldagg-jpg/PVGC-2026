@@ -61,8 +61,9 @@ function computeStats(results, handicaps, filterTid, filterPi) {
     }
   }
 
-  return holes.map(h => ({
+  return holes.map((h, hi) => ({
     ...h,
+    hi,
     avgGross: h.n ? Math.round(h.grossSum / h.n * 10) / 10 : null,
     avgPts:   h.n ? Math.round(h.ptsSum   / h.n * 10) / 10 : null,
   }));
