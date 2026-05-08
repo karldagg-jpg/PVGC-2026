@@ -15,8 +15,9 @@ function normS(s) {
 }
 
 // Build per-player per-hole scoring distributions from all historical results.
+// Only includes weeks *before* the target week so we don't leak current-week data.
 // Returns { "tid-pi": Array(9) of {eagle,birdie,par,bogey,double,triple,n} }
-function buildPlayerHoleDists(results, handicaps) {
+function buildPlayerHoleDists(results, handicaps, beforeWeek = 99) {
   const dists = {};
   for (let tid = 1; tid <= 18; tid++) {
     for (let pi = 0; pi < 2; pi++) {
@@ -26,7 +27,8 @@ function buildPlayerHoleDists(results, handicaps) {
     }
   }
 
-  for (const weekRecs of Object.values(results || {})) {
+  for (const [wStr, weekRecs] of Object.entries(results || {})) {
+    if (parseInt(wStr) >= beforeWeek) continue;
     for (const [mk, rec] of Object.entries(weekRecs || {})) {
       if (!rec) continue;
       const parts = mk.split("-");
@@ -69,7 +71,7 @@ function sampleGross(holeDist, par) {
   const cats   = ["eagle", "birdie", "par", "bogey", "double", "triple"];
   const deltas = [-2, -1, 0, 1, 2, 3];
   const total  = cats.reduce((s, c) => s + holeDist[c], 0);
-  if (total === 0) return par + 1; // no data: bogey fallback
+  if (total === 0) return par + 1;
   const r = Math.random() * total;
   let cum = 0;
   for (let i = 0; i < cats.length; i++) {
@@ -79,52 +81,100 @@ function sampleGross(holeDist, par) {
   return par + 3;
 }
 
-// Run Monte Carlo simulation for one matchup.
-// Returns win%, tie%, expected pts, and per-individual-pairing breakdown.
-function simulateMatchup(tidA, tidB, playerDists, handicaps) {
+// Monte Carlo simulation for one matchup.
+// matchRec: optional — if provided, uses actual scores for completed holes and
+//           respects sub/phantom types. Simulates only the remaining holes.
+function simulateMatchup(tidA, tidB, playerDists, handicaps, matchRec) {
   const hcpA = handicaps[tidA] || DEFAULT_HCP[tidA] || [0, 0];
   const hcpB = handicaps[tidB] || DEFAULT_HCP[tidB] || [0, 0];
 
-  // lo = lower handicap player
+  // Lo = lower handicap player index for each team
   const piA_lo = hcpA[0] <= hcpA[1] ? 0 : 1;
-  const piA_hi = 1 - piA_lo;
   const piB_lo = hcpB[0] <= hcpB[1] ? 0 : 1;
-  const piB_hi = 1 - piB_lo;
-
   const pairings = [
-    { piA: piA_lo, piB: piB_lo },
-    { piA: piA_hi, piB: piB_hi },
+    { piA: piA_lo,       piB: piB_lo,       label: "Lo" },
+    { piA: 1 - piA_lo,  piB: 1 - piB_lo,  label: "Hi" },
   ];
+
+  // Sub/phantom: fixed pts, skip simulation for that player
+  const typesA = matchRec?.t1types || [];
+  const typesB = matchRec?.t2types || [];
+  const fixedA = [0, 1].map(pi => {
+    const t = typesA[pi] || "normal";
+    return t === "sub" ? 6 : t === "phantom" ? 2 : null;
+  });
+  const fixedB = [0, 1].map(pi => {
+    const t = typesB[pi] || "normal";
+    return t === "sub" ? 6 : t === "phantom" ? 2 : null;
+  });
+
+  // Compute pts already locked in from actual scores (per player)
+  const scoresA = matchRec ? normS(matchRec.t1scores) : [[], []];
+  const scoresB = matchRec ? normS(matchRec.t2scores) : [[], []];
+
+  const earnedA = [0, 1].map(pi => {
+    if (fixedA[pi] !== null) return fixedA[pi];
+    let pts = 0;
+    const gr = scoresA[pi] || [];
+    for (let hi = 0; hi < 9; hi++) {
+      const g = gr[hi] || 0;
+      if (!g) continue;
+      pts += stabPts(g, PAR[hi], hcpStr(hcpA[pi] || 0, SI[hi])) || 0;
+    }
+    return pts;
+  });
+  const earnedB = [0, 1].map(pi => {
+    if (fixedB[pi] !== null) return fixedB[pi];
+    let pts = 0;
+    const gr = scoresB[pi] || [];
+    for (let hi = 0; hi < 9; hi++) {
+      const g = gr[hi] || 0;
+      if (!g) continue;
+      pts += stabPts(g, PAR[hi], hcpStr(hcpB[pi] || 0, SI[hi])) || 0;
+    }
+    return pts;
+  });
+
+  // Holes that still need simulating: any hole where a normal player has no score
+  const holesLeft = [];
+  for (let hi = 0; hi < 9; hi++) {
+    const aDone = [0, 1].every(pi => fixedA[pi] !== null || (scoresA[pi]?.[hi] || 0) > 0);
+    const bDone = [0, 1].every(pi => fixedB[pi] !== null || (scoresB[pi]?.[hi] || 0) > 0);
+    if (!aDone || !bDone) holesLeft.push(hi);
+  }
+
+  const holesPlayed = 9 - holesLeft.length;
+  const isLive = matchRec != null && holesPlayed > 0 && holesLeft.length > 0;
+  const isComplete = matchRec != null && holesLeft.length === 0;
 
   let aWins = 0, bWins = 0, ties = 0;
   let aTotalPts = 0, bTotalPts = 0;
-  const pWins  = [0, 0];
-  const pLoss  = [0, 0];
-  const pTies  = [0, 0];
+  const pWins = [0, 0], pLoss = [0, 0], pTies = [0, 0];
 
   for (let sim = 0; sim < N_SIMS; sim++) {
-    let teamA = 0, teamB = 0;
-    const pp = [[0, 0], [0, 0]]; // pp[team][pi]
+    const ppA = [...earnedA];
+    const ppB = [...earnedB];
 
-    for (let hi = 0; hi < 9; hi++) {
+    for (const hi of holesLeft) {
       for (let piA = 0; piA < 2; piA++) {
-        const g   = sampleGross(playerDists[`${tidA}-${piA}`][hi], PAR[hi]);
-        const pts = stabPts(g, PAR[hi], hcpStr(hcpA[piA] || 0, SI[hi])) || 0;
-        pp[0][piA] += pts;
-        teamA += pts;
+        if (fixedA[piA] !== null) continue;
+        const g = sampleGross(playerDists[`${tidA}-${piA}`][hi], PAR[hi]);
+        ppA[piA] += stabPts(g, PAR[hi], hcpStr(hcpA[piA] || 0, SI[hi])) || 0;
       }
       for (let piB = 0; piB < 2; piB++) {
-        const g   = sampleGross(playerDists[`${tidB}-${piB}`][hi], PAR[hi]);
-        const pts = stabPts(g, PAR[hi], hcpStr(hcpB[piB] || 0, SI[hi])) || 0;
-        pp[1][piB] += pts;
-        teamB += pts;
+        if (fixedB[piB] !== null) continue;
+        const g = sampleGross(playerDists[`${tidB}-${piB}`][hi], PAR[hi]);
+        ppB[piB] += stabPts(g, PAR[hi], hcpStr(hcpB[piB] || 0, SI[hi])) || 0;
       }
     }
 
+    const teamA = ppA[0] + ppA[1];
+    const teamB = ppB[0] + ppB[1];
+
     let mA = 0, mB = 0;
     for (let p = 0; p < 2; p++) {
-      const pA = pp[0][pairings[p].piA];
-      const pB = pp[1][pairings[p].piB];
+      const pA = ppA[pairings[p].piA];
+      const pB = ppB[pairings[p].piB];
       if (pA > pB)      { mA += 2; pWins[p]++; }
       else if (pB > pA) { mB += 2; pLoss[p]++; }
       else              { mA++; mB++; pTies[p]++; }
@@ -141,30 +191,36 @@ function simulateMatchup(tidA, tidB, playerDists, handicaps) {
   }
 
   return {
-    aWinPct:  aWins  / N_SIMS,
-    bWinPct:  bWins  / N_SIMS,
-    tiePct:   ties   / N_SIMS,
-    aAvgPts:  aTotalPts / N_SIMS,
-    bAvgPts:  bTotalPts / N_SIMS,
+    aWinPct:     aWins  / N_SIMS,
+    bWinPct:     bWins  / N_SIMS,
+    tiePct:      ties   / N_SIMS,
+    aAvgPts:     aTotalPts / N_SIMS,
+    bAvgPts:     bTotalPts / N_SIMS,
+    holesPlayed,
+    holesLeft:   holesLeft.length,
+    isLive,
+    isComplete,
+    currentPtsA: earnedA[0] + earnedA[1],
+    currentPtsB: earnedB[0] + earnedB[1],
+    piA_lo,
+    piB_lo,
     pairings: pairings.map((p, i) => ({
-      piA: p.piA, piB: p.piB,
-      label: i === 0 ? "Lo" : "Hi",
-      aWinPct: pWins[i] / N_SIMS,
-      bWinPct: pLoss[i] / N_SIMS,
-      tiePct:  pTies[i] / N_SIMS,
+      ...p,
+      aWinPct: pWins[i]  / N_SIMS,
+      bWinPct: pLoss[i]  / N_SIMS,
+      tiePct:  pTies[i]  / N_SIMS,
     })),
   };
 }
 
-// Returns max rounds played (proxy for data confidence) for a player
 function playerRounds(dists, tid, pi) {
   const holes = dists[`${tid}-${pi}`] || [];
   return Math.max(...holes.map(h => h.n), 0);
 }
 
 function ProbBar({ aWin, tie, bWin, small }) {
-  const h = small ? "14px" : "24px";
-  const fs = small ? "9px" : "11px";
+  const h  = small ? "14px" : "24px";
+  const fs = small ? "9px"  : "11px";
   return (
     <div style={{ display: "flex", height: h, borderRadius: "5px", overflow: "hidden", width: "100%" }}>
       {[
@@ -172,10 +228,7 @@ function ProbBar({ aWin, tie, bWin, small }) {
         { val: tie,  color: COLOR_TIE },
         { val: bWin, color: COLOR_B },
       ].map(({ val, color }, i) => val > 0 && (
-        <div key={i} style={{
-          width: `${val * 100}%`, background: color,
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
+        <div key={i} style={{ width: `${val * 100}%`, background: color, display: "flex", alignItems: "center", justifyContent: "center" }}>
           {val >= 0.08 && (
             <span style={{ fontSize: fs, color: "rgba(255,255,255,0.9)", fontWeight: 700 }}>
               {Math.round(val * 100)}%
@@ -189,17 +242,39 @@ function ProbBar({ aWin, tie, bWin, small }) {
 
 function ConfidenceDot({ rounds }) {
   const color = rounds >= 4 ? G : rounds >= 2 ? GO : R;
-  const title = rounds === 0 ? "No data" : `${rounds} rounds`;
   return (
-    <span title={title} style={{
+    <span title={rounds === 0 ? "No data" : `${rounds} rounds`} style={{
       display: "inline-block", width: "7px", height: "7px",
       borderRadius: "50%", background: color, marginLeft: "4px", verticalAlign: "middle",
     }} />
   );
 }
 
+function LiveTag({ holesPlayed, holesLeft }) {
+  return (
+    <span style={{
+      fontSize: "9px", fontWeight: 700, letterSpacing: "0.08em",
+      padding: "2px 7px", borderRadius: "6px",
+      background: G + "33", color: G, border: `1px solid ${G}55`,
+    }}>
+      LIVE · H{holesPlayed} played · {holesLeft} left
+    </span>
+  );
+}
+
+function CompleteTag() {
+  return (
+    <span style={{
+      fontSize: "9px", fontWeight: 700, letterSpacing: "0.08em",
+      padding: "2px 7px", borderRadius: "6px",
+      background: GOLD + "22", color: GOLD, border: `1px solid ${GOLD}44`,
+    }}>
+      FINAL
+    </span>
+  );
+}
+
 export default function PredictScreen({ league }) {
-  // Default to the first unscored future week
   const defaultWeek = useMemo(() => {
     for (let w = 1; w <= 17; w++) {
       const pairs = SCHEDULE[w]?.pairs || [];
@@ -214,22 +289,24 @@ export default function PredictScreen({ league }) {
   const [week, setWeek] = useState(defaultWeek);
 
   const playerDists = useMemo(
-    () => buildPlayerHoleDists(league.results, league.handicaps),
-    [league.results, league.handicaps]
+    () => buildPlayerHoleDists(league.results, league.handicaps, week),
+    [league.results, league.handicaps, week]
   );
 
   const simResults = useMemo(() => {
     const pairs = SCHEDULE[week]?.pairs || [];
-    return pairs.map(([ta, tb]) => ({
-      ta, tb,
-      ...simulateMatchup(ta, tb, playerDists, league.handicaps),
-    }));
-  }, [week, playerDists, league.handicaps]);
+    return pairs.map(([ta, tb]) => {
+      const mk = `${week}-${Math.min(ta, tb)}-${Math.max(ta, tb)}`;
+      const matchRec = league.results[week]?.[mk] || null;
+      return { ta, tb, ...simulateMatchup(ta, tb, playerDists, league.handicaps, matchRec) };
+    });
+  }, [week, playerDists, league.handicaps, league.results]);
 
-  const pairs = SCHEDULE[week]?.pairs || [];
   const weekDate = SCHEDULE[week]?.date
     ? new Date(SCHEDULE[week].date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })
     : "";
+
+  const anyLive = simResults.some(r => r.isLive || r.isComplete);
 
   return (
     <div style={{ maxWidth: "820px", margin: "0 auto", padding: "22px 14px" }}>
@@ -237,41 +314,34 @@ export default function PredictScreen({ league }) {
         Match Predictor
       </div>
       <div style={{ color: M, fontSize: "13px", marginBottom: "18px" }}>
-        Monte Carlo simulation · {N_SIMS.toLocaleString()} runs per matchup · based on per-player hole-by-hole history
+        Monte Carlo · {N_SIMS.toLocaleString()} runs per matchup
+        {anyLive ? " · live mode: simulating remaining holes only" : " · based on per-player hole history"}
       </div>
 
       {/* Week selector */}
       <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "22px" }}>
-        <button
-          onClick={() => setWeek(w => Math.max(1, w - 1))}
-          disabled={week <= 1}
-          style={{ padding: "6px 12px", borderRadius: "8px", border: `1px solid ${GOLD}44`, background: CARD2, color: week <= 1 ? M : CREAM, cursor: week <= 1 ? "default" : "pointer", fontFamily: FB }}
-        >◀</button>
+        <button onClick={() => setWeek(w => Math.max(1, w - 1))} disabled={week <= 1}
+          style={{ padding: "6px 12px", borderRadius: "8px", border: `1px solid ${GOLD}44`, background: CARD2, color: week <= 1 ? M : CREAM, cursor: week <= 1 ? "default" : "pointer", fontFamily: FB }}>◀</button>
         <div style={{ textAlign: "center", minWidth: "140px" }}>
           <div style={{ fontSize: "18px", fontWeight: 700, color: CREAM }}>Week {week}</div>
           {weekDate && <div style={{ fontSize: "12px", color: M }}>{weekDate}</div>}
         </div>
-        <button
-          onClick={() => setWeek(w => Math.min(17, w + 1))}
-          disabled={week >= 17}
-          style={{ padding: "6px 12px", borderRadius: "8px", border: `1px solid ${GOLD}44`, background: CARD2, color: week >= 17 ? M : CREAM, cursor: week >= 17 ? "default" : "pointer", fontFamily: FB }}
-        >▶</button>
+        <button onClick={() => setWeek(w => Math.min(17, w + 1))} disabled={week >= 17}
+          style={{ padding: "6px 12px", borderRadius: "8px", border: `1px solid ${GOLD}44`, background: CARD2, color: week >= 17 ? M : CREAM, cursor: week >= 17 ? "default" : "pointer", fontFamily: FB }}>▶</button>
       </div>
 
       {/* Legend */}
-      <div style={{ display: "flex", gap: "14px", marginBottom: "14px", alignItems: "center" }}>
-        {[
-          { color: COLOR_A, label: "Home team win" },
-          { color: COLOR_TIE, label: "Tie" },
-          { color: COLOR_B, label: "Away team win" },
-        ].map(({ color, label }) => (
+      <div style={{ display: "flex", gap: "14px", marginBottom: "14px", alignItems: "center", flexWrap: "wrap" }}>
+        {[{ color: COLOR_A, label: "Home win" }, { color: COLOR_TIE, label: "Tie" }, { color: COLOR_B, label: "Away win" }]
+          .map(({ color, label }) => (
           <div key={label} style={{ display: "flex", alignItems: "center", gap: "5px" }}>
             <div style={{ width: "10px", height: "10px", borderRadius: "2px", background: color }} />
             <span style={{ fontSize: "11px", color: M }}>{label}</span>
           </div>
         ))}
         <div style={{ marginLeft: "auto", display: "flex", gap: "10px" }}>
-          {[{ color: G, label: "4+ rds" }, { color: GO, label: "2-3 rds" }, { color: R, label: "<2 rds" }].map(({ color, label }) => (
+          {[{ color: G, label: "4+ rds" }, { color: GO, label: "2-3 rds" }, { color: R, label: "<2 rds" }]
+            .map(({ color, label }) => (
             <div key={label} style={{ display: "flex", alignItems: "center", gap: "4px" }}>
               <div style={{ width: "7px", height: "7px", borderRadius: "50%", background: color }} />
               <span style={{ fontSize: "10px", color: M }}>{label}</span>
@@ -282,73 +352,104 @@ export default function PredictScreen({ league }) {
 
       {/* Matchup cards */}
       <div style={{ display: "grid", gap: "10px" }}>
-        {simResults.map(({ ta, tb, aWinPct, bWinPct, tiePct, aAvgPts, bAvgPts, pairings: indiv }) => {
+        {simResults.map(({
+          ta, tb, aWinPct, bWinPct, tiePct, aAvgPts, bAvgPts,
+          holesPlayed, holesLeft, isLive, isComplete,
+          currentPtsA, currentPtsB, piA_lo, piB_lo, pairings: indiv,
+        }) => {
           const teamA = TEAMS[ta], teamB = TEAMS[tb];
-          const hcpA = league.handicaps[ta] || [0, 0];
-          const hcpB = league.handicaps[tb] || [0, 0];
-          const piA_lo = hcpA[0] <= hcpA[1] ? 0 : 1;
-          const piB_lo = hcpB[0] <= hcpB[1] ? 0 : 1;
+          const hcpA  = league.handicaps[ta] || DEFAULT_HCP[ta] || [0, 0];
+          const hcpB  = league.handicaps[tb] || DEFAULT_HCP[tb] || [0, 0];
+          const edgeColor = aWinPct > bWinPct ? COLOR_A : bWinPct > aWinPct ? COLOR_B : COLOR_TIE;
 
-          const favorite = aWinPct > bWinPct ? "a" : bWinPct > aWinPct ? "b" : "tie";
-          const edgeColor = favorite === "a" ? COLOR_A : favorite === "b" ? COLOR_B : COLOR_TIE;
+          // Player name helper: pi index → TEAMS p1/p2
+          const pnA = pi => pi === 0 ? teamA?.p1 : teamA?.p2;
+          const pnB = pi => pi === 0 ? teamB?.p1 : teamB?.p2;
+
+          // Sub/phantom label for a player
+          const mk = `${week}-${Math.min(ta, tb)}-${Math.max(ta, tb)}`;
+          const rec = league.results[week]?.[mk];
+          const isLower = ta < tb;
+          const typesA = (isLower ? rec?.t1types : rec?.t2types) || [];
+          const typesB = (isLower ? rec?.t2types : rec?.t1types) || [];
+          const typeTag = (types, pi) => {
+            const t = types[pi];
+            if (t === "sub")     return <span style={{ marginLeft: "4px", fontSize: "9px", color: GO }}>(Sub)</span>;
+            if (t === "phantom") return <span style={{ marginLeft: "4px", fontSize: "9px", color: M }}>(Phantom)</span>;
+            return null;
+          };
 
           return (
             <div key={`${ta}-${tb}`} style={{
               background: CARD2, border: `1px solid ${GOLD}22`,
-              borderLeft: `3px solid ${edgeColor}`,
-              borderRadius: "12px", padding: "14px 16px",
+              borderLeft: `3px solid ${edgeColor}`, borderRadius: "12px", padding: "14px 16px",
             }}>
-              {/* Team headers */}
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px" }}>
-                <div>
+              {/* Header row: team names + live/final tag */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "10px" }}>
+                <div style={{ flex: 1 }}>
                   <div style={{ fontSize: "14px", fontWeight: 700, color: CREAM }}>{teamA?.name}</div>
                   <div style={{ fontSize: "11px", color: M }}>
-                    {teamA?.p1}<ConfidenceDot rounds={playerRounds(playerDists, ta, 0)} />
+                    {pnA(0)}{typeTag(typesA, 0)}<ConfidenceDot rounds={playerRounds(playerDists, ta, 0)} />
                     {" · "}
-                    {teamA?.p2}<ConfidenceDot rounds={playerRounds(playerDists, ta, 1)} />
+                    {pnA(1)}{typeTag(typesA, 1)}<ConfidenceDot rounds={playerRounds(playerDists, ta, 1)} />
                   </div>
                 </div>
-                <div style={{ fontSize: "13px", color: M, fontWeight: 600, alignSelf: "center" }}>vs</div>
-                <div style={{ textAlign: "right" }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", padding: "0 10px" }}>
+                  <span style={{ fontSize: "11px", color: M, fontWeight: 600 }}>vs</span>
+                  {isLive     && <LiveTag holesPlayed={holesPlayed} holesLeft={holesLeft} />}
+                  {isComplete && <CompleteTag />}
+                </div>
+                <div style={{ flex: 1, textAlign: "right" }}>
                   <div style={{ fontSize: "14px", fontWeight: 700, color: CREAM }}>{teamB?.name}</div>
                   <div style={{ fontSize: "11px", color: M }}>
-                    {teamB?.p1}<ConfidenceDot rounds={playerRounds(playerDists, tb, 0)} />
+                    {pnB(0)}{typeTag(typesB, 0)}<ConfidenceDot rounds={playerRounds(playerDists, tb, 0)} />
                     {" · "}
-                    {teamB?.p2}<ConfidenceDot rounds={playerRounds(playerDists, tb, 1)} />
+                    {pnB(1)}{typeTag(typesB, 1)}<ConfidenceDot rounds={playerRounds(playerDists, tb, 1)} />
                   </div>
                 </div>
               </div>
 
-              {/* Team probability bar */}
+              {/* Live score strip */}
+              {(isLive || isComplete) && (
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", padding: "6px 10px", background: GOLD + "11", borderRadius: "7px" }}>
+                  <span style={{ fontSize: "13px", fontWeight: 700, color: currentPtsA >= currentPtsB ? G : CREAM }}>
+                    {currentPtsA} stab pts
+                  </span>
+                  <span style={{ fontSize: "11px", color: M }}>
+                    {isComplete ? "Final score" : `After H${holesPlayed}`}
+                  </span>
+                  <span style={{ fontSize: "13px", fontWeight: 700, color: currentPtsB > currentPtsA ? G : CREAM }}>
+                    {currentPtsB} stab pts
+                  </span>
+                </div>
+              )}
+
+              {/* Win probability bar */}
               <ProbBar aWin={aWinPct} tie={tiePct} bWin={bWinPct} />
 
-              {/* Expected pts */}
+              {/* Expected pts row */}
               <div style={{ display: "flex", justifyContent: "space-between", marginTop: "6px", marginBottom: "10px" }}>
                 <span style={{ fontSize: "11px", color: aWinPct >= bWinPct ? G : M, fontWeight: aWinPct >= bWinPct ? 700 : 400 }}>
-                  {aAvgPts.toFixed(1)} exp pts
+                  {aAvgPts.toFixed(1)} exp match pts
                 </span>
-                <span style={{ fontSize: "10px", color: M }}>expected match pts</span>
+                <span style={{ fontSize: "10px", color: M }}>projected</span>
                 <span style={{ fontSize: "11px", color: bWinPct > aWinPct ? G : M, fontWeight: bWinPct > aWinPct ? 700 : 400 }}>
-                  {bAvgPts.toFixed(1)} exp pts
+                  {bAvgPts.toFixed(1)} exp match pts
                 </span>
               </div>
 
               {/* Individual matchups */}
               <div style={{ borderTop: `1px solid ${GOLD}22`, paddingTop: "8px", display: "grid", gap: "6px" }}>
-                {indiv.map((p, i) => {
-                  const nameA = p.piA === piA_lo ? teamA?.p1 : teamA?.p2;
-                  const nameB = p.piB === piB_lo ? teamB?.p1 : teamB?.p2;
-                  return (
-                    <div key={i}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px" }}>
-                        <span style={{ fontSize: "10px", color: M }}>{nameA}</span>
-                        <span style={{ fontSize: "9px", color: M, background: GOLD + "22", padding: "1px 6px", borderRadius: "4px" }}>{p.label} match</span>
-                        <span style={{ fontSize: "10px", color: M }}>{nameB}</span>
-                      </div>
-                      <ProbBar aWin={p.aWinPct} tie={p.tiePct} bWin={p.bWinPct} small />
+                {indiv.map((p, i) => (
+                  <div key={i}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px" }}>
+                      <span style={{ fontSize: "10px", color: M }}>{pnA(p.piA)}</span>
+                      <span style={{ fontSize: "9px", color: M, background: GOLD + "22", padding: "1px 6px", borderRadius: "4px" }}>{p.label} match</span>
+                      <span style={{ fontSize: "10px", color: M }}>{pnB(p.piB)}</span>
                     </div>
-                  );
-                })}
+                    <ProbBar aWin={p.aWinPct} tie={p.tiePct} bWin={p.bWinPct} small />
+                  </div>
+                ))}
               </div>
             </div>
           );
@@ -356,8 +457,8 @@ export default function PredictScreen({ league }) {
       </div>
 
       <div style={{ marginTop: "16px", fontSize: "11px", color: M, textAlign: "center" }}>
-        Probabilities are based on historical per-hole scoring distributions. Dots indicate data confidence.
-        Results will vary each simulation run.
+        Based on per-player per-hole scoring distributions from prior weeks.
+        Results vary each run — refresh to resimulate.
       </div>
     </div>
   );
