@@ -34,6 +34,7 @@ import AdminScreen from "./components/AdminScreen";
 import PlayoffScreen from "./components/PlayoffScreen";
 import MastersBoard from "./components/MastersBoard";
 import PlayerScreen from "./components/PlayerScreen";
+import StatsScreen from "./components/StatsScreen";
 import {
   getPlayoffSeeds,
   getQFSeeds,
@@ -511,8 +512,8 @@ const [seasonYear] = useState(SEASON_YEAR);
 
   const TABS=["schedule","scoring","entry","standings","masters","weekly","poty","hcp","playoffs","players","rules","admin"];
   const PRIMARY_TABS=["schedule","scoring","standings","poty","hcp","rules"];
-  const MORE_TABS=["entry","weekly","masters","playoffs","players","admin"];
-  const TAB_LABEL={schedule:"Schedule",scoring:"Scoring",entry:"Entry",standings:"Standings",masters:"Board",weekly:"Weekly",poty:"POTY",hcp:"HCP",playoffs:"Playoffs",players:"Players",rules:"Rules",admin:"Admin"};
+  const MORE_TABS=["entry","weekly","masters","playoffs","players","stats","admin"];
+  const TAB_LABEL={schedule:"Schedule",scoring:"Scoring",entry:"Entry",standings:"Standings",masters:"Board",weekly:"Weekly",poty:"POTY",hcp:"HCP",playoffs:"Playoffs",players:"Players",stats:"Stats",rules:"Rules",admin:"Admin"};
   const inMore = MORE_TABS.includes(screen);
 
   // Current match doc (for confirm/lock)
@@ -718,6 +719,10 @@ const [seasonYear] = useState(SEASON_YEAR);
 
       {screen==="players"&&(
         <PlayerScreen league={league} initialPlayer={selPlayer} />
+      )}
+
+      {screen==="stats"&&(
+        <StatsScreen league={league} />
       )}
 
       {screen==="rules"&&(
