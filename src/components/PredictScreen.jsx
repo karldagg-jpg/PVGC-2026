@@ -150,6 +150,11 @@ function simulateMatchup(tidA, tidB, playerDists, handicaps, matchRec) {
   let aWins = 0, bWins = 0, ties = 0;
   let aTotalPts = 0, bTotalPts = 0;
   const pWins = [0, 0], pLoss = [0, 0], pTies = [0, 0];
+  // Track per-player stableford sums across sims
+  const aStabSum = [0, 0];
+  const bStabSum = [0, 0];
+  let aTeamStabSum = 0, bTeamStabSum = 0;
+  let teamWins = 0, teamLoss = 0, teamTies = 0;
 
   for (let sim = 0; sim < N_SIMS; sim++) {
     const ppA = [...earnedA];
@@ -171,6 +176,11 @@ function simulateMatchup(tidA, tidB, playerDists, handicaps, matchRec) {
     const teamA = ppA[0] + ppA[1];
     const teamB = ppB[0] + ppB[1];
 
+    aStabSum[0] += ppA[0]; aStabSum[1] += ppA[1];
+    bStabSum[0] += ppB[0]; bStabSum[1] += ppB[1];
+    aTeamStabSum += teamA;
+    bTeamStabSum += teamB;
+
     let mA = 0, mB = 0;
     for (let p = 0; p < 2; p++) {
       const pA = ppA[pairings[p].piA];
@@ -179,9 +189,9 @@ function simulateMatchup(tidA, tidB, playerDists, handicaps, matchRec) {
       else if (pB > pA) { mB += 2; pLoss[p]++; }
       else              { mA++; mB++; pTies[p]++; }
     }
-    if (teamA > teamB)      mA += 4;
-    else if (teamB > teamA) mB += 4;
-    else                    { mA += 2; mB += 2; }
+    if (teamA > teamB)      { mA += 4; teamWins++; }
+    else if (teamB > teamA) { mB += 4; teamLoss++; }
+    else                    { mA += 2; mB += 2; teamTies++; }
 
     if (mA > mB) aWins++;
     else if (mB > mA) bWins++;
@@ -191,17 +201,28 @@ function simulateMatchup(tidA, tidB, playerDists, handicaps, matchRec) {
   }
 
   return {
-    aWinPct:     aWins  / N_SIMS,
-    bWinPct:     bWins  / N_SIMS,
-    tiePct:      ties   / N_SIMS,
-    aAvgPts:     aTotalPts / N_SIMS,
-    bAvgPts:     bTotalPts / N_SIMS,
+    aWinPct:       aWins  / N_SIMS,
+    bWinPct:       bWins  / N_SIMS,
+    tiePct:        ties   / N_SIMS,
+    aAvgPts:       aTotalPts / N_SIMS,
+    bAvgPts:       bTotalPts / N_SIMS,
+    // Per-player expected stableford
+    aAvgStab:      aStabSum.map(s => s / N_SIMS),
+    bAvgStab:      bStabSum.map(s => s / N_SIMS),
+    aAvgTeamStab:  aTeamStabSum / N_SIMS,
+    bAvgTeamStab:  bTeamStabSum / N_SIMS,
+    // Team total match win probability
+    teamWinPct:    teamWins / N_SIMS,
+    teamLossPct:   teamLoss / N_SIMS,
+    teamTiePct:    teamTies / N_SIMS,
     holesPlayed,
-    holesLeft:   holesLeft.length,
+    holesLeft:     holesLeft.length,
     isLive,
     isComplete,
-    currentPtsA: earnedA[0] + earnedA[1],
-    currentPtsB: earnedB[0] + earnedB[1],
+    currentPtsA:   earnedA[0] + earnedA[1],
+    currentPtsB:   earnedB[0] + earnedB[1],
+    currentIndivA: [...earnedA],
+    currentIndivB: [...earnedB],
     piA_lo,
     piB_lo,
     pairings: pairings.map((p, i) => ({
@@ -354,19 +375,18 @@ export default function PredictScreen({ league }) {
       <div style={{ display: "grid", gap: "10px" }}>
         {simResults.map(({
           ta, tb, aWinPct, bWinPct, tiePct, aAvgPts, bAvgPts,
+          aAvgStab, bAvgStab, aAvgTeamStab, bAvgTeamStab,
+          teamWinPct, teamLossPct, teamTiePct,
           holesPlayed, holesLeft, isLive, isComplete,
-          currentPtsA, currentPtsB, piA_lo, piB_lo, pairings: indiv,
+          currentPtsA, currentPtsB, currentIndivA, currentIndivB,
+          piA_lo, piB_lo, pairings: indiv,
         }) => {
           const teamA = TEAMS[ta], teamB = TEAMS[tb];
-          const hcpA  = league.handicaps[ta] || DEFAULT_HCP[ta] || [0, 0];
-          const hcpB  = league.handicaps[tb] || DEFAULT_HCP[tb] || [0, 0];
           const edgeColor = aWinPct > bWinPct ? COLOR_A : bWinPct > aWinPct ? COLOR_B : COLOR_TIE;
 
-          // Player name helper: pi index → TEAMS p1/p2
           const pnA = pi => pi === 0 ? teamA?.p1 : teamA?.p2;
           const pnB = pi => pi === 0 ? teamB?.p1 : teamB?.p2;
 
-          // Sub/phantom label for a player
           const mk = `${week}-${Math.min(ta, tb)}-${Math.max(ta, tb)}`;
           const rec = league.results[week]?.[mk];
           const isLower = ta < tb;
@@ -379,19 +399,55 @@ export default function PredictScreen({ league }) {
             return null;
           };
 
+          // Row helper: player name + stab score | prob bar | player name + stab score
+          const StabRow = ({ piA, piB, label, aWin, aTie, bWin }) => {
+            const expA = isLive || isComplete ? currentIndivA[piA] : aAvgStab[piA];
+            const expB = isLive || isComplete ? currentIndivB[piB] : bAvgStab[piB];
+            const aLeads = expA > expB;
+            return (
+              <div style={{ marginBottom: "8px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "3px" }}>
+                  {/* Team A player */}
+                  <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "5px" }}>
+                    <span style={{ fontSize: "22px", fontWeight: 700, color: aLeads ? G : CREAM, lineHeight: 1 }}>
+                      {(isLive || isComplete) ? expA : expA.toFixed(1)}
+                    </span>
+                    <div>
+                      <div style={{ fontSize: "11px", color: CREAM, fontWeight: 600 }}>{pnA(piA)}</div>
+                      <div style={{ fontSize: "9px", color: M }}>{typeTag(typesA, piA) ? ((typesA[piA] === "sub" ? "Sub · 6" : "Phantom · 2") + " pts fixed") : `hcp ${(league.handicaps[ta] || DEFAULT_HCP[ta] || [0,0])[piA]}`}</div>
+                    </div>
+                  </div>
+                  {/* Label */}
+                  <span style={{ fontSize: "9px", color: M, background: GOLD + "22", padding: "2px 8px", borderRadius: "4px", flexShrink: 0 }}>{label}</span>
+                  {/* Team B player */}
+                  <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "5px", justifyContent: "flex-end", flexDirection: "row-reverse" }}>
+                    <span style={{ fontSize: "22px", fontWeight: 700, color: !aLeads && expB !== expA ? G : CREAM, lineHeight: 1 }}>
+                      {(isLive || isComplete) ? expB : expB.toFixed(1)}
+                    </span>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontSize: "11px", color: CREAM, fontWeight: 600 }}>{pnB(piB)}</div>
+                      <div style={{ fontSize: "9px", color: M }}>{typeTag(typesB, piB) ? ((typesB[piB] === "sub" ? "Sub · 6" : "Phantom · 2") + " pts fixed") : `hcp ${(league.handicaps[tb] || DEFAULT_HCP[tb] || [0,0])[piB]}`}</div>
+                    </div>
+                  </div>
+                </div>
+                {!(isComplete) && <ProbBar aWin={aWin} tie={aTie} bWin={bWin} small />}
+              </div>
+            );
+          };
+
           return (
             <div key={`${ta}-${tb}`} style={{
               background: CARD2, border: `1px solid ${GOLD}22`,
               borderLeft: `3px solid ${edgeColor}`, borderRadius: "12px", padding: "14px 16px",
             }}>
-              {/* Header row: team names + live/final tag */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "10px" }}>
+              {/* Header */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: "14px", fontWeight: 700, color: CREAM }}>{teamA?.name}</div>
                   <div style={{ fontSize: "11px", color: M }}>
-                    {pnA(0)}{typeTag(typesA, 0)}<ConfidenceDot rounds={playerRounds(playerDists, ta, 0)} />
-                    {" · "}
-                    {pnA(1)}{typeTag(typesA, 1)}<ConfidenceDot rounds={playerRounds(playerDists, ta, 1)} />
+                    <ConfidenceDot rounds={playerRounds(playerDists, ta, 0)} />
+                    {" "}{pnA(0)} · {pnA(1)}{" "}
+                    <ConfidenceDot rounds={playerRounds(playerDists, ta, 1)} />
                   </div>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", padding: "0 10px" }}>
@@ -402,60 +458,55 @@ export default function PredictScreen({ league }) {
                 <div style={{ flex: 1, textAlign: "right" }}>
                   <div style={{ fontSize: "14px", fontWeight: 700, color: CREAM }}>{teamB?.name}</div>
                   <div style={{ fontSize: "11px", color: M }}>
-                    {pnB(0)}{typeTag(typesB, 0)}<ConfidenceDot rounds={playerRounds(playerDists, tb, 0)} />
-                    {" · "}
-                    {pnB(1)}{typeTag(typesB, 1)}<ConfidenceDot rounds={playerRounds(playerDists, tb, 1)} />
+                    <ConfidenceDot rounds={playerRounds(playerDists, tb, 0)} />
+                    {" "}{pnB(0)} · {pnB(1)}{" "}
+                    <ConfidenceDot rounds={playerRounds(playerDists, tb, 1)} />
                   </div>
                 </div>
               </div>
 
-              {/* Live score strip */}
-              {(isLive || isComplete) && (
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", padding: "6px 10px", background: GOLD + "11", borderRadius: "7px" }}>
-                  <span style={{ fontSize: "13px", fontWeight: 700, color: currentPtsA >= currentPtsB ? G : CREAM }}>
-                    {currentPtsA} stab pts
-                  </span>
-                  <span style={{ fontSize: "11px", color: M }}>
-                    {isComplete ? "Final score" : `After H${holesPlayed}`}
-                  </span>
-                  <span style={{ fontSize: "13px", fontWeight: 700, color: currentPtsB > currentPtsA ? G : CREAM }}>
-                    {currentPtsB} stab pts
-                  </span>
-                </div>
-              )}
+              {/* Individual stableford rows — lo match, hi match */}
+              {indiv.map((p, i) => (
+                <StabRow key={i}
+                  piA={p.piA} piB={p.piB} label={p.label + " match"}
+                  aWin={p.aWinPct} aTie={p.tiePct} bWin={p.bWinPct}
+                />
+              ))}
 
-              {/* Win probability bar */}
-              <ProbBar aWin={aWinPct} tie={tiePct} bWin={bWinPct} />
-
-              {/* Expected pts row — 8 pts total per match (2 Lo + 2 Hi + 4 team) */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "6px", marginBottom: "10px" }}>
-                <div style={{ textAlign: "left" }}>
-                  <span style={{ fontSize: "20px", fontWeight: 700, color: aWinPct >= bWinPct ? G : CREAM }}>
-                    {aAvgPts.toFixed(1)}
+              {/* Team total row */}
+              <div style={{ borderTop: `1px solid ${GOLD}22`, paddingTop: "8px", marginBottom: "6px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "3px" }}>
+                  <div style={{ flex: 1 }}>
+                    <span style={{ fontSize: "22px", fontWeight: 700, color: (isLive||isComplete ? currentPtsA : aAvgTeamStab) >= (isLive||isComplete ? currentPtsB : bAvgTeamStab) ? G : CREAM }}>
+                      {isLive || isComplete ? currentPtsA : aAvgTeamStab.toFixed(1)}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: "9px", color: M, background: GOLD + "22", padding: "2px 8px", borderRadius: "4px", flexShrink: 0 }}>
+                    {isLive ? `team total · H${holesPlayed}` : isComplete ? "team total · final" : "team total"}
                   </span>
-                  <span style={{ fontSize: "11px", color: M }}> / 8 pts</span>
+                  <div style={{ flex: 1, textAlign: "right" }}>
+                    <span style={{ fontSize: "22px", fontWeight: 700, color: (isLive||isComplete ? currentPtsB : bAvgTeamStab) > (isLive||isComplete ? currentPtsA : aAvgTeamStab) ? G : CREAM }}>
+                      {isLive || isComplete ? currentPtsB : bAvgTeamStab.toFixed(1)}
+                    </span>
+                  </div>
                 </div>
-                <span style={{ fontSize: "10px", color: M }}>exp match pts</span>
+                {!isComplete && <ProbBar aWin={teamWinPct} tie={teamTiePct} bWin={teamLossPct} small />}
+              </div>
+
+              {/* Inferred match pts footer */}
+              <div style={{ borderTop: `1px solid ${GOLD}22`, paddingTop: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <span style={{ fontSize: "18px", fontWeight: 700, color: aWinPct >= bWinPct ? G : CREAM }}>{aAvgPts.toFixed(1)}</span>
+                  <span style={{ fontSize: "10px", color: M }}> / 8</span>
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: "9px", color: M, marginBottom: "3px" }}>inferred match pts · {Math.round(aWinPct * 100)}% / {Math.round(tiePct * 100)}% / {Math.round(bWinPct * 100)}%</div>
+                  <ProbBar aWin={aWinPct} tie={tiePct} bWin={bWinPct} />
+                </div>
                 <div style={{ textAlign: "right" }}>
-                  <span style={{ fontSize: "20px", fontWeight: 700, color: bWinPct > aWinPct ? G : CREAM }}>
-                    {bAvgPts.toFixed(1)}
-                  </span>
-                  <span style={{ fontSize: "11px", color: M }}> / 8 pts</span>
+                  <span style={{ fontSize: "18px", fontWeight: 700, color: bWinPct > aWinPct ? G : CREAM }}>{bAvgPts.toFixed(1)}</span>
+                  <span style={{ fontSize: "10px", color: M }}> / 8</span>
                 </div>
-              </div>
-
-              {/* Individual matchups */}
-              <div style={{ borderTop: `1px solid ${GOLD}22`, paddingTop: "8px", display: "grid", gap: "6px" }}>
-                {indiv.map((p, i) => (
-                  <div key={i}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px" }}>
-                      <span style={{ fontSize: "10px", color: M }}>{pnA(p.piA)}</span>
-                      <span style={{ fontSize: "9px", color: M, background: GOLD + "22", padding: "1px 6px", borderRadius: "4px" }}>{p.label} match</span>
-                      <span style={{ fontSize: "10px", color: M }}>{pnB(p.piB)}</span>
-                    </div>
-                    <ProbBar aWin={p.aWinPct} tie={p.tiePct} bWin={p.bWinPct} small />
-                  </div>
-                ))}
               </div>
             </div>
           );
