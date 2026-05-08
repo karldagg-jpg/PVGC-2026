@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { SCHEDULE_RAW, TEAMS, getTeeTimes, SEASON_YEAR, PAR, SI } from "../constants/league";
 import * as L2026 from "../constants/league_2026";
 import { G, GO, M, CREAM, GOLD, CARD, FB, FD, R } from "../constants/theme";
@@ -131,6 +131,9 @@ function normScoresR(s) {
 }
 
 function RaceChart({ series }) {
+  const [hoverHole, setHoverHole] = useState(null);
+  const svgRef = useRef(null);
+
   const VW = 500, VH = 155;
   const pL = 26, pR = 14, pT = 12, pB = 22;
   const cW = VW - pL - pR, cH = VH - pT - pB;
@@ -140,35 +143,92 @@ function RaceChart({ series }) {
   const yOf = v => pT + cH - (v / yMax) * cH;
   const gridVals = [];
   for (let v = 0; v <= yMax; v += 5) gridVals.push(v);
+
+  const pickHole = (clientX) => {
+    if (!svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const frac = ((clientX - rect.left) / rect.width * VW - pL) / cW * 9;
+    setHoverHole(Math.round(Math.max(0, Math.min(9, frac))));
+  };
+
   return (
-    <svg viewBox={`0 0 ${VW} ${VH}`} style={{ width: "100%", display: "block" }}>
-      {gridVals.map(v => (
-        <g key={v}>
-          <line x1={pL} x2={VW - pR} y1={yOf(v)} y2={yOf(v)}
-            stroke={v === 0 ? "rgba(0,0,0,0.12)" : "rgba(0,0,0,0.05)"}
-            strokeWidth="1" strokeDasharray={v > 0 ? "3 3" : ""} />
-          <text x={pL - 3} y={yOf(v) + 3.5} textAnchor="end" fontSize="8" fill="#9aaa9a">{v}</text>
-        </g>
-      ))}
-      <text x={xOf(0)} y={VH - 4} textAnchor="middle" fontSize="8.5" fill="#b0c0b0">S</text>
-      {[1,2,3,4,5,6,7,8,9].map(h => (
-        <text key={h} x={xOf(h)} y={VH - 4} textAnchor="middle" fontSize="8.5" fill="#8a9a8a">{h}</text>
-      ))}
-      {series.map((s, si) => {
-        const validPts = s.cum
-          .map((v, i) => v != null ? `${xOf(i)},${yOf(v)}` : null)
-          .filter(Boolean);
-        return (
-          <g key={si}>
-            <polyline points={validPts.join(" ")} fill="none" stroke={s.color}
-              strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round" />
-            {s.cum.map((v, i) => i > 0 && v != null ? (
-              <circle key={i} cx={xOf(i)} cy={yOf(v)} r="2.8" fill={s.color} />
-            ) : null)}
+    <div style={{ position: "relative" }}>
+      <svg ref={svgRef} viewBox={`0 0 ${VW} ${VH}`} style={{ width: "100%", display: "block", cursor: "crosshair" }}
+        onMouseMove={e => pickHole(e.clientX)}
+        onMouseLeave={() => setHoverHole(null)}
+        onTouchMove={e => { e.preventDefault(); pickHole(e.touches[0].clientX); }}
+        onTouchEnd={() => setHoverHole(null)}
+      >
+        {gridVals.map(v => (
+          <g key={v}>
+            <line x1={pL} x2={VW - pR} y1={yOf(v)} y2={yOf(v)}
+              stroke={v === 0 ? "rgba(0,0,0,0.12)" : "rgba(0,0,0,0.05)"}
+              strokeWidth="1" strokeDasharray={v > 0 ? "3 3" : ""} />
+            <text x={pL - 3} y={yOf(v) + 3.5} textAnchor="end" fontSize="8" fill="#9aaa9a">{v}</text>
           </g>
-        );
-      })}
-    </svg>
+        ))}
+        <text x={xOf(0)} y={VH - 4} textAnchor="middle" fontSize="8.5" fill="#b0c0b0">S</text>
+        {[1,2,3,4,5,6,7,8,9].map(h => (
+          <text key={h} x={xOf(h)} y={VH - 4} textAnchor="middle" fontSize="8.5"
+            fill={hoverHole === h ? "#1a2e1a" : "#8a9a8a"} fontWeight={hoverHole === h ? "700" : "400"}>{h}</text>
+        ))}
+        {series.map((s, si) => {
+          const validPts = s.cum.map((v, i) => v != null ? `${xOf(i)},${yOf(v)}` : null).filter(Boolean);
+          return (
+            <g key={si}>
+              <polyline points={validPts.join(" ")} fill="none" stroke={s.color}
+                strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round"
+                strokeDasharray={s.dashed ? "5 3" : ""} opacity={hoverHole != null ? 0.5 : 0.9} />
+              {s.cum.map((v, i) => {
+                if (i === 0 || v == null) return null;
+                const isHovered = hoverHole === i;
+                return (
+                  <circle key={i} cx={xOf(i)} cy={yOf(v)} r={isHovered ? 5 : 2.8}
+                    fill={s.color} stroke={isHovered ? "white" : "none"}
+                    strokeWidth={isHovered ? 1.5 : 0}
+                    style={{ transition: "r 0.1s" }} />
+                );
+              })}
+            </g>
+          );
+        })}
+        {hoverHole != null && hoverHole > 0 && (
+          <line x1={xOf(hoverHole)} x2={xOf(hoverHole)} y1={pT} y2={VH - pB}
+            stroke="rgba(0,0,0,0.18)" strokeWidth="1" strokeDasharray="3 2" />
+        )}
+      </svg>
+
+      {/* Tooltip */}
+      {hoverHole != null && hoverHole > 0 && (
+        <div style={{
+          position: "absolute", top: "6px",
+          ...(hoverHole > 5 ? { left: "32px" } : { right: "16px" }),
+          background: "rgba(255,255,255,0.97)",
+          border: "1px solid rgba(0,0,0,0.1)",
+          borderRadius: "8px", padding: "7px 10px",
+          fontSize: "11px", pointerEvents: "none",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.1)", zIndex: 10, minWidth: "140px",
+        }}>
+          <div style={{ fontWeight: 700, color: "#4a6a52", marginBottom: "5px", fontSize: "12px" }}>
+            Hole {hoverHole} · Par {PAR[hoverHole - 1]}
+          </div>
+          {series.map((s, si) => {
+            const cumV = s.cum[hoverHole] ?? 0;
+            const holeV = (s.cum[hoverHole] ?? 0) - (s.cum[hoverHole - 1] ?? 0);
+            return (
+              <div key={si} style={{ display: "flex", alignItems: "center", gap: "5px", marginBottom: si < series.length - 1 ? "3px" : 0 }}>
+                <div style={{ width: "8px", height: "8px", borderRadius: "1.5px", background: s.color, flexShrink: 0 }} />
+                <span style={{ color: "#1a2e1a", flex: 1, fontSize: "11px" }}>{s.name}</span>
+                <span style={{ fontWeight: 700, color: s.color }}>{cumV}</span>
+                <span style={{ color: "#9aaa9a", fontSize: "10px", minWidth: "24px", textAlign: "right" }}>
+                  {holeV > 0 ? `+${holeV}` : holeV === 0 ? "—" : holeV}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -898,22 +958,31 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
               const hcp = (snap[tid] || league?.handicaps?.[tid] || [0,0])[pi] || 0;
               const type = (idx < 2 ? t1types : t2types)[pi] || "normal";
               const gross = (idx < 2 ? t1s : t2s)[pi] || [];
+              const fixedPts = type === "sub" ? 6 : type === "phantom" ? 2 : null;
               let cumPts = 0;
               const cum = [0];
               const holeStab = [];
-              for (let hi = 0; hi < 9; hi++) {
-                const g = gross[hi] || 0;
-                if (!g || type !== "normal") {
-                  holeStab.push(null);
-                  cum.push(cum[cum.length - 1]);
-                } else {
-                  const pts = stabPts(g, PAR[hi], hcpStr(hcp, SI[hi])) || 0;
-                  holeStab.push({ pts, gross: g });
-                  cumPts += pts;
-                  cum.push(cumPts);
+              if (fixedPts != null) {
+                for (let hi = 0; hi < 9; hi++) {
+                  holeStab.push({ pts: null, special: type });
+                  cum.push(fixedPts);
+                }
+                cumPts = fixedPts;
+              } else {
+                for (let hi = 0; hi < 9; hi++) {
+                  const g = gross[hi] || 0;
+                  if (!g) {
+                    holeStab.push(null);
+                    cum.push(cumPts);
+                  } else {
+                    const pts = stabPts(g, PAR[hi], hcpStr(hcp, SI[hi])) || 0;
+                    holeStab.push({ pts, gross: g });
+                    cumPts += pts;
+                    cum.push(cumPts);
+                  }
                 }
               }
-              return { name, tid, hcp, type, holeStab, cum, total: cumPts, color: REPLAY_COLORS[idx] };
+              return { name, tid, hcp, type, holeStab, cum, total: cumPts, color: REPLAY_COLORS[idx], dashed: fixedPts != null };
             });
           }
 
@@ -1004,7 +1073,13 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
                                 </div>
                                 <div style={{ fontSize: "10px", color: M, paddingLeft: "13px" }}>HCP {p.hcp}</div>
                               </td>
-                              {p.holeStab.map((h, hi) => (
+                              {p.dashed ? (
+                                <td colSpan={9} style={{ textAlign: "center", padding: "5px 8px" }}>
+                                  <span style={{ fontSize: "11px", color: p.type === "sub" ? GO : M, fontWeight: 600 }}>
+                                    {p.type === "sub" ? "Sub · 6 pts" : "Phantom · 2 pts"}
+                                  </span>
+                                </td>
+                              ) : p.holeStab.map((h, hi) => (
                                 <td key={hi} style={{ textAlign: "center", padding: "5px 4px", background: cellBg(h?.pts ?? null) }}>
                                   {h != null ? (
                                     <>
