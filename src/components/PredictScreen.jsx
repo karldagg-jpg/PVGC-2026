@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { PAR, SI, RAINOUT_SUB, SCHEDULE, TEAMS, DEFAULT_HCP } from "../constants/league";
-import { stabPts, hcpStr } from "../lib/leagueLogic";
+import { stabPts, hcpStr, calcSuggestedHcps } from "../lib/leagueLogic";
 import { G, GO, R, M, CREAM, GOLD, CARD2, FD, FB } from "../constants/theme";
 
 const N_SIMS = 5000;
@@ -309,6 +309,13 @@ export default function PredictScreen({ league }) {
 
   const [week, setWeek] = useState(defaultWeek);
 
+  // Handicaps auto-calculated from scoring history up to (but not including) the selected week.
+  // This is what the league actually uses for that week's matches.
+  const weekHcps = useMemo(
+    () => calcSuggestedHcps(league.results, week, league.handicaps),
+    [league.results, league.handicaps, week]
+  );
+
   const playerDists = useMemo(
     () => buildPlayerHoleDists(league.results, league.handicaps, week),
     [league.results, league.handicaps, week]
@@ -319,9 +326,9 @@ export default function PredictScreen({ league }) {
     return pairs.map(([ta, tb]) => {
       const mk = `${week}-${Math.min(ta, tb)}-${Math.max(ta, tb)}`;
       const matchRec = league.results[week]?.[mk] || null;
-      return { ta, tb, ...simulateMatchup(ta, tb, playerDists, league.handicaps, matchRec) };
+      return { ta, tb, ...simulateMatchup(ta, tb, playerDists, weekHcps, matchRec) };
     });
-  }, [week, playerDists, league.handicaps, league.results]);
+  }, [week, playerDists, weekHcps, league.results]);
 
   const weekDate = SCHEDULE[week]?.date
     ? new Date(SCHEDULE[week].date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })
@@ -414,7 +421,7 @@ export default function PredictScreen({ league }) {
                     </span>
                     <div>
                       <div style={{ fontSize: "11px", color: CREAM, fontWeight: 600 }}>{pnA(piA)}</div>
-                      <div style={{ fontSize: "9px", color: M }}>{typeTag(typesA, piA) ? ((typesA[piA] === "sub" ? "Sub · 6" : "Phantom · 2") + " pts fixed") : `hcp ${(league.handicaps[ta] || DEFAULT_HCP[ta] || [0,0])[piA]}`}</div>
+                      <div style={{ fontSize: "9px", color: M }}>{typeTag(typesA, piA) ? ((typesA[piA] === "sub" ? "Sub · 6" : "Phantom · 2") + " pts fixed") : `hcp ${(weekHcps[ta] || [0,0])[piA]}`}</div>
                     </div>
                   </div>
                   {/* Label */}
@@ -426,7 +433,7 @@ export default function PredictScreen({ league }) {
                     </span>
                     <div style={{ textAlign: "right" }}>
                       <div style={{ fontSize: "11px", color: CREAM, fontWeight: 600 }}>{pnB(piB)}</div>
-                      <div style={{ fontSize: "9px", color: M }}>{typeTag(typesB, piB) ? ((typesB[piB] === "sub" ? "Sub · 6" : "Phantom · 2") + " pts fixed") : `hcp ${(league.handicaps[tb] || DEFAULT_HCP[tb] || [0,0])[piB]}`}</div>
+                      <div style={{ fontSize: "9px", color: M }}>{typeTag(typesB, piB) ? ((typesB[piB] === "sub" ? "Sub · 6" : "Phantom · 2") + " pts fixed") : `hcp ${(weekHcps[tb] || [0,0])[piB]}`}</div>
                     </div>
                   </div>
                 </div>
