@@ -12,6 +12,8 @@ function EntryTab({league, saveLeague, saveMatchDoc, entryWeek, setEntryWeek, en
   const isReadOnly = (league.readOnlyWeeks || []).includes(entryWeek);
   const cellRefs = useRef({});
   const [draftTypes, setDraftTypes] = useState({});
+  const [numpadCell, setNumpadCell] = useState(null); // { row, col }
+  const [numpadVal, setNumpadVal] = useState("");
 
   const entDynPairs = entryWeek===18?(knockdownPairs||null):entryWeek===19?(qfPairs||null):entryWeek===20?(sfPairs||null):entryWeek===21?(finalPairs?[finalPairs.championship,finalPairs.thirdPlace]:null):null;
   const entOpp = getOpponent(entryTeam, entryWeek, entDynPairs);
@@ -160,20 +162,66 @@ function EntryTab({league, saveLeague, saveMatchDoc, entryWeek, setEntryWeek, en
 
   const focusCell = (row, col) => {
     const el = cellRefs.current[`${row}-${col}`];
-    if (el) { el.focus(); el.select(); }
+    if (el) el.focus();
   };
   const handleKeyDown = (e, row, col) => {
-    if (e.key === "ArrowRight" || e.key === "Tab" && !e.shiftKey || e.key === "Enter") {
+    if (e.key === "ArrowRight" || (e.key === "Tab" && !e.shiftKey) || e.key === "Enter") {
       e.preventDefault();
       if (col < 8) focusCell(row, col+1);
       else if (row < 3) focusCell(row+1, 0);
-    } else if (e.key === "ArrowLeft" || e.key === "Tab" && e.shiftKey) {
+    } else if (e.key === "ArrowLeft" || (e.key === "Tab" && e.shiftKey)) {
       e.preventDefault();
       if (col > 0) focusCell(row, col-1);
       else if (row > 0) focusCell(row-1, 8);
     } else if (e.key === "ArrowDown") { e.preventDefault(); focusCell(Math.min(3,row+1), col); }
     else if (e.key === "ArrowUp")    { e.preventDefault(); focusCell(Math.max(0,row-1), col); }
   };
+
+  function openNumpad(row, col) {
+    if (isReadOnly) return;
+    const p = players[row];
+    if (!p || getEntryType(p.tIdx, p.pi) !== "normal") return;
+    const gross = getEntry(p.tIdx, p.pi, col);
+    setNumpadCell({ row, col });
+    setNumpadVal(gross ? String(gross) : "");
+  }
+
+  function numpadCommit(val, row, col) {
+    const p = players[row];
+    if (!p) return;
+    const v = parseInt(val);
+    setEntry(p.tIdx, p.pi, col, isNaN(v) || v < 1 ? 0 : v);
+  }
+
+  function numpadNext() {
+    if (!numpadCell) return;
+    const { row, col } = numpadCell;
+    numpadCommit(numpadVal, row, col);
+    if (col < 8) {
+      const p = players[row];
+      const g = p ? getEntry(p.tIdx, p.pi, col + 1) : 0;
+      setNumpadCell({ row, col: col + 1 });
+      setNumpadVal(g ? String(g) : "");
+    } else {
+      let nextRow = row + 1;
+      while (nextRow < players.length && getEntryType(players[nextRow].tIdx, players[nextRow].pi) !== "normal") nextRow++;
+      if (nextRow < players.length) {
+        const p = players[nextRow];
+        const g = getEntry(p.tIdx, p.pi, 0);
+        setNumpadCell({ row: nextRow, col: 0 });
+        setNumpadVal(g ? String(g) : "");
+      } else {
+        setNumpadCell(null);
+        setNumpadVal("");
+      }
+    }
+  }
+
+  function numpadClose() {
+    if (numpadCell) numpadCommit(numpadVal, numpadCell.row, numpadCell.col);
+    setNumpadCell(null);
+    setNumpadVal("");
+  }
 
   // (Masters theme — uses global constants);
 
@@ -359,20 +407,25 @@ function EntryTab({league, saveLeague, saveMatchDoc, entryWeek, setEntryWeek, en
                     const bdColor=isCapped?GO:gross?(pts>=3?G:pts===1?GOLD:pts===0?"#999":R):"#999";
                     return (
                       <div key={hi} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"2px"}}>
-                        <input
+                        <div
                           ref={el=>cellRefs.current[`${rowIdx}-${hi}`]=el}
-                          type="number" min="1"
-                          value={gross||""}
-                          placeholder={String(PAR[hi])}
-                          onChange={e=>{const v=parseInt(e.target.value);setEntry(p.tIdx,p.pi,hi,isNaN(v)||v<1?0:v);}}
-                          onKeyDown={e=>handleKeyDown(e,rowIdx,hi)}
-                          onFocus={e=>e.target.select()}
+                          tabIndex={0}
+                          onClick={()=>openNumpad(rowIdx,hi)}
+                          onKeyDown={e=>{
+                            if(e.key==="Enter"||e.key===" "){e.preventDefault();openNumpad(rowIdx,hi);}
+                            else handleKeyDown(e,rowIdx,hi);
+                          }}
                           style={{width:"100%",height:"48px",background:bgColor,
-                            border:`2px solid ${bdColor}`,borderRadius:"8px",
-                            color:gross?ptColor:"#555",fontFamily:FB,fontSize:"19px",
+                            border:`2px solid ${numpadCell?.row===rowIdx&&numpadCell?.col===hi?teamColor:bdColor}`,
+                            borderRadius:"8px",
+                            color:gross?ptColor:"#aaa",fontFamily:FB,fontSize:"19px",
                             fontWeight:700,textAlign:"center",outline:"none",
-                            MozAppearance:"textfield",appearance:"textfield"}}
-                        />
+                            display:"flex",alignItems:"center",justifyContent:"center",
+                            cursor:"pointer",touchAction:"manipulation",userSelect:"none",
+                            boxShadow:numpadCell?.row===rowIdx&&numpadCell?.col===hi?`0 0 0 3px ${teamColor}44`:"none",
+                          }}>
+                          {gross || String(PAR[hi])}
+                        </div>
                         {gross>0&&<>
                           <span style={{fontSize:"9px",color:M,lineHeight:1.2,letterSpacing:"0.04em"}}>MAX</span>
                           <span style={{fontSize:"10px",fontWeight:600,color:isCapped?GO:M,lineHeight:1}}>{adjGross}</span>
@@ -407,6 +460,86 @@ function EntryTab({league, saveLeague, saveMatchDoc, entryWeek, setEntryWeek, en
           {entrySaved ? "✓ Saved!" : isReadOnly ? "Read-Only" : "Save Scores"}
         </button>
       </>)}
+
+      {/* ── Numpad overlay ── */}
+      {numpadCell && (() => {
+        const { row, col } = numpadCell;
+        const p = players[row];
+        if (!p) return null;
+        const pname = TEAMS[p.tid]?.[p.pi===0?"p1":"p2"] || "";
+        const teamColor = p.tIdx===0 ? G : GO;
+        const par = PAR[col];
+        const isLastHole = col === 8;
+        const isLastPlayer = players.slice(row+1).every(pl => getEntryType(pl.tIdx, pl.pi) !== "normal");
+        const isLast = isLastHole && isLastPlayer;
+        const numBtnStyle = {
+          height:"52px", borderRadius:"10px", border:"2px solid #d8e8d8",
+          background:"#fff", color:"#1a2e1a", fontFamily:FB,
+          fontSize:"22px", fontWeight:600, cursor:"pointer", touchAction:"manipulation",
+          boxShadow:"0 1px 3px rgba(0,0,0,0.08)",
+        };
+        return <>
+          <div onClick={numpadClose}
+            style={{position:"fixed",inset:0,zIndex:299,background:"rgba(0,0,0,0.45)"}} />
+          <div style={{
+            position:"fixed",bottom:0,left:0,right:0,zIndex:300,
+            background:"#f8faf8",borderTop:`3px solid ${teamColor}`,
+            borderRadius:"18px 18px 0 0",
+            padding:"14px 16px 28px",
+            boxShadow:"0 -8px 32px rgba(0,0,0,0.25)",
+          }}>
+            {/* Header: player + hole dots */}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"8px"}}>
+              <div>
+                <div style={{fontSize:"17px",fontWeight:700,color:"#1a2e1a"}}>{pname}</div>
+                <div style={{fontSize:"12px",color:"#666",marginTop:"2px"}}>Hole {col+1} · Par {par} · SI {SI[col]}</div>
+              </div>
+              <div style={{display:"flex",gap:"5px",flexWrap:"wrap",maxWidth:"200px",paddingTop:"2px"}}>
+                {Array(9).fill(0).map((_,hi)=>{
+                  const active = hi===col;
+                  const has = getEntry(p.tIdx,p.pi,hi)>0;
+                  return (
+                    <div key={hi} onClick={()=>{numpadCommit(numpadVal,row,col);const g=getEntry(p.tIdx,p.pi,hi);setNumpadCell({row,col:hi});setNumpadVal(g?String(g):"");}}
+                      style={{width:"22px",height:"22px",borderRadius:"50%",cursor:"pointer",
+                        background:active?teamColor:has?teamColor+"30":"#e8eee8",
+                        border:active?`2px solid ${teamColor}`:"1px solid #ccc",
+                        display:"flex",alignItems:"center",justifyContent:"center",
+                        fontSize:"10px",fontWeight:700,
+                        color:active?"#fff":has?teamColor:"#999"}}>
+                      {hi+1}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Score display */}
+            <div style={{textAlign:"center",marginBottom:"10px",fontFamily:FB,fontSize:"52px",fontWeight:700,
+              color:numpadVal?"#1a2e1a":"#bbb",lineHeight:1,height:"56px",
+              display:"flex",alignItems:"center",justifyContent:"center"}}>
+              {numpadVal||"—"}
+            </div>
+
+            {/* Grid: 1-9, 0, ⌫, Par */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"8px",marginBottom:"8px"}}>
+              {[1,2,3,4,5,6,7,8,9].map(n=>(
+                <button key={n} onClick={()=>setNumpadVal(v=>v.length>=2?v:v+String(n))} style={numBtnStyle}>{n}</button>
+              ))}
+              <button onClick={()=>setNumpadVal(v=>v.length>=2?v:v+"0")} style={numBtnStyle}>0</button>
+              <button onClick={()=>setNumpadVal(v=>v.slice(0,-1))} style={{...numBtnStyle,fontSize:"20px",color:"#888"}}>⌫</button>
+              <button onClick={()=>setNumpadVal(String(par))} style={{...numBtnStyle,background:"#e8f5e9",color:G,border:`2px solid ${G}44`,fontSize:"15px"}}>Par {par}</button>
+            </div>
+
+            {/* Next / Done */}
+            <button onClick={isLast?numpadClose:numpadNext}
+              style={{width:"100%",padding:"14px",borderRadius:"11px",border:"none",
+                background:teamColor,color:"#fff",fontFamily:FB,fontSize:"16px",fontWeight:700,
+                cursor:"pointer",touchAction:"manipulation"}}>
+              {isLast?"Done ✓":isLastHole?"Next Player →":"Next Hole →"}
+            </button>
+          </div>
+        </>;
+      })()}
     </div>
   );
 }
