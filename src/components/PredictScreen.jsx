@@ -427,15 +427,21 @@ export default function PredictScreen({ league }) {
               {/* Win probability bar */}
               <ProbBar aWin={aWinPct} tie={tiePct} bWin={bWinPct} />
 
-              {/* Expected pts row */}
-              <div style={{ display: "flex", justifyContent: "space-between", marginTop: "6px", marginBottom: "10px" }}>
-                <span style={{ fontSize: "11px", color: aWinPct >= bWinPct ? G : M, fontWeight: aWinPct >= bWinPct ? 700 : 400 }}>
-                  {aAvgPts.toFixed(1)} exp match pts
-                </span>
-                <span style={{ fontSize: "10px", color: M }}>projected</span>
-                <span style={{ fontSize: "11px", color: bWinPct > aWinPct ? G : M, fontWeight: bWinPct > aWinPct ? 700 : 400 }}>
-                  {bAvgPts.toFixed(1)} exp match pts
-                </span>
+              {/* Expected pts row — 8 pts total per match (2 Lo + 2 Hi + 4 team) */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "6px", marginBottom: "10px" }}>
+                <div style={{ textAlign: "left" }}>
+                  <span style={{ fontSize: "20px", fontWeight: 700, color: aWinPct >= bWinPct ? G : CREAM }}>
+                    {aAvgPts.toFixed(1)}
+                  </span>
+                  <span style={{ fontSize: "11px", color: M }}> / 8 pts</span>
+                </div>
+                <span style={{ fontSize: "10px", color: M }}>exp match pts</span>
+                <div style={{ textAlign: "right" }}>
+                  <span style={{ fontSize: "20px", fontWeight: 700, color: bWinPct > aWinPct ? G : CREAM }}>
+                    {bAvgPts.toFixed(1)}
+                  </span>
+                  <span style={{ fontSize: "11px", color: M }}> / 8 pts</span>
+                </div>
               </div>
 
               {/* Individual matchups */}
