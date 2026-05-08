@@ -54,6 +54,7 @@ import { applySnapshotToLeague, applyWeekScoreDoc, removeWeekScoreDoc, normalize
 
 function App() {
   const [screen,  setScreen]  = useState("schedule");
+  const [selPlayer, setSelPlayer] = useState(null); // {tid, pi} — set when navigating from POTY
   const [league,  setLeague]  = useState(initLeague);
   const [selWeek, setWeek]    = useState(calcCurrentWeek);
   const [selTeam, setTeam]    = useState(1);
@@ -590,7 +591,7 @@ const [seasonYear] = useState(SEASON_YEAR);
             background:"#f8f5ee", paddingBottom:"6px"
           }}>
             {MORE_TABS.map(t=>(
-              <NavBtn key={t} active={screen===t} onClick={()=>{setScreen(t);setMoreOpen(false);}}>
+              <NavBtn key={t} active={screen===t} onClick={()=>{if(t==="players") setSelPlayer(null); setScreen(t);setMoreOpen(false);}}>
                 {TAB_LABEL[t]}
               </NavBtn>
             ))}
@@ -650,7 +651,10 @@ const [seasonYear] = useState(SEASON_YEAR);
       })()}
 
       {screen==="standings"&&(
-        <StandingsScreen teamStandings={teamStandings} weeklyTeamPts={weeklyTeamPts} />
+        <StandingsScreen
+          teamStandings={teamStandings}
+          weeklyTeamPts={weeklyTeamPts}
+        />
       )}
 
       {screen==="masters"&&(
@@ -668,6 +672,7 @@ const [seasonYear] = useState(SEASON_YEAR);
           potyList={potyList}
           weeklyPoty={weeklyPoty}
           cancelledWeeks={cancelledWeeks}
+          onPlayerClick={(tid, pi) => { setSelPlayer({ tid, pi }); setScreen("players"); setMoreOpen(false); }}
         />
       )}
 
@@ -712,7 +717,7 @@ const [seasonYear] = useState(SEASON_YEAR);
       )}
 
       {screen==="players"&&(
-        <PlayerScreen league={league} />
+        <PlayerScreen league={league} initialPlayer={selPlayer} />
       )}
 
       {screen==="rules"&&(

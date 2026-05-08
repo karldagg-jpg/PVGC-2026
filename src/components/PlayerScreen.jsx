@@ -526,8 +526,8 @@ function PlayerProfile({ tid, pi, league, onBack }) {
 }
 
 // Main screen
-export default function PlayerScreen({ league }) {
-  const [selected, setSelected] = useState(null); // {tid, pi}
+export default function PlayerScreen({ league, initialPlayer }) {
+  const [selected, setSelected] = useState(initialPlayer || null);
   const [search, setSearch] = useState("");
 
   const filtered = ALL_PLAYERS.filter(p => {

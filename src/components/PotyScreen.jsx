@@ -3,7 +3,7 @@ import { G, GO, M, CREAM, GOLD, CARD2, FD, FB } from "../constants/theme";
 import { fmtDate } from "../lib/format";
 import { Tag } from "./ui";
 
-function PotyScreen({ potyTab, setPotyTab, potyList, weeklyPoty, cancelledWeeks }) {
+function PotyScreen({ potyTab, setPotyTab, potyList, weeklyPoty, cancelledWeeks, onPlayerClick }) {
   return (
     <div style={{ maxWidth: "820px", margin: "0 auto", padding: "22px 14px" }}>
       <div style={{ fontFamily: FD, fontSize: "28px", marginBottom: "4px", fontWeight: 600, color: CREAM }}>
@@ -62,7 +62,10 @@ function PotyScreen({ potyTab, setPotyTab, potyList, weeklyPoty, cancelledWeeks 
                     return (
                       <tr key={`${p.tid}-${p.pi}`} style={{ borderBottom: `1px solid ${GOLD}22` }}>
                         <td style={{ padding: "9px 10px", fontWeight: 700, color: rc, fontSize: "13px" }}>{rank}</td>
-                        <td style={{ padding: "9px 10px", fontWeight: rank <= 3 ? 600 : 400, color: rank <= 3 ? CREAM : M }}>{p.name}</td>
+                        <td
+                          style={{ padding: "9px 10px", fontWeight: rank <= 3 ? 600 : 400, color: rank <= 3 ? CREAM : M, cursor: onPlayerClick ? "pointer" : "default", textDecoration: onPlayerClick ? "underline" : "none", textDecorationColor: onPlayerClick ? M : "transparent" }}
+                          onClick={() => onPlayerClick?.(p.tid, p.pi)}
+                        >{p.name}</td>
                         <td style={{ padding: "9px 10px", fontSize: "13px", color: M }}>{p.team}</td>
                         <td style={{ padding: "9px 10px", textAlign: "center", color: M }}>{p.rounds.length}</td>
                         <td style={{ padding: "9px 10px", textAlign: "center", color: M }}>{curTotal}</td>
@@ -109,7 +112,10 @@ function PotyScreen({ potyTab, setPotyTab, potyList, weeklyPoty, cancelledWeeks 
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: i < wr.winners.length - 1 ? "6px" : 0 }}>
                     <span style={{ color: GO, fontSize: "14px" }}>★</span>
                     <div>
-                      <div style={{ fontSize: "13px", fontWeight: 700, color: CREAM }}>{p.name}</div>
+                      <div
+                        style={{ fontSize: "13px", fontWeight: 700, color: CREAM, cursor: onPlayerClick ? "pointer" : "default", textDecoration: onPlayerClick ? "underline" : "none", textDecorationColor: onPlayerClick ? M : "transparent" }}
+                        onClick={() => onPlayerClick?.(p.tid, p.pi)}
+                      >{p.name}</div>
                       <div style={{ fontSize: "13px", color: M }}>{p.team}</div>
                     </div>
                     <div style={{ marginLeft: "auto", textAlign: "right" }}>
