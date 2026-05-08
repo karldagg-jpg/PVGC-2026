@@ -302,7 +302,16 @@ function RoundReplayPanel({ league, initialWeek, initialTeam }) {
 
   const cellBg = pts => pts == null ? "transparent" : pts === 0 ? "#fce8e8" : pts === 1 ? "rgba(0,0,0,0.02)" : pts === 2 ? "#e8f5e8" : "#c8eec8";
   const cellFg = pts => pts >= 2 ? G : pts === 0 ? R : M;
-  const visibleSeries = players?.map(p => ({ ...p, cum: p.cum.slice(0, playHole + 1) }));
+
+  const teamSeries = players ? [
+    { name: TEAMS[tlow]?.name || `Team ${tlow}`, color: REPLAY_COLORS[0],
+      cum: Array.from({length: 10}, (_, i) => players[0].cum[i] + players[1].cum[i]),
+      total: players[0].total + players[1].total },
+    { name: TEAMS[thigh]?.name || `Team ${thigh}`, color: REPLAY_COLORS[2],
+      cum: Array.from({length: 10}, (_, i) => players[2].cum[i] + players[3].cum[i]),
+      total: players[2].total + players[3].total },
+  ] : null;
+  const visibleTeamSeries = teamSeries?.map(t => ({ ...t, cum: t.cum.slice(0, playHole + 1) }));
 
   const ctrlBtn = { padding: "6px 14px", borderRadius: "7px", border: `1px solid ${GOLD}44`, background: "transparent", color: CREAM, fontFamily: FB, fontSize: "12px", fontWeight: 600, cursor: "pointer" };
 
@@ -336,15 +345,12 @@ function RoundReplayPanel({ league, initialWeek, initialTeam }) {
       ) : (
         <>
           <div style={{ display: "flex", gap: "14px", flexWrap: "wrap", marginBottom: "12px", alignItems: "center" }}>
-            {players.map((p, i) => (
-              <React.Fragment key={i}>
-                {i === 2 && <div style={{ width: "1px", height: "16px", background: GOLD + "44" }} />}
-                <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                  <div style={{ width: "10px", height: "10px", borderRadius: "2px", background: p.color }} />
-                  <span style={{ fontSize: "12px", fontWeight: 600, color: CREAM }}>{p.name}</span>
-                  <span style={{ fontSize: "11px", color: M }}>· {p.total} pts</span>
-                </div>
-              </React.Fragment>
+            {teamSeries.map((t, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                <div style={{ width: "10px", height: "10px", borderRadius: "2px", background: t.color }} />
+                <span style={{ fontSize: "12px", fontWeight: 600, color: CREAM }}>{t.name}</span>
+                <span style={{ fontSize: "11px", color: M }}>· {t.total} pts</span>
+              </div>
             ))}
           </div>
 
@@ -367,7 +373,7 @@ function RoundReplayPanel({ league, initialWeek, initialTeam }) {
             <div style={{ fontSize: "10px", color: M, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600, marginBottom: "4px", paddingLeft: "4px" }}>
               Cumulative Stableford
             </div>
-            <RaceChart series={visibleSeries} />
+            <RaceChart series={visibleTeamSeries} />
           </div>
 
           <div style={{ background: "rgba(255,255,255,0.6)", border: `1px solid ${GOLD}22`, borderRadius: "10px", padding: "12px", overflowX: "auto" }}>
