@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useRef, useCallback } from "react";
+import SandbaggerView from "./SandbaggerView";
 import {
   PAR, SI, RAINOUT_SUB, ALL_PLAYERS, TEAMS, SCHEDULE, DEFAULT_HCP,
   isNewMember, PLAYOFF_START_WEEK,
@@ -847,6 +848,7 @@ const VIEWS = [
   { key:"players", label:"Players" },
   { key:"matches", label:"Matches" },
   { key:"teams",   label:"Teams" },
+  { key:"bandits", label:"🥷 Bandits" },
 ];
 
 export default function PulseScreen({ league }) {
@@ -910,6 +912,9 @@ export default function PulseScreen({ league }) {
       {view==="teams" && (
         <TeamsView playerRounds={playerRounds} hotcold={hotcold}
           onPlayerClick={handlePlayerClick} />
+      )}
+      {view==="bandits" && (
+        <SandbaggerView league={league} />
       )}
 
       {/* Player detail sheet */}
