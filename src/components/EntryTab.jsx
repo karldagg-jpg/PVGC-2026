@@ -407,9 +407,9 @@ function EntryTab({league, saveLeague, saveMatchDoc, entryWeek, setEntryWeek, en
                     const bdColor=isCapped?GO:gross?(pts>=3?G:pts===1?GOLD:pts===0?"#999":R):"#999";
                     return (
                       <div key={hi} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:"2px"}}>
-                        <div
+                        <button
+                          type="button"
                           ref={el=>cellRefs.current[`${rowIdx}-${hi}`]=el}
-                          tabIndex={0}
                           onClick={()=>openNumpad(rowIdx,hi)}
                           onKeyDown={e=>{
                             if(e.key==="Enter"||e.key===" "){e.preventDefault();openNumpad(rowIdx,hi);}
@@ -425,7 +425,7 @@ function EntryTab({league, saveLeague, saveMatchDoc, entryWeek, setEntryWeek, en
                             boxShadow:numpadCell?.row===rowIdx&&numpadCell?.col===hi?`0 0 0 3px ${teamColor}44`:"none",
                           }}>
                           {gross || String(PAR[hi])}
-                        </div>
+                        </button>
                         {gross>0&&<>
                           <span style={{fontSize:"9px",color:M,lineHeight:1.2,letterSpacing:"0.04em"}}>MAX</span>
                           <span style={{fontSize:"10px",fontWeight:600,color:isCapped?GO:M,lineHeight:1}}>{adjGross}</span>
