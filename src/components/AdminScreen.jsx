@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { SCHEDULE_RAW, TEAMS, getTeeTimes, SEASON_YEAR } from "../constants/league";
+import { SCHEDULE_RAW, TEAMS, getTeeTimes, SEASON_YEAR, PAR, SI } from "../constants/league";
 import * as L2026 from "../constants/league_2026";
 import { G, GO, M, CREAM, GOLD, CARD, FB, FD, R } from "../constants/theme";
 import { fmtDate } from "../lib/format";
 import { exportStandings, exportHandicaps, exportScores } from "../lib/exportUtils";
-import { matchKey, getOpponent, buildWeekRecap } from "../lib/leagueLogic";
+import { matchKey, getOpponent, buildWeekRecap, stabPts, hcpStr } from "../lib/leagueLogic";
 import { Tag } from "./ui";
 
 function AccordionSection({ id, open, onToggle, title, icon, badge, hint, danger, children }) {
@@ -120,6 +120,58 @@ tr{border-bottom:1.5px solid #ccc}
   setTimeout(() => w.print(), 300);
 }
 
+// ── Round Replay helpers ─────────────────────────────────────────────────────
+
+const REPLAY_COLORS = ["#1a6b3a", "#52b57a", "#b8600a", "#e8a060"];
+
+function normScoresR(s) {
+  if (!s) return [[], []];
+  if (Array.isArray(s)) return s;
+  return [s.p0 || [], s.p1 || []];
+}
+
+function RaceChart({ series }) {
+  const VW = 500, VH = 155;
+  const pL = 26, pR = 14, pT = 12, pB = 22;
+  const cW = VW - pL - pR, cH = VH - pT - pB;
+  const maxV = Math.max(...series.flatMap(s => s.cum.filter(v => v != null)), 5);
+  const yMax = Math.ceil(maxV / 5) * 5;
+  const xOf = i => pL + (i / 9) * cW;
+  const yOf = v => pT + cH - (v / yMax) * cH;
+  const gridVals = [];
+  for (let v = 0; v <= yMax; v += 5) gridVals.push(v);
+  return (
+    <svg viewBox={`0 0 ${VW} ${VH}`} style={{ width: "100%", display: "block" }}>
+      {gridVals.map(v => (
+        <g key={v}>
+          <line x1={pL} x2={VW - pR} y1={yOf(v)} y2={yOf(v)}
+            stroke={v === 0 ? "rgba(0,0,0,0.12)" : "rgba(0,0,0,0.05)"}
+            strokeWidth="1" strokeDasharray={v > 0 ? "3 3" : ""} />
+          <text x={pL - 3} y={yOf(v) + 3.5} textAnchor="end" fontSize="8" fill="#9aaa9a">{v}</text>
+        </g>
+      ))}
+      <text x={xOf(0)} y={VH - 4} textAnchor="middle" fontSize="8.5" fill="#b0c0b0">S</text>
+      {[1,2,3,4,5,6,7,8,9].map(h => (
+        <text key={h} x={xOf(h)} y={VH - 4} textAnchor="middle" fontSize="8.5" fill="#8a9a8a">{h}</text>
+      ))}
+      {series.map((s, si) => {
+        const validPts = s.cum
+          .map((v, i) => v != null ? `${xOf(i)},${yOf(v)}` : null)
+          .filter(Boolean);
+        return (
+          <g key={si}>
+            <polyline points={validPts.join(" ")} fill="none" stroke={s.color}
+              strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round" />
+            {s.cum.map((v, i) => i > 0 && v != null ? (
+              <circle key={i} cx={xOf(i)} cy={yOf(v)} r="2.8" fill={s.color} />
+            ) : null)}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, finalPairs, saveLeague, unlockMatch, clearMatch, clearSeason, isAdmin, adminPin, adminUnlock, adminLock, saveAdminPin, teamStandings, weeklyTeamPts, createSnapshot, listSnapshots, restoreSnapshot, match, setMatch, activeWeek, activeTeam, cancelledWeeks, toggleCancelWeek }) {
   const printYears = Object.keys(PRINT_SCHEDULES).map(Number).sort();
   const [printYear, setPrintYear] = useState(printYears[printYears.length - 1] || SEASON_YEAR);
@@ -151,6 +203,10 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
   // Recap state
   const [recapWeek, setRecapWeek] = useState(1);
   const [recapCopied, setRecapCopied] = useState(false);
+
+  // Replay state
+  const [replayWeek, setReplayWeek] = useState(activeWeek || 1);
+  const [replayTeam, setReplayTeam] = useState(activeTeam || 1);
   function copyRecap() {
     const text = buildWeekRecap(recapWeek, league.results || {}, league.handicaps || {});
     navigator.clipboard.writeText(text).then(() => {
@@ -810,6 +866,171 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
           </AccordionSection>
         );
       })()}
+
+      {/* ── Round Replay ─────────────────────────────────────────── */}
+      <AccordionSection
+        id="replay" open={isOpen("replay")} onToggle={toggleSection}
+        title="Round Replay" icon="📈"
+        hint="charts"
+      >
+        {(() => {
+          const weeksWithData = [];
+          for (let w = 1; w <= 17; w++) {
+            if (league?.results?.[w] && Object.keys(league.results[w]).length > 0) weeksWithData.push(w);
+          }
+          const opp = getOpponent(replayTeam, replayWeek);
+          const tlow = opp ? Math.min(replayTeam, opp) : 0;
+          const thigh = opp ? Math.max(replayTeam, opp) : 0;
+          const mk = tlow && thigh ? matchKey(replayWeek, tlow, thigh) : null;
+          const rec = mk ? (league?.results?.[replayWeek]?.[mk] || null) : null;
+
+          let players = null;
+          if (rec) {
+            const t1s = normScoresR(rec.t1scores);
+            const t2s = normScoresR(rec.t2scores);
+            const t1types = rec.t1types || ["normal","normal"];
+            const t2types = rec.t2types || ["normal","normal"];
+            const snap = rec.hcpSnapshot || {};
+            players = [tlow, tlow, thigh, thigh].map((tid, idx) => {
+              const pi = idx % 2;
+              const team = TEAMS[tid];
+              const name = pi === 0 ? team?.p1 : team?.p2;
+              const hcp = (snap[tid] || league?.handicaps?.[tid] || [0,0])[pi] || 0;
+              const type = (idx < 2 ? t1types : t2types)[pi] || "normal";
+              const gross = (idx < 2 ? t1s : t2s)[pi] || [];
+              let cumPts = 0;
+              const cum = [0];
+              const holeStab = [];
+              for (let hi = 0; hi < 9; hi++) {
+                const g = gross[hi] || 0;
+                if (!g || type !== "normal") {
+                  holeStab.push(null);
+                  cum.push(cum[cum.length - 1]);
+                } else {
+                  const pts = stabPts(g, PAR[hi], hcpStr(hcp, SI[hi])) || 0;
+                  holeStab.push({ pts, gross: g });
+                  cumPts += pts;
+                  cum.push(cumPts);
+                }
+              }
+              return { name, tid, hcp, type, holeStab, cum, total: cumPts, color: REPLAY_COLORS[idx] };
+            });
+          }
+
+          const cellBg = pts => pts === null ? "transparent" : pts === 0 ? "#fce8e8" : pts === 1 ? "rgba(0,0,0,0.02)" : pts === 2 ? "#e8f5e8" : "#c8eec8";
+          const cellFg = pts => pts >= 2 ? G : pts === 0 ? R : M;
+
+          return (
+            <div style={{ marginTop: "8px" }}>
+              {/* Selectors */}
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "16px" }}>
+                <div>
+                  <div style={{ fontSize: "11px", color: M, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px", fontWeight: 600 }}>Week</div>
+                  <select value={replayWeek} onChange={e => setReplayWeek(parseInt(e.target.value))}
+                    style={{ padding: "7px 10px", borderRadius: "8px", border: `1px solid ${GOLD}44`, background: CARD, color: CREAM, fontFamily: FB, fontSize: "13px", cursor: "pointer", outline: "none" }}>
+                    {(weeksWithData.length ? weeksWithData : Array.from({length:17},(_,i)=>i+1)).map(w => (
+                      <option key={w} value={w}>Week {w}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <div style={{ fontSize: "11px", color: M, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px", fontWeight: 600 }}>Team</div>
+                  <select value={replayTeam} onChange={e => setReplayTeam(parseInt(e.target.value))}
+                    style={{ padding: "7px 10px", borderRadius: "8px", border: `1px solid ${GOLD}44`, background: CARD, color: CREAM, fontFamily: FB, fontSize: "13px", cursor: "pointer", outline: "none" }}>
+                    {Array.from({length:18},(_,i)=>i+1).map(t => (
+                      <option key={t} value={t}>{TEAMS[t]?.name || `Team ${t}`}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {!rec ? (
+                <div style={{ textAlign: "center", color: M, fontSize: "13px", padding: "20px 0" }}>
+                  No match data for Week {replayWeek} · {TEAMS[replayTeam]?.name || `Team ${replayTeam}`}
+                </div>
+              ) : (
+                <>
+                  {/* Legend */}
+                  <div style={{ display: "flex", gap: "14px", flexWrap: "wrap", marginBottom: "12px", alignItems: "center" }}>
+                    {players.map((p, i) => (
+                      <React.Fragment key={i}>
+                        {i === 2 && <div style={{ width: "1px", height: "16px", background: GOLD + "44" }} />}
+                        <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                          <div style={{ width: "10px", height: "10px", borderRadius: "2px", background: p.color }} />
+                          <span style={{ fontSize: "12px", fontWeight: 600, color: CREAM }}>{p.name}</span>
+                          <span style={{ fontSize: "11px", color: M }}>· {p.total} pts</span>
+                        </div>
+                      </React.Fragment>
+                    ))}
+                  </div>
+
+                  {/* Race chart */}
+                  <div style={{ background: "rgba(255,255,255,0.6)", border: `1px solid ${GOLD}22`, borderRadius: "10px", padding: "12px 8px 6px", marginBottom: "12px" }}>
+                    <div style={{ fontSize: "10px", color: M, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600, marginBottom: "4px", paddingLeft: "4px" }}>
+                      Cumulative Stableford
+                    </div>
+                    <RaceChart series={players} />
+                  </div>
+
+                  {/* Hole-by-hole grid */}
+                  <div style={{ background: "rgba(255,255,255,0.6)", border: `1px solid ${GOLD}22`, borderRadius: "10px", padding: "12px", overflowX: "auto" }}>
+                    <div style={{ fontSize: "10px", color: M, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600, marginBottom: "8px" }}>
+                      Hole by Hole
+                    </div>
+                    <table style={{ borderCollapse: "collapse", fontSize: "12px", minWidth: "460px", width: "100%" }}>
+                      <thead>
+                        <tr>
+                          <th style={{ textAlign: "left", padding: "4px 6px 6px", color: M, fontWeight: 600, fontSize: "11px", minWidth: "100px" }}>Player</th>
+                          {PAR.map((par, hi) => (
+                            <th key={hi} style={{ textAlign: "center", padding: "3px 4px 6px", minWidth: "34px", fontWeight: 400, fontSize: "10px", color: M }}>
+                              <div style={{ fontWeight: 600, color: CREAM }}>{hi + 1}</div>
+                              <div>P{par}</div>
+                            </th>
+                          ))}
+                          <th style={{ textAlign: "center", padding: "4px 8px 6px", color: GOLD, fontWeight: 700, fontSize: "11px" }}>Tot</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {players.map((p, idx) => (
+                          <React.Fragment key={idx}>
+                            {idx === 2 && (
+                              <tr><td colSpan={11} style={{ padding: "3px 0" }}><div style={{ borderTop: `1px solid ${GOLD}33` }} /></td></tr>
+                            )}
+                            <tr>
+                              <td style={{ padding: "5px 6px 5px 4px", whiteSpace: "nowrap" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                                  <div style={{ width: "8px", height: "8px", borderRadius: "2px", background: p.color, flexShrink: 0 }} />
+                                  <span style={{ fontSize: "12px", fontWeight: 600, color: CREAM }}>{p.name}</span>
+                                </div>
+                                <div style={{ fontSize: "10px", color: M, paddingLeft: "13px" }}>HCP {p.hcp}</div>
+                              </td>
+                              {p.holeStab.map((h, hi) => (
+                                <td key={hi} style={{ textAlign: "center", padding: "5px 4px", background: cellBg(h?.pts ?? null) }}>
+                                  {h != null ? (
+                                    <>
+                                      <div style={{ fontSize: "12px", fontWeight: 700, color: cellFg(h.pts) }}>{h.pts}</div>
+                                      <div style={{ fontSize: "9px", color: M }}>{h.gross}</div>
+                                    </>
+                                  ) : (
+                                    <span style={{ fontSize: "10px", color: "#c0c8c0" }}>—</span>
+                                  )}
+                                </td>
+                              ))}
+                              <td style={{ textAlign: "center", padding: "5px 8px", fontWeight: 700, color: p.color, fontSize: "14px" }}>
+                                {p.total || "—"}
+                              </td>
+                            </tr>
+                          </React.Fragment>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })()}
+      </AccordionSection>
 
       {/* ── Reset Season ─────────────────────────────────────────── */}
       <AccordionSection
