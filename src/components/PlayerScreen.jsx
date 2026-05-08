@@ -149,7 +149,7 @@ function buildPlayerStats(tid, pi, league) {
   // Head-to-head vs each opponent
   const h2h = {};
   for (const r of rounds) {
-    if (!h2h[r.opp]) h2h[r.opp] = { w: 0, l: 0, t: 0 };
+    if (!h2h[r.opp]) h2h[r.opp] = { w: 0, l: 0, t: 0, rivalPi: r.rivalPi };
     if (r.won) h2h[r.opp].w++;
     else if (r.lost) h2h[r.opp].l++;
     else h2h[r.opp].t++;
@@ -424,7 +424,7 @@ function PlayerProfile({ tid, pi, league, onBack }) {
                 border: `1px solid ${r.won ? G + "22" : r.lost ? R + "18" : GOLD + "11"}`,
               }}>
                 <span style={{ fontSize: "11px", color: M, width: "28px", flexShrink: 0 }}>W{r.week}</span>
-                <span style={{ fontSize: "12px", color: M, flex: 1 }}>vs {TEAMS[r.opp]?.name}</span>
+                <span style={{ fontSize: "12px", color: M, flex: 1 }}>vs {r.rivalPi === 0 ? TEAMS[r.opp]?.p1 : TEAMS[r.opp]?.p2}</span>
                 <span style={{ fontSize: "12px", color: M }}>Gross {r.gross}</span>
                 <span style={{ fontSize: "13px", fontWeight: 700, color: G, minWidth: "32px", textAlign: "right" }}>
                   {r.stab} pts
@@ -462,7 +462,7 @@ function PlayerProfile({ tid, pi, league, onBack }) {
                   }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: "12px", fontWeight: 600, color: CREAM, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {TEAMS[parseInt(oppId)]?.name}
+                        {rec.rivalPi === 0 ? TEAMS[parseInt(oppId)]?.p1 : TEAMS[parseInt(oppId)]?.p2}
                       </div>
                       <div style={{ fontSize: "10px", color: M }}>{total} match{total !== 1 ? "es" : ""}</div>
                     </div>
@@ -492,7 +492,7 @@ function PlayerProfile({ tid, pi, league, onBack }) {
               }}>
                 <span style={{ fontSize: "11px", color: M }}>W{r.week}</span>
                 <span style={{ fontSize: "11px", color: M, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {TEAMS[r.opp]?.name}
+                  {r.rivalPi === 0 ? TEAMS[r.opp]?.p1 : TEAMS[r.opp]?.p2}
                 </span>
                 <span style={{ fontSize: "11px", color: M, textAlign: "center" }}>HCP {r.hcp}</span>
                 <span style={{ fontSize: "12px", color: CREAM, textAlign: "center" }}>{r.gross}</span>
