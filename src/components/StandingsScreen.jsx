@@ -31,13 +31,14 @@ export default function StandingsScreen({ teamStandings, weeklyTeamPts }) {
                 <tr style={{ borderBottom: `1px solid ${GOLD}33`, background: "rgba(26,61,36,0.05)" }}>
                   <th style={{
                     textAlign: "center", padding: "9px 8px", color: M, fontWeight: 600,
-                    background: CARD2, zIndex: 2, borderBottom: `1px solid ${GOLD}33`,
-                    minWidth: "28px",
+                    position: "sticky", left: 0,
+                    background: "#fff", zIndex: 2, borderBottom: `1px solid ${GOLD}33`,
+                    width: "36px", minWidth: "36px",
                   }}>#</th>
                   <th style={{
                     textAlign: "left", padding: "9px 12px", color: GOLD, fontWeight: 600,
-                    whiteSpace: "nowrap", position: "sticky", left: 0,
-                    background: CARD2, zIndex: 2, borderBottom: `1px solid ${GOLD}33`,
+                    whiteSpace: "nowrap", position: "sticky", left: "36px",
+                    background: "#fff", zIndex: 2, borderBottom: `1px solid ${GOLD}33`,
                     minWidth: "140px",
                   }}>Team</th>
                   {weeksWithData.map(w => (
@@ -59,15 +60,19 @@ export default function StandingsScreen({ teamStandings, weeklyTeamPts }) {
                   const rank = i + 1;
                   const tw = pts[s.id] || {};
                   const weekTotal = weeksWithData.reduce((sum, w) => sum + (tw[w]?.totalPts || 0), 0);
-                  const rowBg = i % 2 === 0 ? "transparent" : `${GOLD}08`;
-                  const stickyBg = i % 2 === 0 ? CARD2 : `${GOLD}12`;
+                  const rowBg    = i % 2 === 0 ? "transparent" : `${GOLD}08`;
+                  const stickyBg = i % 2 === 0 ? "#ffffff" : "#faf7ee";
                   const rc = rank === 1 ? GO : rank <= 3 ? G : rank <= 8 ? CREAM : M;
                   return (
                     <tr key={s.id} style={{ borderBottom: `1px solid ${GOLD}11`, background: rowBg }}>
-                      <td style={{ textAlign: "center", padding: "9px 8px", fontWeight: 700, fontSize: "13px", color: rc }}>{rank}</td>
+                      <td style={{
+                        textAlign: "center", padding: "9px 8px", fontWeight: 700, fontSize: "13px", color: rc,
+                        position: "sticky", left: 0, background: stickyBg, zIndex: 1,
+                        width: "36px",
+                      }}>{rank}</td>
                       <td style={{
                         padding: "9px 12px", whiteSpace: "nowrap",
-                        position: "sticky", left: 0, background: stickyBg, zIndex: 1,
+                        position: "sticky", left: "36px", background: stickyBg, zIndex: 1,
                       }}>
                         <div style={{ fontSize: "13px", color: CREAM, fontWeight: 500 }}>
                           {TEAMS[s.id]?.name || `Team ${s.id}`}
