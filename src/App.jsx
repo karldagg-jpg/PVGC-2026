@@ -560,7 +560,7 @@ const [seasonYear] = useState(SEASON_YEAR);
           <div>
             <div style={{fontFamily:FD,fontSize:"20px",color:"#0f2a14",letterSpacing:"0.02em",fontWeight:700}}>PVGC {seasonYear} League</div>
             <div style={{fontSize:"11px",color:"#3a5a3a",marginTop:"1px",letterSpacing:"0.1em",textTransform:"uppercase",fontWeight:500}}>
-              Pickering Valley · 18 Teams · Stableford · <span style={{color:GOLD}}>v3.8</span> · <span style={{color:"#2f5a3a"}}>{LEAGUE_DOC_ID}</span>
+              Pickering Valley · 18 Teams · Stableford · <span style={{color:GOLD}}>v4.0</span> · <span style={{color:"#2f5a3a"}}>{LEAGUE_DOC_ID}</span>
             </div>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:"6px"}}>
