@@ -444,11 +444,12 @@ function calcAutoHcp(grossRounds, startHcp, isNew) {
 
 // Build per-player gross round history from all saved results up to (not including) a given week.
 // Returns: { [tid]: [p1_grosses[], p2_grosses[]] }
-function buildGrossHistory(results, upToWeek, defaultHcp=DEFAULT_HCP) {
+function buildGrossHistory(results, upToWeek, defaultHcp=DEFAULT_HCP, cancelledWeeks=null) {
   const history = {};
   for (let t = 1; t <= 18; t++) history[t] = [[], []];
 
   for (let w = 1; w < upToWeek; w++) {
+    if (cancelledWeeks?.has(w)) continue;
     const weekResults = results[w] || {};
     for (const [key, rec] of Object.entries(weekResults)) {
       if (!rec) continue;
@@ -514,11 +515,11 @@ function calcAutoHcpRaw(grossRounds, startHcp, isNew) {
 }
 
 // Like getEffectiveHcp but returns unrounded float for tie-breaking
-function getEffectiveHcpRaw(tid, pi, week, results, handicaps, hcpOverrides, defaultHcp=DEFAULT_HCP, newMemberFn=isNewMember) {
+function getEffectiveHcpRaw(tid, pi, week, results, handicaps, hcpOverrides, cancelledWeeks=null, defaultHcp=DEFAULT_HCP, newMemberFn=isNewMember) {
   const overrideKey = `${tid}-${pi}-${week}`;
   if (hcpOverrides && hcpOverrides[overrideKey] !== undefined) return hcpOverrides[overrideKey];
   const hcpBase = (handicaps && Object.keys(handicaps).length) ? handicaps : defaultHcp;
-  const history = buildGrossHistory(results, week, hcpBase);
+  const history = buildGrossHistory(results, week, hcpBase, cancelledWeeks);
   const startHcp = (hcpBase[tid]||[0,0])[pi];
   return calcAutoHcpRaw(history[tid][pi], startHcp, newMemberFn(tid, pi));
 }
@@ -527,18 +528,18 @@ function getEffectiveHcpRaw(tid, pi, week, results, handicaps, hcpOverrides, def
 // Returns: { [tid]: [p1hcp, p2hcp] } — same shape as league.handicaps
 // Get effective handicap for a player at a given week
 // Priority: match hcpSnapshot > hcpOverrides > auto-calc > current handicap
-function getEffectiveHcp(tid, pi, week, results, handicaps, hcpOverrides, defaultHcp=DEFAULT_HCP, newMemberFn=isNewMember) {
+function getEffectiveHcp(tid, pi, week, results, handicaps, hcpOverrides, cancelledWeeks=null, defaultHcp=DEFAULT_HCP, newMemberFn=isNewMember) {
   const overrideKey = `${tid}-${pi}-${week}`;
   if (hcpOverrides && hcpOverrides[overrideKey] !== undefined) return hcpOverrides[overrideKey];
   const hcpBase = (handicaps && Object.keys(handicaps).length) ? handicaps : defaultHcp;
-  const history = buildGrossHistory(results, week, hcpBase);
+  const history = buildGrossHistory(results, week, hcpBase, cancelledWeeks);
   const startHcp = (hcpBase[tid]||[0,0])[pi];
   return calcAutoHcp(history[tid][pi], startHcp, newMemberFn(tid, pi));
 }
 
 // Returns { loPi, hiPi } — the pi index of the low and high HCP player for tid in week.
 // Priority: loHiOverrides → hcpSnapshot → getEffectiveHcpRaw
-// loHiCtx must have { loHiOverrides, results, handicaps, hcpOverrides }
+// loHiCtx must have { loHiOverrides, results, handicaps, hcpOverrides, cancelledWeeks? }
 function getLoHiOrder(tid, week, loHiCtx, hcpSnapshot = null) {
   const ov = (loHiCtx.loHiOverrides || {})[`${tid}-${week}`];
   if (ov !== undefined) return { loPi: ov, hiPi: 1 - ov };
@@ -547,14 +548,15 @@ function getLoHiOrder(tid, week, loHiCtx, hcpSnapshot = null) {
     const loPi = (snapEntry[0] || 0) <= (snapEntry[1] || 0) ? 0 : 1;
     return { loPi, hiPi: 1 - loPi };
   }
-  const r0 = getEffectiveHcpRaw(tid, 0, week, loHiCtx.results, loHiCtx.handicaps, loHiCtx.hcpOverrides || {});
-  const r1 = getEffectiveHcpRaw(tid, 1, week, loHiCtx.results, loHiCtx.handicaps, loHiCtx.hcpOverrides || {});
+  const cw = loHiCtx.cancelledWeeks || null;
+  const r0 = getEffectiveHcpRaw(tid, 0, week, loHiCtx.results, loHiCtx.handicaps, loHiCtx.hcpOverrides || {}, cw);
+  const r1 = getEffectiveHcpRaw(tid, 1, week, loHiCtx.results, loHiCtx.handicaps, loHiCtx.hcpOverrides || {}, cw);
   const loPi = r0 <= r1 ? 0 : 1;
   return { loPi, hiPi: 1 - loPi };
 }
 
-function calcSuggestedHcps(results, currentWeek, defaultHcp=DEFAULT_HCP, newMemberFn=isNewMember) {
-  const history = buildGrossHistory(results, currentWeek, defaultHcp);
+function calcSuggestedHcps(results, currentWeek, defaultHcp=DEFAULT_HCP, newMemberFn=isNewMember, cancelledWeeks=null) {
+  const history = buildGrossHistory(results, currentWeek, defaultHcp, cancelledWeeks);
   const suggested = {};
   for (let t = 1; t <= 18; t++) {
     const startHcps = defaultHcp[t] || [0, 0];

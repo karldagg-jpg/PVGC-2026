@@ -44,7 +44,7 @@ function VerifyScreen({ league }) {
       // App HCP = what computePlayerTotal actually uses: snap → override → auto-calc
       const snap = rec.hcpSnapshot;
       const snapHcp = (snap && snap[tid] != null) ? (snap[tid][pi] ?? null) : null;
-      const history = buildGrossHistory(league.results, wk, DEFAULT_HCP);
+      const history = buildGrossHistory(league.results, wk, DEFAULT_HCP, league.cancelledWeeks);
       const startHcp = (DEFAULT_HCP[tid] || [0, 0])[pi] || 0;
       const sysHcp = snapHcp !== null
         ? snapHcp

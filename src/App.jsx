@@ -484,8 +484,8 @@ const [seasonYear] = useState(SEASON_YEAR);
     const m = matchToSave || match;
     const[tlow,thigh]=t1id<t2id?[t1id,t2id]:[t2id,t1id];
     const hcpSnapshot = {
-      [tlow]: [0,1].map(pi => getEffectiveHcp(tlow, pi, selWeek, league.results, league.handicaps, league.hcpOverrides||{})),
-      [thigh]: [0,1].map(pi => getEffectiveHcp(thigh, pi, selWeek, league.results, league.handicaps, league.hcpOverrides||{})),
+      [tlow]: [0,1].map(pi => getEffectiveHcp(tlow, pi, selWeek, league.results, league.handicaps, league.hcpOverrides||{}, league.cancelledWeeks)),
+      [thigh]: [0,1].map(pi => getEffectiveHcp(thigh, pi, selWeek, league.results, league.handicaps, league.hcpOverrides||{}, league.cancelledWeeks)),
     };
     const toSave = selTeam===tlow
       ? {...m, hcpSnapshot}
@@ -625,10 +625,7 @@ const [seasonYear] = useState(SEASON_YEAR);
             if (next.cancelledWeeks.has(w)) {
               next.cancelledWeeks.delete(w);
             } else {
-              const hasScores = league.results[w] && Object.keys(league.results[w]).length > 0;
-              if (hasScores && !confirm(`Week ${w} has scores posted. Cancel the week and delete those scores?`)) return;
               next.cancelledWeeks.add(w);
-              next.results = { ...next.results, [w]: {} };
             }
             saveLeague(next);
           }}
@@ -712,10 +709,7 @@ const [seasonYear] = useState(SEASON_YEAR);
             if (next.cancelledWeeks.has(w)) {
               next.cancelledWeeks.delete(w);
             } else {
-              const hasScores = league.results[w] && Object.keys(league.results[w]).length > 0;
-              if (hasScores && !confirm(`Week ${w} has scores posted. Cancel the week and delete those scores?`)) return;
               next.cancelledWeeks.add(w);
-              next.results = { ...next.results, [w]: {} };
             }
             saveLeague(next);
           }}
@@ -798,10 +792,7 @@ const [seasonYear] = useState(SEASON_YEAR);
             if (next.cancelledWeeks.has(w)) {
               next.cancelledWeeks.delete(w);
             } else {
-              const hasScores = league.results[w] && Object.keys(league.results[w]).length > 0;
-              if (hasScores && !confirm(`Week ${w} has scores posted. Cancel the week and delete those scores?`)) return;
               next.cancelledWeeks.add(w);
-              next.results = { ...next.results, [w]: {} };
             }
             saveLeague(next);
           }}

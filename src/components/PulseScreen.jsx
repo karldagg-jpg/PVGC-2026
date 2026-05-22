@@ -145,8 +145,8 @@ function buildHoleStats(playerRounds, tid, pi) {
 }
 
 // Build historical hcp trajectory [{round#, hcp}]
-function buildHcpHistory(results, tid, pi, handicaps) {
-  const grossRounds = buildGrossHistory(results, PLAYOFF_START_WEEK, handicaps)[tid]?.[pi] || [];
+function buildHcpHistory(results, tid, pi, handicaps, cancelledWeeks=null) {
+  const grossRounds = buildGrossHistory(results, PLAYOFF_START_WEEK, handicaps, cancelledWeeks)[tid]?.[pi] || [];
   const startHcp = (handicaps[tid] || [0,0])[pi] || 0;
   const isNew = isNewMember(tid, pi);
   return grossRounds.map((_, i) => ({
@@ -342,7 +342,7 @@ function PlayerDetailSheet({ pKey, playerRounds, hotcold, onClose, onNav, allKey
   const hc = hotcold[pKey] || { status:"neutral", z:0, tier:0 };
 
   const holeStats = useMemo(() => buildHoleStats(playerRounds, tid, pi), [pKey]);
-  const hcpHistory = useMemo(() => buildHcpHistory(league.results, tid, pi, league.handicaps), [pKey]);
+  const hcpHistory = useMemo(() => buildHcpHistory(league.results, tid, pi, league.handicaps, league.cancelledWeeks), [pKey]);
 
   const currentHcp = rounds.length ? rounds[rounds.length-1].hcp : (league.handicaps[tid]||[0,0])[pi];
   const avgStab = rounds.length ? +(arr_mean(rounds.map(r=>r.stab))).toFixed(1) : null;

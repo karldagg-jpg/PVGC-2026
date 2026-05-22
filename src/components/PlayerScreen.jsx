@@ -102,7 +102,7 @@ function buildPlayerStats(tid, pi, league) {
     const gross = getPlayerGross(rec, tIdx, pi);
     if (gross === 0) continue;
     const stab = getPlayerStab(rec, tIdx, pi, tid);
-    const hcp = getEffectiveHcp(tid, pi, w, league.results, league.handicaps, league.hcpOverrides || {});
+    const hcp = getEffectiveHcp(tid, pi, w, league.results, league.handicaps, league.hcpOverrides || {}, league.cancelledWeeks);
 
     // Individual head-to-head: lo vs lo, hi vs hi
     const snap = rec.hcpSnapshot;
@@ -135,14 +135,14 @@ function buildPlayerStats(tid, pi, league) {
   const losses = rounds.filter(r => r.lost).length;
   const ties = rounds.filter(r => r.tied).length;
   const currentHcp = played
-    ? getEffectiveHcp(tid, pi, REGULAR_WEEKS[REGULAR_WEEKS.length - 1] + 1, league.results, league.handicaps, league.hcpOverrides || {})
+    ? getEffectiveHcp(tid, pi, REGULAR_WEEKS[REGULAR_WEEKS.length - 1] + 1, league.results, league.handicaps, league.hcpOverrides || {}, league.cancelledWeeks)
     : (league.handicaps?.[tid]?.[pi] ?? 0);
 
   // HCP progression: starting HCP + HCP earned after each played round
   const startHcp = (league.handicaps?.[tid] || [0, 0])[pi];
   const hcpTrend = [{ week: 0, hcp: startHcp }];
   for (const r of rounds) {
-    const earned = getEffectiveHcpRaw(tid, pi, r.week + 1, league.results, league.handicaps, league.hcpOverrides || {});
+    const earned = getEffectiveHcpRaw(tid, pi, r.week + 1, league.results, league.handicaps, league.hcpOverrides || {}, league.cancelledWeeks);
     hcpTrend.push({ week: r.week, hcp: earned });
   }
 
@@ -208,7 +208,7 @@ function PlayerCard({ tid, pi, league, onClick }) {
   const contacts = league.contacts || {};
   const team = TEAMS[tid];
   const name = pi === 0 ? team?.p1 : team?.p2;
-  const hcp = getEffectiveHcp(tid, pi, 18, league.results, league.handicaps, league.hcpOverrides || {});
+  const hcp = getEffectiveHcp(tid, pi, 18, league.results, league.handicaps, league.hcpOverrides || {}, league.cancelledWeeks);
   let totalStab = 0;
   for (const w of REGULAR_WEEKS) {
     const o = getOpponent(tid, w);

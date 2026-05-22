@@ -235,7 +235,7 @@ function ScoringScreen({
 
   function printScorecard() {
     if (!opp) return;
-    const getHcpForPrint = (tid, pi) => getEffectiveHcp(tid, pi, selWeek, league.results, league.handicaps, league.hcpOverrides || {});
+    const getHcpForPrint = (tid, pi) => getEffectiveHcp(tid, pi, selWeek, league.results, league.handicaps, league.hcpOverrides || {}, league.cancelledWeeks);
     const snap = matchDoc?.hcpSnapshot;
     const { loPi: o1lo, hiPi: o1hi } = getLoHiOrder(t1id, selWeek, league, snap);
     const { loPi: o2lo, hiPi: o2hi } = getLoHiOrder(t2id, selWeek, league, snap);
@@ -512,7 +512,7 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
           return s + Math.min(g, maxGross(PAR[h], str)) - str;
         }, 0);
         const getType = (tIdx, pi) => (tIdx === 0 ? match.t1types : match.t2types)[pi] || "normal";
-        const getHcp = (tid, pi) => getEffectiveHcp(tid, pi, selWeek, league.results, league.handicaps, league.hcpOverrides||{});
+        const getHcp = (tid, pi) => getEffectiveHcp(tid, pi, selWeek, league.results, league.handicaps, league.hcpOverrides||{}, league.cancelledWeeks);
 
         const getPtsFor = (tIdx, pi, tid, hi) => {
           const type = getType(tIdx, pi);

@@ -26,8 +26,8 @@ function EntryTab({league, saveLeague, saveMatchDoc, entryWeek, setEntryWeek, en
     const loHiKey = `${tid}-${entryWeek}`;
     const loHiOv = (league.loHiOverrides || {})[loHiKey];
     if (loHiOv !== undefined) return loHiOv === 0 ? [0,1] : [1,0];
-    const r0 = getEffectiveHcpRaw(tid, 0, entryWeek, league.results, league.handicaps, league.hcpOverrides||{});
-    const r1 = getEffectiveHcpRaw(tid, 1, entryWeek, league.results, league.handicaps, league.hcpOverrides||{});
+    const r0 = getEffectiveHcpRaw(tid, 0, entryWeek, league.results, league.handicaps, league.hcpOverrides||{}, league.cancelledWeeks);
+    const r1 = getEffectiveHcpRaw(tid, 1, entryWeek, league.results, league.handicaps, league.hcpOverrides||{}, league.cancelledWeeks);
     return r0 <= r1 ? [0,1] : [1,0];
   };
 
@@ -128,8 +128,8 @@ function EntryTab({league, saveLeague, saveMatchDoc, entryWeek, setEntryWeek, en
     const existing = savedRec || {};
     const [tlow, thigh] = entT1id < entT2id ? [entT1id, entT2id] : [entT2id, entT1id];
     const hcpSnapshot = {
-      [tlow]: [0,1].map(pi => getEffectiveHcp(tlow, pi, entryWeek, league.results, league.handicaps, league.hcpOverrides||{})),
-      [thigh]: [0,1].map(pi => getEffectiveHcp(thigh, pi, entryWeek, league.results, league.handicaps, league.hcpOverrides||{})),
+      [tlow]: [0,1].map(pi => getEffectiveHcp(tlow, pi, entryWeek, league.results, league.handicaps, league.hcpOverrides||{}, league.cancelledWeeks)),
+      [thigh]: [0,1].map(pi => getEffectiveHcp(thigh, pi, entryWeek, league.results, league.handicaps, league.hcpOverrides||{}, league.cancelledWeeks)),
     };
     const dt = draftTypes[draftKey];
     const t1types_draft = isSwapped ? (dt?.[1] || existing.t2types || ["normal","normal"]) : (dt?.[0] || existing.t1types || ["normal","normal"]);
@@ -295,7 +295,7 @@ function EntryTab({league, saveLeague, saveMatchDoc, entryWeek, setEntryWeek, en
         {/* One card per player */}
         {players.map((p, rowIdx) => {
           const pname = TEAMS[p.tid]?.[p.pi===0?"p1":"p2"] || "";
-          const hcp = getEffectiveHcp(p.tid, p.pi, entryWeek, league.results, league.handicaps, league.hcpOverrides||{});
+          const hcp = getEffectiveHcp(p.tid, p.pi, entryWeek, league.results, league.handicaps, league.hcpOverrides||{}, league.cancelledWeeks);
           const teamColor = p.tIdx===0 ? G : GO;
           const ptype = getEntryType(p.tIdx, p.pi);
           const roundCount = (() => {

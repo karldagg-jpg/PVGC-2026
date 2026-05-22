@@ -445,8 +445,8 @@ export default function PredictScreen({ league }) {
   const [week, setWeek] = useState(defaultWeek);
 
   const weekHcps = useMemo(
-    () => calcSuggestedHcps(league.results, week, league.handicaps),
-    [league.results, league.handicaps, week]
+    () => calcSuggestedHcps(league.results, week, league.handicaps, undefined, league.cancelledWeeks),
+    [league.results, league.handicaps, week, league.cancelledWeeks]
   );
   const playerDists = useMemo(
     () => buildPlayerHoleDists(league.results, league.handicaps, week),

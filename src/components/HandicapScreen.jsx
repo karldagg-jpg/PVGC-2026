@@ -122,8 +122,8 @@ function HandicapScreen({ league, saveLeague, isAdmin }) {
                     )}
                   </td>
                   {Array.from({ length: 18 }, (_, i) => i + 1).map((w) => {
-                    const autoHcp = getEffectiveHcp(tid, pi, w, league.results, league.handicaps, {});
-                    const rawHcp  = getEffectiveHcpRaw(tid, pi, w, league.results, league.handicaps, {});
+                    const autoHcp = getEffectiveHcp(tid, pi, w, league.results, league.handicaps, {}, league.cancelledWeeks);
+                    const rawHcp  = getEffectiveHcpRaw(tid, pi, w, league.results, league.handicaps, {}, league.cancelledWeeks);
                     const overrideKey = `${tid}-${pi}-${w}`;
                     const override = (league.hcpOverrides || {})[overrideKey];
                     const opp = getOpponent(tid, w);
