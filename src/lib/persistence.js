@@ -96,6 +96,8 @@ function applySnapshotToLeague(prevLeague, payload, defaultHcp) {
     loHiOverrides: p.loHiOverrides || {},
     cancelledWeeks: toSet(p.cancelledWeeks),
     readOnlyWeeks: p.readOnlyWeeks || [],
+    contacts: p.contacts || {},
+    subs: p.subs || [],
   };
 }
 

@@ -178,6 +178,8 @@ const [seasonYear] = useState(SEASON_YEAR);
         loHiOverrides: next.loHiOverrides||{},
         cancelledWeeks: [...(next.cancelledWeeks || [])],
         readOnlyWeeks: next.readOnlyWeeks || [],
+        contacts: next.contacts || {},
+        subs: next.subs || [],
       }, {merge:true});
       setFbStatus("loaded");
     }catch(e){
