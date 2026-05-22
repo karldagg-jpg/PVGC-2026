@@ -198,6 +198,7 @@ function HcpSparkline({ trend }) {
 
 // Player card for the roster grid
 function PlayerCard({ tid, pi, league, onClick }) {
+  const contacts = league.contacts || {};
   const team = TEAMS[tid];
   const name = pi === 0 ? team?.p1 : team?.p2;
   const hcp = getEffectiveHcp(tid, pi, 18, league.results, league.handicaps, league.hcpOverrides || {});
@@ -264,15 +265,41 @@ function PlayerCard({ tid, pi, league, onClick }) {
           <div style={{ fontSize: "16px", fontWeight: 700, color: G }}>{totalStab || "—"}</div>
         </div>
       </div>
+      {(contacts[`${tid}-${pi}`]?.phone || contacts[`${tid}-${pi}`]?.email) && (
+        <div style={{ marginTop: "8px", paddingTop: "8px", borderTop: `1px solid ${GOLD}22`, display: "flex", gap: "8px", flexWrap: "wrap" }}>
+          {contacts[`${tid}-${pi}`]?.phone && (
+            <span style={{ fontSize: "11px", color: M }}>📞 {contacts[`${tid}-${pi}`].phone}</span>
+          )}
+          {contacts[`${tid}-${pi}`]?.email && (
+            <span style={{ fontSize: "11px", color: M, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>✉ {contacts[`${tid}-${pi}`].email}</span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
 // Full player profile
-function PlayerProfile({ tid, pi, league, onBack }) {
+function PlayerProfile({ tid, pi, league, onBack, isAdmin, saveLeague }) {
   const team = TEAMS[tid];
   const name = pi === 0 ? team?.p1 : team?.p2;
   const stats = useMemo(() => buildPlayerStats(tid, pi, league), [tid, pi, league.results]);
+  const contactKey = `${tid}-${pi}`;
+  const savedContact = (league.contacts || {})[contactKey] || {};
+  const [editingContact, setEditingContact] = useState(false);
+  const [cPhone, setCPhone] = useState("");
+  const [cEmail, setCEmail] = useState("");
+
+  function startContactEdit() {
+    setCPhone(savedContact.phone || "");
+    setCEmail(savedContact.email || "");
+    setEditingContact(true);
+  }
+  function saveContact() {
+    const next = { ...(league.contacts || {}), [contactKey]: { phone: cPhone.trim(), email: cEmail.trim() } };
+    saveLeague({ ...league, contacts: next });
+    setEditingContact(false);
+  }
   const recent = [...stats.rounds].reverse().slice(0, 5);
 
   return (
@@ -299,7 +326,27 @@ function PlayerProfile({ tid, pi, league, onBack }) {
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: FD, fontSize: "24px", fontWeight: 700, color: CREAM }}>{name}</div>
-          <div style={{ fontSize: "13px", color: M }}>{team?.name} · {pi === 0 ? "Player 1" : "Player 2"}</div>
+          <div style={{ fontSize: "13px", color: M, marginBottom: "6px" }}>{team?.name} · {pi === 0 ? "Player 1" : "Player 2"}</div>
+          {editingContact ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+              <input type="tel" value={cPhone} onChange={e => setCPhone(e.target.value)} placeholder="Phone"
+                style={{ padding: "6px 10px", borderRadius: "7px", border: `1px solid ${GOLD}55`, background: "rgba(255,255,255,0.8)", fontFamily: FB, fontSize: "13px", color: CREAM, outline: "none", width: "100%", boxSizing: "border-box" }} />
+              <input type="email" value={cEmail} onChange={e => setCEmail(e.target.value)} placeholder="Email"
+                style={{ padding: "6px 10px", borderRadius: "7px", border: `1px solid ${GOLD}55`, background: "rgba(255,255,255,0.8)", fontFamily: FB, fontSize: "13px", color: CREAM, outline: "none", width: "100%", boxSizing: "border-box" }} />
+              <div style={{ display: "flex", gap: "6px", marginTop: "2px" }}>
+                <button onClick={saveContact} style={{ padding: "5px 14px", borderRadius: "7px", border: "none", background: G, color: "#fff", fontFamily: FB, fontSize: "12px", cursor: "pointer", fontWeight: 600 }}>Save</button>
+                <button onClick={() => setEditingContact(false)} style={{ padding: "5px 12px", borderRadius: "7px", border: `1px solid #c0c8c0`, background: "transparent", color: M, fontFamily: FB, fontSize: "12px", cursor: "pointer" }}>Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+              {savedContact.phone
+                ? <a href={`tel:${savedContact.phone}`} style={{ fontSize: "13px", color: G, textDecoration: "none", fontWeight: 500 }}>📞 {savedContact.phone}</a>
+                : <span style={{ fontSize: "12px", color: M, opacity: 0.5 }}>no phone</span>}
+              {savedContact.email && <a href={`mailto:${savedContact.email}`} style={{ fontSize: "13px", color: GO, textDecoration: "none", fontWeight: 500 }}>✉ {savedContact.email}</a>}
+              {isAdmin && <button onClick={startContactEdit} style={{ padding: "3px 10px", borderRadius: "6px", border: `1px solid ${GOLD}55`, background: "transparent", color: M, fontFamily: FB, fontSize: "11px", cursor: "pointer" }}>Edit</button>}
+            </div>
+          )}
         </div>
         <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
           {[
@@ -526,7 +573,7 @@ function PlayerProfile({ tid, pi, league, onBack }) {
 }
 
 // Main screen
-export default function PlayerScreen({ league, initialPlayer }) {
+export default function PlayerScreen({ league, initialPlayer, isAdmin, saveLeague }) {
   const [selected, setSelected] = useState(initialPlayer || null);
   const [search, setSearch] = useState("");
 
@@ -540,7 +587,7 @@ export default function PlayerScreen({ league, initialPlayer }) {
   if (selected) {
     return (
       <div style={{ maxWidth: "700px", margin: "0 auto", padding: "20px 14px" }}>
-        <PlayerProfile tid={selected.tid} pi={selected.pi} league={league} onBack={() => setSelected(null)} />
+        <PlayerProfile tid={selected.tid} pi={selected.pi} league={league} onBack={() => setSelected(null)} isAdmin={isAdmin} saveLeague={saveLeague} />
       </div>
     );
   }
