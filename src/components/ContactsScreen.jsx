@@ -1,6 +1,13 @@
 import { useState } from "react";
 import { G, GO, R, M, CREAM, CARD2, FB, FD } from "../constants/theme";
 
+function formatPhone(val) {
+  const d = (val || "").replace(/\D/g, "").slice(0, 10);
+  if (d.length <= 3) return d;
+  if (d.length <= 6) return `${d.slice(0, 3)}-${d.slice(3)}`;
+  return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
+}
+
 export default function ContactsScreen({ league, saveLeague, isAdmin }) {
   const subs = league.subs || [];
 
@@ -83,7 +90,7 @@ export default function ContactsScreen({ league, saveLeague, isAdmin }) {
                     Remove
                   </button>
                 </div>
-                <input type="tel"   value={sub.phone || ""} placeholder="Phone" onChange={e => updateSub(sub.id, "phone", e.target.value)} style={inputStyle} />
+                <input type="tel"   value={sub.phone || ""} placeholder="Phone" onChange={e => updateSub(sub.id, "phone", formatPhone(e.target.value))} style={inputStyle} />
                 <input type="email" value={sub.email || ""} placeholder="Email" onChange={e => updateSub(sub.id, "email", e.target.value)} style={inputStyle} />
               </div>
             ) : (
@@ -91,7 +98,7 @@ export default function ContactsScreen({ league, saveLeague, isAdmin }) {
                 <div style={{ fontSize: "15px", fontWeight: 600, color: CREAM, marginBottom: "6px" }}>{sub.name || "—"}</div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
                   {sub.phone
-                    ? <a href={`tel:${sub.phone}`} style={{ fontSize: "13px", color: G, textDecoration: "none", fontWeight: 500 }}>📞 {sub.phone}</a>
+                    ? <a href={`tel:${sub.phone}`} style={{ fontSize: "13px", color: G, textDecoration: "none", fontWeight: 500 }}>📞 {formatPhone(sub.phone)}</a>
                     : <span style={{ fontSize: "12px", color: M, opacity: 0.5 }}>no phone</span>}
                   {sub.email && <a href={`mailto:${sub.email}`} style={{ fontSize: "13px", color: GO, textDecoration: "none", fontWeight: 500 }}>✉ {sub.email}</a>}
                 </div>

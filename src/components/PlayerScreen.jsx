@@ -196,6 +196,13 @@ function HcpSparkline({ trend }) {
   );
 }
 
+function formatPhone(val) {
+  const d = (val || "").replace(/\D/g, "").slice(0, 10);
+  if (d.length <= 3) return d;
+  if (d.length <= 6) return `${d.slice(0, 3)}-${d.slice(3)}`;
+  return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
+}
+
 // Player card for the roster grid
 function PlayerCard({ tid, pi, league, onClick }) {
   const contacts = league.contacts || {};
@@ -268,7 +275,7 @@ function PlayerCard({ tid, pi, league, onClick }) {
       {(contacts[`${tid}-${pi}`]?.phone || contacts[`${tid}-${pi}`]?.email) && (
         <div style={{ marginTop: "8px", paddingTop: "8px", borderTop: `1px solid ${GOLD}22`, display: "flex", gap: "8px", flexWrap: "wrap" }}>
           {contacts[`${tid}-${pi}`]?.phone && (
-            <span style={{ fontSize: "11px", color: M }}>📞 {contacts[`${tid}-${pi}`].phone}</span>
+            <span style={{ fontSize: "11px", color: M }}>📞 {formatPhone(contacts[`${tid}-${pi}`].phone)}</span>
           )}
           {contacts[`${tid}-${pi}`]?.email && (
             <span style={{ fontSize: "11px", color: M, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>✉ {contacts[`${tid}-${pi}`].email}</span>
@@ -329,7 +336,7 @@ function PlayerProfile({ tid, pi, league, onBack, isAdmin, saveLeague }) {
           <div style={{ fontSize: "13px", color: M, marginBottom: "6px" }}>{team?.name} · {pi === 0 ? "Player 1" : "Player 2"}</div>
           {editingContact ? (
             <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-              <input type="tel" value={cPhone} onChange={e => setCPhone(e.target.value)} placeholder="Phone"
+              <input type="tel" value={cPhone} onChange={e => setCPhone(formatPhone(e.target.value))} placeholder="Phone"
                 style={{ padding: "6px 10px", borderRadius: "7px", border: `1px solid ${GOLD}55`, background: "rgba(255,255,255,0.8)", fontFamily: FB, fontSize: "13px", color: CREAM, outline: "none", width: "100%", boxSizing: "border-box" }} />
               <input type="email" value={cEmail} onChange={e => setCEmail(e.target.value)} placeholder="Email"
                 style={{ padding: "6px 10px", borderRadius: "7px", border: `1px solid ${GOLD}55`, background: "rgba(255,255,255,0.8)", fontFamily: FB, fontSize: "13px", color: CREAM, outline: "none", width: "100%", boxSizing: "border-box" }} />
@@ -341,7 +348,7 @@ function PlayerProfile({ tid, pi, league, onBack, isAdmin, saveLeague }) {
           ) : (
             <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
               {savedContact.phone
-                ? <a href={`tel:${savedContact.phone}`} style={{ fontSize: "13px", color: G, textDecoration: "none", fontWeight: 500 }}>📞 {savedContact.phone}</a>
+                ? <a href={`tel:${savedContact.phone}`} style={{ fontSize: "13px", color: G, textDecoration: "none", fontWeight: 500 }}>📞 {formatPhone(savedContact.phone)}</a>
                 : <span style={{ fontSize: "12px", color: M, opacity: 0.5 }}>no phone</span>}
               {savedContact.email && <a href={`mailto:${savedContact.email}`} style={{ fontSize: "13px", color: GO, textDecoration: "none", fontWeight: 500 }}>✉ {savedContact.email}</a>}
               {isAdmin && <button onClick={startContactEdit} style={{ padding: "3px 10px", borderRadius: "6px", border: `1px solid ${GOLD}55`, background: "transparent", color: M, fontFamily: FB, fontSize: "11px", cursor: "pointer" }}>Edit</button>}
