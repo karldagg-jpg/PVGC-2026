@@ -516,7 +516,7 @@ const [seasonYear] = useState(SEASON_YEAR);
   const TABS=["schedule","scoring","entry","standings","masters","weekly","poty","hcp","playoffs","players","rules","admin"];
   const PRIMARY_TABS=["schedule","scoring","standings","poty","hcp","rules"];
   const MORE_TABS=["entry","weekly","masters","playoffs","players","contacts","stats","admin","predict","pulse"];
-  const TAB_LABEL={schedule:"Schedule",scoring:"Scoring",entry:"Entry",standings:"Standings",masters:"Board",weekly:"Weekly",poty:"POTY",hcp:"HCP",playoffs:"Playoffs",players:"Players",contacts:"Contacts",stats:"Stats",rules:"Rules",admin:"Admin",predict:"Predict",pulse:"Pulse"};
+  const TAB_LABEL={schedule:"Schedule",scoring:"Scoring",entry:"Entry",standings:"Standings",masters:"Board",weekly:"Weekly",poty:"POTY",hcp:"HCP",playoffs:"Playoffs",players:"Players",contacts:"Subs",stats:"Stats",rules:"Rules",admin:"Admin",predict:"Predict",pulse:"Pulse"};
   const inMore = MORE_TABS.includes(screen);
 
   // Current match doc (for confirm/lock)
