@@ -622,8 +622,14 @@ const [seasonYear] = useState(SEASON_YEAR);
           onPlayerClick={(tid, pi) => { setSelPlayer({ tid, pi }); setScreen("players"); setMoreOpen(false); }}
           toggleCancelWeek={(w) => {
             const next = { ...league, cancelledWeeks: toSet(league.cancelledWeeks) };
-            if (next.cancelledWeeks.has(w)) next.cancelledWeeks.delete(w);
-            else next.cancelledWeeks.add(w);
+            if (next.cancelledWeeks.has(w)) {
+              next.cancelledWeeks.delete(w);
+            } else {
+              const hasScores = league.results[w] && Object.keys(league.results[w]).length > 0;
+              if (hasScores && !confirm(`Week ${w} has scores posted. Cancel the week and delete those scores?`)) return;
+              next.cancelledWeeks.add(w);
+              next.results = { ...next.results, [w]: {} };
+            }
             saveLeague(next);
           }}
         />
@@ -649,8 +655,14 @@ const [seasonYear] = useState(SEASON_YEAR);
             cancelledWeeks={cancelledWeeks}
             toggleCancelWeek={(w) => {
               const next = { ...league, cancelledWeeks: toSet(league.cancelledWeeks) };
-              if (next.cancelledWeeks.has(w)) next.cancelledWeeks.delete(w);
-              else next.cancelledWeeks.add(w);
+              if (next.cancelledWeeks.has(w)) {
+                next.cancelledWeeks.delete(w);
+              } else {
+                const hasScores = league.results[w] && Object.keys(league.results[w]).length > 0;
+                if (hasScores && !confirm(`Week ${w} has scores posted. Cancel the week and delete those scores?`)) return;
+                next.cancelledWeeks.add(w);
+                next.results = { ...next.results, [w]: {} };
+              }
               saveLeague(next);
             }}
             confirmMatch={confirmMatch}
@@ -697,8 +709,14 @@ const [seasonYear] = useState(SEASON_YEAR);
           cancelledWeeks={cancelledWeeks}
           toggleCancelWeek={(w) => {
             const next = { ...league, cancelledWeeks: toSet(league.cancelledWeeks) };
-            if (next.cancelledWeeks.has(w)) next.cancelledWeeks.delete(w);
-            else next.cancelledWeeks.add(w);
+            if (next.cancelledWeeks.has(w)) {
+              next.cancelledWeeks.delete(w);
+            } else {
+              const hasScores = league.results[w] && Object.keys(league.results[w]).length > 0;
+              if (hasScores && !confirm(`Week ${w} has scores posted. Cancel the week and delete those scores?`)) return;
+              next.cancelledWeeks.add(w);
+              next.results = { ...next.results, [w]: {} };
+            }
             saveLeague(next);
           }}
         />
@@ -777,8 +795,14 @@ const [seasonYear] = useState(SEASON_YEAR);
           cancelledWeeks={cancelledWeeks}
           toggleCancelWeek={(w) => {
             const next = { ...league, cancelledWeeks: toSet(league.cancelledWeeks) };
-            if (next.cancelledWeeks.has(w)) next.cancelledWeeks.delete(w);
-            else next.cancelledWeeks.add(w);
+            if (next.cancelledWeeks.has(w)) {
+              next.cancelledWeeks.delete(w);
+            } else {
+              const hasScores = league.results[w] && Object.keys(league.results[w]).length > 0;
+              if (hasScores && !confirm(`Week ${w} has scores posted. Cancel the week and delete those scores?`)) return;
+              next.cancelledWeeks.add(w);
+              next.results = { ...next.results, [w]: {} };
+            }
             saveLeague(next);
           }}
         />
