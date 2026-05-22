@@ -18,6 +18,7 @@ function ScheduleScreen({
   finalPairs,
   cancelledWeeks,
   toggleCancelWeek,
+  onPlayerClick,
 }) {
   const currentWeekRef = useRef(null);
   useEffect(() => {
@@ -227,10 +228,28 @@ function ScheduleScreen({
                           >
                             {teeTime}
                           </div>
-                          <div style={{ flex: 1, fontSize: "13px", color: done ? G : CREAM }}>
-                            <span style={{ fontWeight: 600 }}>{TEAMS[ta]?.name}</span>
-                            <span style={{ color: M, margin: "0 6px" }}>vs</span>
-                            <span style={{ fontWeight: 600 }}>{TEAMS[tb]?.name}</span>
+                          <div style={{ flex: 1, fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}>
+                            <div style={{ flex: 1 }}>
+                              {[0, 1].map(pi => (
+                                <div key={pi}
+                                  onClick={onPlayerClick ? e => { e.stopPropagation(); onPlayerClick(ta, pi); } : undefined}
+                                  style={{ fontWeight: 600, color: done ? G : CREAM, cursor: onPlayerClick ? "pointer" : "default", lineHeight: 1.4,
+                                    textDecoration: onPlayerClick ? "underline" : "none", textDecorationColor: "rgba(0,0,0,0.18)", textUnderlineOffset: "2px" }}>
+                                  {pi === 0 ? TEAMS[ta]?.p1 : TEAMS[ta]?.p2}
+                                </div>
+                              ))}
+                            </div>
+                            <span style={{ color: M, fontSize: "11px", flexShrink: 0 }}>vs</span>
+                            <div style={{ flex: 1 }}>
+                              {[0, 1].map(pi => (
+                                <div key={pi}
+                                  onClick={onPlayerClick ? e => { e.stopPropagation(); onPlayerClick(tb, pi); } : undefined}
+                                  style={{ fontWeight: 600, color: done ? G : CREAM, cursor: onPlayerClick ? "pointer" : "default", lineHeight: 1.4,
+                                    textDecoration: onPlayerClick ? "underline" : "none", textDecorationColor: "rgba(0,0,0,0.18)", textUnderlineOffset: "2px" }}>
+                                  {pi === 0 ? TEAMS[tb]?.p1 : TEAMS[tb]?.p2}
+                                </div>
+                              ))}
+                            </div>
                           </div>
                           {done ? (
                             <span style={{ fontSize: "12px", color: G, fontWeight: 600, padding: "3px 8px", borderRadius: "5px", border: `1px solid ${G}44`, background: `${G}10` }}>✓ Done</span>
