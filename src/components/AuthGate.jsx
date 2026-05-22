@@ -41,7 +41,10 @@ export default function AuthGate({ children }) {
 
   // Track auth state
   useEffect(() => {
-    return auth.onAuthStateChanged(u => setUser(u || null));
+    return auth.onAuthStateChanged(u => {
+      // Reject anonymous sessions — require real email sign-in
+      setUser((u && !u.isAnonymous) ? u : null);
+    });
   }, []);
 
   async function sendLink(e) {
