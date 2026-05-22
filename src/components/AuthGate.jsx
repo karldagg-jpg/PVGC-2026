@@ -1,28 +1,44 @@
 import { useState, useEffect } from "react";
-import { auth, firebase } from "../firebase/client";
+import { auth, firebase, LEAGUE_DOC } from "../firebase/client";
 
 const APP_URL = "https://pvgc-league.github.io/PVGC-2026/";
 const EMAIL_KEY = "pvgc_signin_email";
 
 const ACTION_CODE_SETTINGS = { url: APP_URL, handleCodeInApp: true };
 
-// On iOS standalone (home screen app), popups don't work — use redirect instead
 const isIosStandalone = () => window.navigator.standalone === true;
 
 export default function AuthGate({ children }) {
   const [user, setUser]         = useState(undefined);
   const [email, setEmail]       = useState("");
-  const [step, setStep]         = useState("input"); // input | sent | completing | error
+  const [step, setStep]         = useState("input"); // input | sent | completing | error | denied
   const [errorMsg, setErrorMsg] = useState("");
 
-  // Handle magic link completion and Google redirect result on mount
+  // After sign-in, check allowedEmails list
+  async function checkAccess(u) {
+    try {
+      const doc = await LEAGUE_DOC.get();
+      const allowed = doc.data()?.allowedEmails || [];
+      // Empty list = not yet configured, let everyone through
+      if (allowed.length === 0 || allowed.map(e => e.toLowerCase()).includes(u.email?.toLowerCase())) {
+        setUser(u);
+      } else {
+        await auth.signOut();
+        setErrorMsg(`${u.email} is not authorized. Contact your league admin.`);
+        setStep("denied");
+      }
+    } catch {
+      // If we can't fetch the list, allow through (avoids lockout on network error)
+      setUser(u);
+    }
+  }
+
+  // Handle magic link and Google redirect on mount
   useEffect(() => {
-    // Complete Google redirect sign-in
     auth.getRedirectResult()
       .then(result => { if (result?.user) setStep("done"); })
       .catch(() => {});
 
-    // Complete magic link sign-in
     if (auth.isSignInWithEmailLink(window.location.href)) {
       setStep("completing");
       let stored = localStorage.getItem(EMAIL_KEY);
@@ -44,10 +60,14 @@ export default function AuthGate({ children }) {
     }
   }, []);
 
-  // Track auth state
+  // Track auth state — run access check on sign-in
   useEffect(() => {
     return auth.onAuthStateChanged(u => {
-      setUser((u && !u.isAnonymous) ? u : null);
+      if (u && !u.isAnonymous) {
+        checkAccess(u);
+      } else {
+        setUser(null);
+      }
     });
   }, []);
 
@@ -55,12 +75,11 @@ export default function AuthGate({ children }) {
     const provider = new firebase.auth.GoogleAuthProvider();
     try {
       if (isIosStandalone()) {
-        // Redirect flow for iOS home screen app
         await auth.signInWithRedirect(provider);
       } else {
         await auth.signInWithPopup(provider);
       }
-    } catch (err) {
+    } catch {
       setErrorMsg("Google sign-in failed. Try the email link below.");
       setStep("error");
     }
@@ -108,14 +127,19 @@ export default function AuthGate({ children }) {
             <div style={{ fontSize: "12px", color: "#aaa", marginTop: "16px" }}>Tap the link in the email to sign in</div>
             <button onClick={() => setStep("input")} style={linkBtn}>Use a different email</button>
           </div>
+        ) : step === "denied" ? (
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: "32px", marginBottom: "12px" }}>⛔</div>
+            <div style={{ fontSize: "14px", color: "#c0392b", lineHeight: 1.5, marginBottom: "16px" }}>{errorMsg}</div>
+            <button onClick={() => setStep("input")} style={emailBtn}>Try a different account</button>
+          </div>
         ) : step === "error" ? (
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: "13px", color: "#c0392b", marginBottom: "16px", lineHeight: 1.5 }}>{errorMsg}</div>
-            <button onClick={() => setStep("input")} style={googleBtn}>Try Again</button>
+            <button onClick={() => setStep("input")} style={emailBtn}>Try Again</button>
           </div>
         ) : (
           <>
-            {/* Google sign-in — primary */}
             <button onClick={signInWithGoogle} style={googleBtn}>
               <svg width="18" height="18" viewBox="0 0 18 18" style={{ marginRight: "10px", flexShrink: 0 }}>
                 <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
@@ -125,22 +149,14 @@ export default function AuthGate({ children }) {
               </svg>
               Sign in with Google
             </button>
-
-            {/* Divider */}
             <div style={{ display: "flex", alignItems: "center", gap: "10px", margin: "16px 0" }}>
               <div style={{ flex: 1, height: "1px", background: "#eee" }} />
               <div style={{ fontSize: "12px", color: "#bbb" }}>or</div>
               <div style={{ flex: 1, height: "1px", background: "#eee" }} />
             </div>
-
-            {/* Magic link fallback */}
             <form onSubmit={sendLink} style={{ width: "100%" }}>
-              <input
-                type="email" value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="Email sign-in link"
-                style={inputStyle}
-              />
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                placeholder="Email sign-in link" style={inputStyle} />
               <button type="submit" disabled={step === "sending"} style={emailBtn}>
                 {step === "sending" ? "Sending…" : "Send Link"}
               </button>
@@ -152,31 +168,9 @@ export default function AuthGate({ children }) {
   );
 }
 
-const screen = {
-  minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
-  background: "#f5f3ee", padding: "20px",
-};
-const card = {
-  background: "#fff", borderRadius: "20px", padding: "32px 28px",
-  width: "100%", maxWidth: "360px", textAlign: "center",
-  boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
-};
-const googleBtn = {
-  width: "100%", padding: "12px", borderRadius: "10px",
-  border: "1px solid #ddd", background: "#fff", color: "#333",
-  fontSize: "15px", fontWeight: 600, cursor: "pointer",
-  display: "flex", alignItems: "center", justifyContent: "center",
-};
-const inputStyle = {
-  width: "100%", padding: "11px 14px", borderRadius: "10px",
-  border: "1px solid #ddd", fontSize: "15px", marginBottom: "8px",
-  outline: "none", boxSizing: "border-box", textAlign: "left",
-};
-const emailBtn = {
-  width: "100%", padding: "11px", borderRadius: "10px", border: "none",
-  background: "#1a4d2e", color: "#fff", fontSize: "14px", fontWeight: 700, cursor: "pointer",
-};
-const linkBtn = {
-  background: "none", border: "none", color: "#1a4d2e", fontSize: "13px",
-  cursor: "pointer", marginTop: "16px", textDecoration: "underline",
-};
+const screen = { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f5f3ee", padding: "20px" };
+const card = { background: "#fff", borderRadius: "20px", padding: "32px 28px", width: "100%", maxWidth: "360px", textAlign: "center", boxShadow: "0 4px 24px rgba(0,0,0,0.08)" };
+const googleBtn = { width: "100%", padding: "12px", borderRadius: "10px", border: "1px solid #ddd", background: "#fff", color: "#333", fontSize: "15px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" };
+const inputStyle = { width: "100%", padding: "11px 14px", borderRadius: "10px", border: "1px solid #ddd", fontSize: "15px", marginBottom: "8px", outline: "none", boxSizing: "border-box" };
+const emailBtn = { width: "100%", padding: "11px", borderRadius: "10px", border: "none", background: "#1a4d2e", color: "#fff", fontSize: "14px", fontWeight: 700, cursor: "pointer" };
+const linkBtn = { background: "none", border: "none", color: "#1a4d2e", fontSize: "13px", cursor: "pointer", marginTop: "16px", textDecoration: "underline" };

@@ -177,6 +177,7 @@ const [seasonYear] = useState(SEASON_YEAR);
         readOnlyWeeks: next.readOnlyWeeks || [],
         contacts: next.contacts || {},
         subs: next.subs || [],
+        allowedEmails: next.allowedEmails || [],
       }, {merge:true});
       setFbStatus("loaded");
     }catch(e){

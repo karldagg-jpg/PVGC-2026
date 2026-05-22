@@ -98,6 +98,7 @@ function applySnapshotToLeague(prevLeague, payload, defaultHcp) {
     readOnlyWeeks: p.readOnlyWeeks || [],
     contacts: p.contacts || {},
     subs: p.subs || [],
+    allowedEmails: p.allowedEmails || [],
   };
 }
 

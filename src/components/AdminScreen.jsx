@@ -439,6 +439,54 @@ function RoundReplayPanel({ league, initialWeek, initialTeam }) {
   );
 }
 
+function MemberAccessPanel({ league, saveLeague }) {
+  const [newEmail, setNewEmail] = useState("");
+  const emails = league.allowedEmails || [];
+
+  function addEmail(e) {
+    e.preventDefault();
+    const val = newEmail.trim().toLowerCase();
+    if (!val || emails.map(x => x.toLowerCase()).includes(val)) return;
+    saveLeague({ ...league, allowedEmails: [...emails, val] });
+    setNewEmail("");
+  }
+
+  function removeEmail(em) {
+    saveLeague({ ...league, allowedEmails: emails.filter(x => x !== em) });
+  }
+
+  return (
+    <div>
+      <div style={{ fontSize: "12px", color: M, marginBottom: "10px", lineHeight: 1.5 }}>
+        Only these emails can sign in. Leave empty to allow anyone with a Google account.
+      </div>
+      {emails.length === 0 && (
+        <div style={{ fontSize: "13px", color: GOLD, marginBottom: "10px" }}>
+          ⚠️ No emails added — anyone can sign in
+        </div>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "12px" }}>
+        {emails.map(em => (
+          <div key={em} style={{ display: "flex", alignItems: "center", gap: "8px", background: "#f7f7f2", borderRadius: "8px", padding: "8px 10px" }}>
+            <div style={{ flex: 1, fontSize: "13px", color: CREAM }}>{em}</div>
+            <button onClick={() => removeEmail(em)}
+              style={{ background: "none", border: "none", color: R, cursor: "pointer", fontSize: "13px", padding: "2px 6px" }}>✕</button>
+          </div>
+        ))}
+      </div>
+      <form onSubmit={addEmail} style={{ display: "flex", gap: "8px" }}>
+        <input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)}
+          placeholder="member@email.com"
+          style={{ flex: 1, padding: "8px 10px", borderRadius: "8px", border: "1px solid #c8d0c0", fontSize: "13px", outline: "none" }} />
+        <button type="submit"
+          style={{ padding: "8px 14px", borderRadius: "8px", border: "none", background: G, color: "#fff", fontWeight: 700, fontSize: "13px", cursor: "pointer" }}>
+          Add
+        </button>
+      </form>
+    </div>
+  );
+}
+
 export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, finalPairs, saveLeague, unlockMatch, clearMatch, clearSeason, isAdmin, adminPin, adminUnlock, adminLock, saveAdminPin, teamStandings, weeklyTeamPts, createSnapshot, listSnapshots, restoreSnapshot, match, setMatch, activeWeek, activeTeam, cancelledWeeks, toggleCancelWeek }) {
   const printYears = Object.keys(PRINT_SCHEDULES).map(Number).sort();
   const [printYear, setPrintYear] = useState(printYears[printYears.length - 1] || SEASON_YEAR);
@@ -659,6 +707,17 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
           </div>
         )}
       </AccordionSection>
+
+      {/* ── Member Access ────────────────────────────────────────── */}
+      {isAdmin && (
+        <AccordionSection
+          id="members" open={isOpen("members")} onToggle={toggleSection}
+          title="Member Access" icon="🔑"
+          hint={`${(league.allowedEmails||[]).length} emails`}
+        >
+          <MemberAccessPanel league={league} saveLeague={saveLeague} />
+        </AccordionSection>
+      )}
 
       {/* ── Print Starter Sheet ──────────────────────────────────── */}
       <AccordionSection
