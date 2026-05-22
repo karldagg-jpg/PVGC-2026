@@ -125,6 +125,8 @@ const [seasonYear] = useState(SEASON_YEAR);
     }
   };
 
+  useEffect(() => { window.scrollTo(0, 0); }, [screen]);
+
   useEffect(()=>{
     loadFromFirebase();
     // Main doc listener — only updates non-results fields
