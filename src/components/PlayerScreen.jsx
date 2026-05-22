@@ -274,9 +274,10 @@ function PlayerCard({ tid, pi, league, onClick }) {
       </div>
       {(contacts[`${tid}-${pi}`]?.phone || contacts[`${tid}-${pi}`]?.email) && (
         <div style={{ marginTop: "8px", paddingTop: "8px", borderTop: `1px solid ${GOLD}22`, display: "flex", gap: "8px", flexWrap: "wrap" }}>
-          {contacts[`${tid}-${pi}`]?.phone && (
-            <span style={{ fontSize: "11px", color: M }}>📞 {formatPhone(contacts[`${tid}-${pi}`].phone)}</span>
-          )}
+          {contacts[`${tid}-${pi}`]?.phone && (<>
+            <a href={`tel:${contacts[`${tid}-${pi}`].phone}`} onClick={e => e.stopPropagation()} style={{ fontSize: "11px", color: G, textDecoration: "none" }}>📞 Call</a>
+            <a href={`sms:${contacts[`${tid}-${pi}`].phone}`} onClick={e => e.stopPropagation()} style={{ fontSize: "11px", color: GO, textDecoration: "none" }}>💬 Text</a>
+          </>)}
           {contacts[`${tid}-${pi}`]?.email && (
             <span style={{ fontSize: "11px", color: M, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>✉ {contacts[`${tid}-${pi}`].email}</span>
           )}
@@ -347,9 +348,10 @@ function PlayerProfile({ tid, pi, league, onBack, isAdmin, saveLeague }) {
             </div>
           ) : (
             <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-              {savedContact.phone
-                ? <a href={`tel:${savedContact.phone}`} style={{ fontSize: "13px", color: G, textDecoration: "none", fontWeight: 500 }}>📞 {formatPhone(savedContact.phone)}</a>
-                : <span style={{ fontSize: "12px", color: M, opacity: 0.5 }}>no phone</span>}
+              {savedContact.phone ? (<>
+                <a href={`tel:${savedContact.phone}`} style={{ fontSize: "13px", color: G, textDecoration: "none", fontWeight: 500 }}>📞 {formatPhone(savedContact.phone)}</a>
+                <a href={`sms:${savedContact.phone}`} style={{ fontSize: "13px", color: GO, textDecoration: "none", fontWeight: 500 }}>💬 Text</a>
+              </>) : <span style={{ fontSize: "12px", color: M, opacity: 0.5 }}>no phone</span>}
               {savedContact.email && <a href={`mailto:${savedContact.email}`} style={{ fontSize: "13px", color: GO, textDecoration: "none", fontWeight: 500 }}>✉ {savedContact.email}</a>}
               {isAdmin && <button onClick={startContactEdit} style={{ padding: "3px 10px", borderRadius: "6px", border: `1px solid ${GOLD}55`, background: "transparent", color: M, fontFamily: FB, fontSize: "11px", cursor: "pointer" }}>Edit</button>}
             </div>

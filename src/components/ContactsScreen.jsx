@@ -97,9 +97,10 @@ export default function ContactsScreen({ league, saveLeague, isAdmin }) {
               <div>
                 <div style={{ fontSize: "15px", fontWeight: 600, color: CREAM, marginBottom: "6px" }}>{sub.name || "—"}</div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
-                  {sub.phone
-                    ? <a href={`tel:${sub.phone}`} style={{ fontSize: "13px", color: G, textDecoration: "none", fontWeight: 500 }}>📞 {formatPhone(sub.phone)}</a>
-                    : <span style={{ fontSize: "12px", color: M, opacity: 0.5 }}>no phone</span>}
+                  {sub.phone ? (<>
+                    <a href={`tel:${sub.phone}`} style={{ fontSize: "13px", color: G, textDecoration: "none", fontWeight: 500 }}>📞 {formatPhone(sub.phone)}</a>
+                    <a href={`sms:${sub.phone}`} style={{ fontSize: "13px", color: GO, textDecoration: "none", fontWeight: 500 }}>💬 Text</a>
+                  </>) : <span style={{ fontSize: "12px", color: M, opacity: 0.5 }}>no phone</span>}
                   {sub.email && <a href={`mailto:${sub.email}`} style={{ fontSize: "13px", color: GO, textDecoration: "none", fontWeight: 500 }}>✉ {sub.email}</a>}
                 </div>
               </div>
