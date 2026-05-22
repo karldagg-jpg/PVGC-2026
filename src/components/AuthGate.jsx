@@ -1,28 +1,32 @@
 import { useState, useEffect } from "react";
-import { auth } from "../firebase/client";
+import { auth, firebase } from "../firebase/client";
 
 const APP_URL = "https://pvgc-league.github.io/PVGC-2026/";
 const EMAIL_KEY = "pvgc_signin_email";
 
-const ACTION_CODE_SETTINGS = {
-  url: APP_URL,
-  handleCodeInApp: true,
-};
+const ACTION_CODE_SETTINGS = { url: APP_URL, handleCodeInApp: true };
+
+// On iOS standalone (home screen app), popups don't work — use redirect instead
+const isIosStandalone = () => window.navigator.standalone === true;
 
 export default function AuthGate({ children }) {
-  const [user, setUser]       = useState(undefined); // undefined = loading
-  const [email, setEmail]     = useState("");
-  const [step, setStep]       = useState("input");   // input | sent | completing | error
+  const [user, setUser]         = useState(undefined);
+  const [email, setEmail]       = useState("");
+  const [step, setStep]         = useState("input"); // input | sent | completing | error
   const [errorMsg, setErrorMsg] = useState("");
 
-  // Complete sign-in if URL contains a magic link
+  // Handle magic link completion and Google redirect result on mount
   useEffect(() => {
+    // Complete Google redirect sign-in
+    auth.getRedirectResult()
+      .then(result => { if (result?.user) setStep("done"); })
+      .catch(() => {});
+
+    // Complete magic link sign-in
     if (auth.isSignInWithEmailLink(window.location.href)) {
       setStep("completing");
       let stored = localStorage.getItem(EMAIL_KEY);
-      if (!stored) {
-        stored = window.prompt("Please enter your email to confirm sign-in:");
-      }
+      if (!stored) stored = window.prompt("Enter your email to confirm sign-in:");
       if (stored) {
         auth.signInWithEmailLink(stored, window.location.href)
           .then(() => {
@@ -30,7 +34,7 @@ export default function AuthGate({ children }) {
             window.history.replaceState({}, document.title, APP_URL);
             setStep("done");
           })
-          .catch(err => {
+          .catch(() => {
             setErrorMsg("Sign-in link expired or already used. Request a new one.");
             setStep("error");
           });
@@ -43,10 +47,24 @@ export default function AuthGate({ children }) {
   // Track auth state
   useEffect(() => {
     return auth.onAuthStateChanged(u => {
-      // Reject anonymous sessions — require real email sign-in
       setUser((u && !u.isAnonymous) ? u : null);
     });
   }, []);
+
+  async function signInWithGoogle() {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    try {
+      if (isIosStandalone()) {
+        // Redirect flow for iOS home screen app
+        await auth.signInWithRedirect(provider);
+      } else {
+        await auth.signInWithPopup(provider);
+      }
+    } catch (err) {
+      setErrorMsg("Google sign-in failed. Try the email link below.");
+      setStep("error");
+    }
+  }
 
   async function sendLink(e) {
     e.preventDefault();
@@ -56,26 +74,23 @@ export default function AuthGate({ children }) {
       await auth.sendSignInLinkToEmail(email.trim(), ACTION_CODE_SETTINGS);
       localStorage.setItem(EMAIL_KEY, email.trim());
       setStep("sent");
-    } catch (err) {
+    } catch {
       setErrorMsg("Couldn't send email. Check the address and try again.");
       setStep("error");
     }
   }
 
-  // Still loading auth state
   if (user === undefined || step === "completing") {
     return (
       <div style={screen}>
-        <div style={spinner}>⛳</div>
+        <div style={{ fontSize: "40px" }}>⛳</div>
         <div style={{ color: "#888", fontSize: "14px", marginTop: "12px" }}>Loading…</div>
       </div>
     );
   }
 
-  // Signed in — show the app
   if (user) return children;
 
-  // Sign-in UI
   return (
     <div style={screen}>
       <div style={card}>
@@ -88,8 +103,7 @@ export default function AuthGate({ children }) {
             <div style={{ fontSize: "32px", marginBottom: "12px" }}>📬</div>
             <div style={{ fontSize: "16px", fontWeight: 700, color: "#1a4d2e", marginBottom: "8px" }}>Check your email</div>
             <div style={{ fontSize: "14px", color: "#666", lineHeight: 1.5 }}>
-              We sent a sign-in link to<br />
-              <strong>{email}</strong>
+              We sent a sign-in link to<br /><strong>{email}</strong>
             </div>
             <div style={{ fontSize: "12px", color: "#aaa", marginTop: "16px" }}>Tap the link in the email to sign in</div>
             <button onClick={() => setStep("input")} style={linkBtn}>Use a different email</button>
@@ -97,26 +111,41 @@ export default function AuthGate({ children }) {
         ) : step === "error" ? (
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: "13px", color: "#c0392b", marginBottom: "16px", lineHeight: 1.5 }}>{errorMsg}</div>
-            <button onClick={() => setStep("input")} style={primaryBtn}>Try Again</button>
+            <button onClick={() => setStep("input")} style={googleBtn}>Try Again</button>
           </div>
         ) : (
-          <form onSubmit={sendLink} style={{ width: "100%" }}>
-            <div style={{ fontSize: "14px", color: "#555", marginBottom: "16px", textAlign: "center", lineHeight: 1.5 }}>
-              Enter your email to receive a sign-in link
-            </div>
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="your@email.com"
-              required
-              autoFocus
-              style={inputStyle}
-            />
-            <button type="submit" disabled={step === "sending"} style={primaryBtn}>
-              {step === "sending" ? "Sending…" : "Send Sign-In Link"}
+          <>
+            {/* Google sign-in — primary */}
+            <button onClick={signInWithGoogle} style={googleBtn}>
+              <svg width="18" height="18" viewBox="0 0 18 18" style={{ marginRight: "10px", flexShrink: 0 }}>
+                <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
+                <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
+                <path fill="#FBBC05" d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"/>
+                <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 7.293C4.672 5.163 6.656 3.58 9 3.58z"/>
+              </svg>
+              Sign in with Google
             </button>
-          </form>
+
+            {/* Divider */}
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", margin: "16px 0" }}>
+              <div style={{ flex: 1, height: "1px", background: "#eee" }} />
+              <div style={{ fontSize: "12px", color: "#bbb" }}>or</div>
+              <div style={{ flex: 1, height: "1px", background: "#eee" }} />
+            </div>
+
+            {/* Magic link fallback */}
+            <form onSubmit={sendLink} style={{ width: "100%" }}>
+              <input
+                type="email" value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="Email sign-in link"
+                style={inputStyle}
+              />
+              <button type="submit" disabled={step === "sending"} style={emailBtn}>
+                {step === "sending" ? "Sending…" : "Send Link"}
+              </button>
+            </form>
+          </>
         )}
       </div>
     </div>
@@ -132,18 +161,22 @@ const card = {
   width: "100%", maxWidth: "360px", textAlign: "center",
   boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
 };
-const inputStyle = {
-  width: "100%", padding: "12px 14px", borderRadius: "10px",
-  border: "1px solid #ddd", fontSize: "16px", marginBottom: "12px",
-  outline: "none", boxSizing: "border-box",
+const googleBtn = {
+  width: "100%", padding: "12px", borderRadius: "10px",
+  border: "1px solid #ddd", background: "#fff", color: "#333",
+  fontSize: "15px", fontWeight: 600, cursor: "pointer",
+  display: "flex", alignItems: "center", justifyContent: "center",
 };
-const primaryBtn = {
-  width: "100%", padding: "13px", borderRadius: "10px", border: "none",
-  background: "#1a4d2e", color: "#fff", fontSize: "15px", fontWeight: 700,
-  cursor: "pointer",
+const inputStyle = {
+  width: "100%", padding: "11px 14px", borderRadius: "10px",
+  border: "1px solid #ddd", fontSize: "15px", marginBottom: "8px",
+  outline: "none", boxSizing: "border-box", textAlign: "left",
+};
+const emailBtn = {
+  width: "100%", padding: "11px", borderRadius: "10px", border: "none",
+  background: "#1a4d2e", color: "#fff", fontSize: "14px", fontWeight: 700, cursor: "pointer",
 };
 const linkBtn = {
   background: "none", border: "none", color: "#1a4d2e", fontSize: "13px",
   cursor: "pointer", marginTop: "16px", textDecoration: "underline",
 };
-const spinner = { fontSize: "40px", animation: "pulse 1.5s ease-in-out infinite" };
