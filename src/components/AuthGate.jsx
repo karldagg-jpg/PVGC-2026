@@ -28,6 +28,7 @@ export default function AuthGate({ children }) {
           .then(() => {
             localStorage.removeItem(EMAIL_KEY);
             window.history.replaceState({}, document.title, APP_URL);
+            setStep("done");
           })
           .catch(err => {
             setErrorMsg("Sign-in link expired or already used. Request a new one.");
