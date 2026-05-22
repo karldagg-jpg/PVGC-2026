@@ -519,8 +519,8 @@ const [seasonYear] = useState(SEASON_YEAR);
 
   const TABS=["schedule","scoring","entry","standings","masters","weekly","poty","hcp","playoffs","players","rules","admin"];
   const PRIMARY_TABS=["schedule","scoring","standings","poty","hcp","rules","contacts"];
-  const MORE_TABS=["entry","weekly","masters","playoffs","players","stats","admin","predict","pulse"];
-  const TAB_LABEL={schedule:"Schedule",scoring:"Scoring",entry:"Entry",standings:"Standings",masters:"Board",weekly:"Weekly",poty:"POTY",hcp:"HCP",playoffs:"Playoffs",players:"Players",contacts:"Subs",stats:"Stats",rules:"Rules",admin:"Admin",predict:"Predict",pulse:"Pulse"};
+  const MORE_TABS=["entry","weekly","masters","playoffs","players","stats","admin","predict","pulse","howto"];
+  const TAB_LABEL={schedule:"Schedule",scoring:"Scoring",entry:"Entry",standings:"Standings",masters:"Board",weekly:"Weekly",poty:"POTY",hcp:"HCP",playoffs:"Playoffs",players:"Players",contacts:"Subs",stats:"Stats",rules:"Rules",admin:"Admin",predict:"Predict",pulse:"Pulse",howto:"How To"};
   const inMore = MORE_TABS.includes(screen);
 
   // Current match doc (for confirm/lock)
@@ -759,6 +759,14 @@ const [seasonYear] = useState(SEASON_YEAR);
 
       {screen==="rules"&&(
         <RulesScreen rules={rules} saveRules={saveRules} />
+      )}
+
+      {screen==="howto"&&(
+        <iframe
+          src="how-to.html"
+          style={{ width:"100%", height:"calc(100vh - 48px)", border:"none" }}
+          title="How To"
+        />
       )}
 
       {screen==="admin"&&(
