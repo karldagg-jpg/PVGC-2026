@@ -38,6 +38,7 @@ import StatsScreen from "./components/StatsScreen";
 import PredictScreen from "./components/PredictScreen";
 import PulseScreen from "./components/PulseScreen";
 import ContactsScreen from "./components/ContactsScreen";
+import AuthGate from "./components/AuthGate";
 import {
   getPlayoffSeeds,
   getQFSeeds,
@@ -97,10 +98,6 @@ const [seasonYear] = useState(SEASON_YEAR);
   const loadFromFirebase = async () => {
     setFbStatus("connecting");
     try {
-      // Wait for anonymous auth before hitting Firestore
-      await new Promise(resolve => {
-        const unsub = auth.onAuthStateChanged(user => { if (user) { unsub(); resolve(); } });
-      });
       const [snap, scoresSnap] = await Promise.all([
         LEAGUE_DOC.get({ source: "server" }),
         WEEK_SCORES_COL.get({ source: "server" }),
@@ -811,4 +808,8 @@ const [seasonYear] = useState(SEASON_YEAR);
 }
 
 
-export default App;
+function AppWithAuth() {
+  return <AuthGate><App /></AuthGate>;
+}
+
+export default AppWithAuth;

@@ -19,8 +19,6 @@ if (!firebase.apps.length) {
 const db = firebase.firestore();
 const auth = firebase.auth();
 
-// Sign in anonymously so Firestore security rules can require auth
-auth.signInAnonymously().catch(() => {});
 
 const LEAGUE_DOC_ID = `league-${SEASON_YEAR}`;
 const LEAGUE_DOC = db.collection("pvgc").doc(LEAGUE_DOC_ID);
