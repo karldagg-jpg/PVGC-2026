@@ -484,7 +484,7 @@ function buildGrossHistory(results, upToWeek, defaultHcp=DEFAULT_HCP, cancelledW
 }
 
 // Returns the raw (unrounded) auto handicap — used for tie-breaking low/high order
-function calcAutoHcpRaw(grossRounds, startHcp, isNew, skipCap=false) {
+function calcAutoHcpRaw(grossRounds, startHcp, isNew) {
   const n = grossRounds.length;
   if (n === 0) return isNew ? 0 : startHcp;
   let avgGross, PCT;
@@ -511,17 +511,17 @@ function calcAutoHcpRaw(grossRounds, startHcp, isNew, skipCap=false) {
     avgGross = grossRounds.reduce((s, g) => s + g, 0) / n;
   }
   const raw = PCT * (avgGross - 36);
-  return (!skipCap && HCP_CAP !== null) ? Math.min(raw, startHcp + HCP_CAP) : raw;
+  return HCP_CAP !== null ? Math.min(raw, startHcp + HCP_CAP) : raw;
 }
 
 // Like getEffectiveHcp but returns unrounded float for tie-breaking
-function getEffectiveHcpRaw(tid, pi, week, results, handicaps, hcpOverrides, cancelledWeeks=null, defaultHcp=DEFAULT_HCP, newMemberFn=isNewMember, skipCap=false) {
+function getEffectiveHcpRaw(tid, pi, week, results, handicaps, hcpOverrides, cancelledWeeks=null, defaultHcp=DEFAULT_HCP, newMemberFn=isNewMember) {
   const overrideKey = `${tid}-${pi}-${week}`;
   if (hcpOverrides && hcpOverrides[overrideKey] !== undefined) return hcpOverrides[overrideKey];
   const hcpBase = (handicaps && Object.keys(handicaps).length) ? handicaps : defaultHcp;
   const history = buildGrossHistory(results, week, hcpBase, cancelledWeeks);
   const startHcp = (hcpBase[tid]||[0,0])[pi];
-  return calcAutoHcpRaw(history[tid][pi], startHcp, newMemberFn(tid, pi), skipCap);
+  return calcAutoHcpRaw(history[tid][pi], startHcp, newMemberFn(tid, pi));
 }
 
 // Returns suggested handicaps for all players for a given week (based on prior weeks' scores).
@@ -549,9 +549,8 @@ function getLoHiOrder(tid, week, loHiCtx, hcpSnapshot = null) {
     return { loPi, hiPi: 1 - loPi };
   }
   const cw = loHiCtx.cancelledWeeks || null;
-  // Use uncapped raw so a capped player isn't incorrectly ordered above a truly lower-HCP partner
-  const r0 = getEffectiveHcpRaw(tid, 0, week, loHiCtx.results, loHiCtx.handicaps, loHiCtx.hcpOverrides || {}, cw, undefined, undefined, true);
-  const r1 = getEffectiveHcpRaw(tid, 1, week, loHiCtx.results, loHiCtx.handicaps, loHiCtx.hcpOverrides || {}, cw, undefined, undefined, true);
+  const r0 = getEffectiveHcpRaw(tid, 0, week, loHiCtx.results, loHiCtx.handicaps, loHiCtx.hcpOverrides || {}, cw);
+  const r1 = getEffectiveHcpRaw(tid, 1, week, loHiCtx.results, loHiCtx.handicaps, loHiCtx.hcpOverrides || {}, cw);
   const loPi = r0 <= r1 ? 0 : 1;
   return { loPi, hiPi: 1 - loPi };
 }
