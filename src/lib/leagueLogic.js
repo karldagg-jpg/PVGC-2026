@@ -545,13 +545,15 @@ function getLoHiOrder(tid, week, loHiCtx, hcpSnapshot = null) {
   if (ov !== undefined) return { loPi: ov, hiPi: 1 - ov };
   const snapEntry = hcpSnapshot?.[tid] ?? hcpSnapshot?.[String(tid)];
   if (snapEntry) {
-    const loPi = (snapEntry[0] || 0) <= (snapEntry[1] || 0) ? 0 : 1;
+    const s0r = Math.round(snapEntry[0] || 0), s1r = Math.round(snapEntry[1] || 0);
+    const loPi = s0r < s1r ? 0 : s1r < s0r ? 1 : 0; // tied → p0 is lo
     return { loPi, hiPi: 1 - loPi };
   }
   const cw = loHiCtx.cancelledWeeks || null;
   const r0 = getEffectiveHcpRaw(tid, 0, week, loHiCtx.results, loHiCtx.handicaps, loHiCtx.hcpOverrides || {}, cw);
   const r1 = getEffectiveHcpRaw(tid, 1, week, loHiCtx.results, loHiCtx.handicaps, loHiCtx.hcpOverrides || {}, cw);
-  const loPi = r0 <= r1 ? 0 : 1;
+  const r0r = Math.round(r0), r1r = Math.round(r1);
+  const loPi = r0r < r1r ? 0 : r1r < r0r ? 1 : 0; // tied rounded → p0 is lo
   return { loPi, hiPi: 1 - loPi };
 }
 
