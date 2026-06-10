@@ -185,7 +185,7 @@ function HcpSparkline({ trend }) {
         <g key={i}>
           <circle cx={p.x} cy={p.y} r="3.5" fill={lineColor} />
           <text x={p.x} y={p.y + 15} textAnchor="middle" fontSize="9.5" fill={i === 0 ? M : i === pts.length - 1 ? GOLD : CREAM} fontWeight={i === pts.length - 1 ? "700" : "400"}>
-            {p.hcp}
+            {Math.round(p.hcp)}
           </text>
           <text x={p.x} y={p.y + 25} textAnchor="middle" fontSize="8" fill={M} opacity="0.6">
             {p.week === 0 ? "Start" : `W${p.week}`}
