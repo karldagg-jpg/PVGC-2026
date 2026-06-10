@@ -796,6 +796,32 @@ function buildWeekRecap(week, results, handicaps, schedule=SCHEDULE, teams=TEAMS
     }
   }
 
+  // ── Next Week Preview ──
+  const nextWeek = week + 1;
+  const nextWeekInfo = schedule[nextWeek];
+  if (nextWeekInfo) {
+    const nextTeeTimes = getTeeTimes(nextWeek);
+    lines.push(`WEEK ${nextWeek} PREVIEW${nextWeekInfo.date ? ` (${nextWeekInfo.date})` : ""}`);
+    lines.push(hr());
+    (nextWeekInfo.pairs || []).forEach((pair, i) => {
+      if (!Array.isArray(pair)) return;
+      const [ta, tb] = pair;
+      const [tlow, thigh] = ta < tb ? [ta, tb] : [tb, ta];
+      const time = nextTeeTimes[i] || "";
+      const tAname = teams[tlow]?.name  || `Team ${tlow}`;
+      const tBname = teams[thigh]?.name || `Team ${thigh}`;
+      lines.push(`${time}  ${tAname} vs ${tBname}`);
+      for (const [tid, label] of [[tlow, tAname], [thigh, tBname]]) {
+        for (let pi = 0; pi < 2; pi++) {
+          const name = teams[tid]?.[pi === 0 ? "p1" : "p2"] || `P${pi+1}`;
+          const hcp = getEffectiveHcp(tid, pi, nextWeek, results, handicaps, {});
+          lines.push(`    ${name} (HCP ${hcp})`);
+        }
+      }
+      lines.push("");
+    });
+  }
+
   return lines.join("\n");
 }
 
