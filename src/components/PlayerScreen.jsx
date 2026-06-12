@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { ALL_PLAYERS, TEAMS, PAR, SI, RAINOUT_SUB, SCHEDULE } from "../constants/league";
 import { getEffectiveHcp, getEffectiveHcpRaw, getOpponent, matchKey, stabPts, hcpStr, getLoHiOrder } from "../lib/leagueLogic";
 import { G, GO, R, M, CREAM, GOLD, CARD, CARD2, FB, FD } from "../constants/theme";
+import { auth } from "../firebase/client";
 
 const REGULAR_WEEKS = Array.from({ length: 17 }, (_, i) => i + 1);
 const ALL_SEASON_WEEKS = Array.from({ length: 18 }, (_, i) => i + 1); // includes knockdown (W18)
@@ -298,7 +299,8 @@ function PlayerProfile({ tid, pi, league, onBack, isAdmin, saveLeague }) {
     setEditingContact(true);
   }
   function saveContact() {
-    const next = { ...(league.contacts || {}), [contactKey]: { phone: cPhone.trim(), email: cEmail.trim() } };
+    const updatedBy = auth.currentUser?.email || auth.currentUser?.displayName || "unknown";
+    const next = { ...(league.contacts || {}), [contactKey]: { phone: cPhone.trim(), email: cEmail.trim(), updatedAt: new Date().toISOString(), updatedBy } };
     saveLeague({ ...league, contacts: next });
     setEditingContact(false);
   }
@@ -348,6 +350,11 @@ function PlayerProfile({ tid, pi, league, onBack, isAdmin, saveLeague }) {
               </>) : <span style={{ fontSize: "12px", color: M, opacity: 0.5 }}>no phone</span>}
               {savedContact.email && <a href={`mailto:${savedContact.email}`} style={{ fontSize: "13px", color: GO, textDecoration: "none", fontWeight: 500 }}>✉ {savedContact.email}</a>}
               <button onClick={startContactEdit} style={{ padding: "3px 10px", borderRadius: "6px", border: `1px solid ${GOLD}55`, background: "transparent", color: M, fontFamily: FB, fontSize: "11px", cursor: "pointer" }}>Edit</button>
+              {savedContact.updatedAt && (
+                <span style={{ fontSize: "10px", color: M, opacity: 0.6 }}>
+                  updated {new Date(savedContact.updatedAt).toLocaleDateString()} by {savedContact.updatedBy}
+                </span>
+              )}
             </div>
           )}
         </div>
