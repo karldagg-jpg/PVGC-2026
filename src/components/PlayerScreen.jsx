@@ -353,7 +353,7 @@ function PlayerProfile({ tid, pi, league, onBack, isAdmin, saveLeague }) {
                 <a href={`sms:${savedContact.phone}`} style={{ fontSize: "13px", color: GO, textDecoration: "none", fontWeight: 500 }}>💬 Text</a>
               </>) : <span style={{ fontSize: "12px", color: M, opacity: 0.5 }}>no phone</span>}
               {savedContact.email && <a href={`mailto:${savedContact.email}`} style={{ fontSize: "13px", color: GO, textDecoration: "none", fontWeight: 500 }}>✉ {savedContact.email}</a>}
-              {isAdmin && <button onClick={startContactEdit} style={{ padding: "3px 10px", borderRadius: "6px", border: `1px solid ${GOLD}55`, background: "transparent", color: M, fontFamily: FB, fontSize: "11px", cursor: "pointer" }}>Edit</button>}
+              <button onClick={startContactEdit} style={{ padding: "3px 10px", borderRadius: "6px", border: `1px solid ${GOLD}55`, background: "transparent", color: M, fontFamily: FB, fontSize: "11px", cursor: "pointer" }}>Edit</button>
             </div>
           )}
         </div>
