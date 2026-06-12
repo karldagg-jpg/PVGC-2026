@@ -166,7 +166,7 @@ const [seasonYear] = useState(SEASON_YEAR);
         loHiOverrides: p.loHiOverrides || {},
         cancelledWeeks: toSet(p.cancelledWeeks),
         readOnlyWeeks: p.readOnlyWeeks || [],
-        banner: p.banner || {},
+        banner: p.banner !== undefined ? p.banner : prev.banner,
       }));
       if (p.rules) setRules(p.rules);
       if (p.adminPin) setAdminPin(p.adminPin);
