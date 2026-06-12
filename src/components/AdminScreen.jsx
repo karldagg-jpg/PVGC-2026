@@ -439,6 +439,51 @@ function RoundReplayPanel({ league, initialWeek, initialTeam }) {
   );
 }
 
+function BannerPanel({ league, saveLeague }) {
+  const saved = league.banner || {};
+  const [msg, setMsg] = useState(saved.message || "");
+  const [exp, setExp] = useState(saved.expiresAt || "");
+
+  function saveBanner() {
+    saveLeague({ ...league, banner: { message: msg.trim(), expiresAt: exp } });
+  }
+  function clearBanner() {
+    setMsg(""); setExp("");
+    saveLeague({ ...league, banner: { message: "", expiresAt: "" } });
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+      <textarea value={msg} onChange={e => setMsg(e.target.value)} rows={2}
+        placeholder="e.g. Round 5 canceled due to weather — see you next week!"
+        style={{ width: "100%", padding: "8px 10px", borderRadius: "8px", border: `1px solid ${GOLD}44`, background: "rgba(255,255,255,0.07)", color: CREAM, fontFamily: FB, fontSize: "13px", resize: "vertical", outline: "none", boxSizing: "border-box" }} />
+      <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+        <label style={{ fontSize: "12px", color: M }}>Expires</label>
+        <input type="date" value={exp} onChange={e => setExp(e.target.value)}
+          style={{ padding: "5px 8px", borderRadius: "7px", border: `1px solid ${GOLD}44`, background: "rgba(255,255,255,0.07)", color: CREAM, fontFamily: FB, fontSize: "12px", outline: "none" }} />
+        <span style={{ fontSize: "11px", color: M }}>(leave blank = show until cleared)</span>
+      </div>
+      <div style={{ display: "flex", gap: "8px" }}>
+        <button onClick={saveBanner}
+          style={{ padding: "6px 16px", borderRadius: "7px", border: "none", background: G, color: "#fff", fontFamily: FB, fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>
+          {saved.message ? "Update Banner" : "Set Banner"}
+        </button>
+        {saved.message && (
+          <button onClick={clearBanner}
+            style={{ padding: "6px 14px", borderRadius: "7px", border: `1px solid ${R}55`, background: "transparent", color: R, fontFamily: FB, fontSize: "12px", cursor: "pointer" }}>
+            Clear Banner
+          </button>
+        )}
+      </div>
+      {saved.message && (
+        <div style={{ fontSize: "11px", color: GO, marginTop: "2px" }}>
+          Active: "{saved.message}"{saved.expiresAt ? ` · expires ${saved.expiresAt}` : ""}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MemberAccessPanel({ league, saveLeague }) {
   const [newEmail, setNewEmail] = useState("");
   const emails = league.allowedEmails || [];
@@ -716,6 +761,17 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
           hint={`${(league.allowedEmails||[]).length} emails`}
         >
           <MemberAccessPanel league={league} saveLeague={saveLeague} />
+        </AccordionSection>
+      )}
+
+      {/* ── Banner ───────────────────────────────────────────────── */}
+      {isAdmin && (
+        <AccordionSection
+          id="banner" open={isOpen("banner")} onToggle={toggleSection}
+          title="League Banner" icon="📢"
+          hint={league.banner?.message ? "Active" : "None"}
+        >
+          <BannerPanel league={league} saveLeague={saveLeague} />
         </AccordionSection>
       )}
 

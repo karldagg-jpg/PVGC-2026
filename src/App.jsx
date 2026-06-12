@@ -9,6 +9,31 @@ import {
   setSeasonYear,
 } from "./constants/league";
 
+const BANNER_DISMISS_KEY = "pvgc_banner_dismissed";
+
+function Banner({ banner }) {
+  const [dismissed, setDismissed] = useState(() => localStorage.getItem(BANNER_DISMISS_KEY));
+
+  if (!banner?.message) return null;
+  const today = new Date().toISOString().slice(0, 10);
+  if (banner.expiresAt && banner.expiresAt < today) return null;
+
+  const dismissKey = banner.message + (banner.expiresAt || "");
+  if (dismissed === dismissKey) return null;
+
+  return (
+    <div style={{background:"#fffbe6", borderBottom:"2px solid #e6a800", padding:"10px 18px",
+      fontSize:"13px", color:"#5a3e00", display:"flex", alignItems:"center", gap:"10px"}}>
+      <span style={{fontSize:"16px"}}>📢</span>
+      <span style={{flex:1, fontWeight:500}}>{banner.message}</span>
+      <button onClick={() => { localStorage.setItem(BANNER_DISMISS_KEY, dismissKey); setDismissed(dismissKey); }}
+        style={{background:"none", border:"none", cursor:"pointer", fontSize:"16px", color:"#9a7000", lineHeight:1, padding:"0 4px"}}>
+        ✕
+      </button>
+    </div>
+  );
+}
+
 function calcCurrentWeek() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -553,6 +578,7 @@ const [seasonYear] = useState(SEASON_YEAR);
           <span style={{fontSize:"11px"}}>{fbStatus}</span>
         </div>
       )}
+      <Banner banner={league?.banner} />
 
       <div style={{padding:"12px 18px 0 18px",
         display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:"8px",
