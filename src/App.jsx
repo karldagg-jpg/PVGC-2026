@@ -166,6 +166,7 @@ const [seasonYear] = useState(SEASON_YEAR);
         loHiOverrides: p.loHiOverrides || {},
         cancelledWeeks: toSet(p.cancelledWeeks),
         readOnlyWeeks: p.readOnlyWeeks || [],
+        banner: p.banner || {},
       }));
       if (p.rules) setRules(p.rules);
       if (p.adminPin) setAdminPin(p.adminPin);
@@ -205,6 +206,7 @@ const [seasonYear] = useState(SEASON_YEAR);
         contacts: next.contacts || {},
         subs: next.subs || [],
         allowedEmails: next.allowedEmails || [],
+        banner: next.banner || {},
       }, {merge:true});
       setFbStatus("loaded");
     }catch(e){
