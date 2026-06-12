@@ -545,8 +545,8 @@ const [seasonYear] = useState(SEASON_YEAR);
   const weekBonus=calcWeekBonus(selWeek,league.results,league.handicaps);
 
   const TABS=["schedule","scoring","entry","standings","masters","weekly","poty","hcp","playoffs","players","rules","admin"];
-  const PRIMARY_TABS=["schedule","scoring","standings","poty","hcp","rules","contacts"];
-  const MORE_TABS=["entry","weekly","masters","playoffs","players","stats","admin","predict","pulse","howto"];
+  const PRIMARY_TABS=["schedule","scoring","standings","players","poty","hcp","rules","contacts"];
+  const MORE_TABS=["entry","weekly","masters","playoffs","stats","admin","predict","pulse","howto"];
   const TAB_LABEL={schedule:"Schedule",scoring:"Scoring",entry:"Entry",standings:"Standings",masters:"Board",weekly:"Weekly",poty:"POTY",hcp:"HCP",playoffs:"Playoffs",players:"Players",contacts:"Subs",stats:"Stats",rules:"Rules",admin:"Admin",predict:"Predict",pulse:"Pulse",howto:"How To"};
   const inMore = MORE_TABS.includes(screen);
 
