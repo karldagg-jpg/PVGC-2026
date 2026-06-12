@@ -98,13 +98,6 @@ function buildPlayerStats(tid, pi, league) {
     const tIdx = tid < opp ? 0 : 1;
     const types = (tIdx === 0 ? rec.t1types : rec.t2types) || [];
     const type = types[pi] || "normal";
-    if (type !== "normal") continue;
-    const gross = getPlayerGross(rec, tIdx, pi);
-    if (gross === 0) continue;
-    const stab = getPlayerStab(rec, tIdx, pi, tid);
-    const hcp = getEffectiveHcp(tid, pi, w, league.results, league.handicaps, league.hcpOverrides || {}, league.cancelledWeeks);
-
-    // Individual head-to-head: lo vs lo, hi vs hi
     const snap = rec.hcpSnapshot;
     const { loPi: tidLoPi } = getLoHiOrder(tid, w, league, snap);
     const isLo = pi === tidLoPi;
@@ -113,23 +106,24 @@ function buildPlayerStats(tid, pi, league) {
     const oppTIdx = opp < tid ? 0 : 1;
     const rivalStab = getPlayerStab(rec, oppTIdx, rivalPi, opp);
 
-    rounds.push({
-      week: w,
-      gross,
-      stab,
-      hcp,
-      opp,
-      rivalPi,
-      rivalStab,
-      won: stab > rivalStab,
-      lost: stab < rivalStab,
-      tied: stab === rivalStab,
-    });
+    if (type === "sub" || type === "phantom") {
+      const stab = type === "sub" ? 6 : 2;
+      rounds.push({ week: w, gross: 0, stab, hcp: 0, opp, rivalPi, rivalStab, won: stab > rivalStab, lost: stab < rivalStab, tied: stab === rivalStab, type });
+      continue;
+    }
+    if (type !== "normal") continue;
+    const gross = getPlayerGross(rec, tIdx, pi);
+    if (gross === 0) continue;
+    const stab = getPlayerStab(rec, tIdx, pi, tid);
+    const hcp = getEffectiveHcp(tid, pi, w, league.results, league.handicaps, league.hcpOverrides || {}, league.cancelledWeeks);
+
+    rounds.push({ week: w, gross, stab, hcp, opp, rivalPi, rivalStab, won: stab > rivalStab, lost: stab < rivalStab, tied: stab === rivalStab, type: "normal" });
   }
 
-  const played = rounds.length;
-  const avgGross = played ? Math.round((rounds.reduce((s, r) => s + r.gross, 0) / played) * 10) / 10 : null;
-  const bestGross = played ? Math.min(...rounds.map(r => r.gross)) : null;
+  const normalRounds = rounds.filter(r => r.type === "normal");
+  const played = normalRounds.length;
+  const avgGross = played ? Math.round((normalRounds.reduce((s, r) => s + r.gross, 0) / played) * 10) / 10 : null;
+  const bestGross = played ? Math.min(...normalRounds.map(r => r.gross)) : null;
   const totalStab = rounds.reduce((s, r) => s + r.stab, 0);
   const wins = rounds.filter(r => r.won).length;
   const losses = rounds.filter(r => r.lost).length;
@@ -141,7 +135,7 @@ function buildPlayerStats(tid, pi, league) {
   // HCP progression: starting HCP + HCP earned after each played round
   const startHcp = (league.handicaps?.[tid] || [0, 0])[pi];
   const hcpTrend = [{ week: 0, hcp: startHcp }];
-  for (const r of rounds) {
+  for (const r of normalRounds) {
     const earned = getEffectiveHcpRaw(tid, pi, r.week + 1, league.results, league.handicaps, league.hcpOverrides || {}, league.cancelledWeeks);
     hcpTrend.push({ week: r.week, hcp: earned });
   }
@@ -481,7 +475,9 @@ function PlayerProfile({ tid, pi, league, onBack, isAdmin, saveLeague }) {
               }}>
                 <span style={{ fontSize: "11px", color: M, width: "28px", flexShrink: 0 }}>W{r.week}</span>
                 <span style={{ fontSize: "12px", color: M, flex: 1 }}>vs {r.rivalPi === 0 ? TEAMS[r.opp]?.p1 : TEAMS[r.opp]?.p2}</span>
-                <span style={{ fontSize: "12px", color: M }}>Gross {r.gross}</span>
+                <span style={{ fontSize: "12px", color: M }}>
+                  {r.type === "sub" ? "SUB" : r.type === "phantom" ? "PHT" : `Gross ${r.gross}`}
+                </span>
                 <span style={{ fontSize: "13px", fontWeight: 700, color: G, minWidth: "32px", textAlign: "right" }}>
                   {r.stab} pts
                 </span>
@@ -550,8 +546,12 @@ function PlayerProfile({ tid, pi, league, onBack, isAdmin, saveLeague }) {
                 <span style={{ fontSize: "11px", color: M, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {r.rivalPi === 0 ? TEAMS[r.opp]?.p1 : TEAMS[r.opp]?.p2}
                 </span>
-                <span style={{ fontSize: "11px", color: M, textAlign: "center" }}>HCP {r.hcp}</span>
-                <span style={{ fontSize: "12px", color: CREAM, textAlign: "center" }}>{r.gross}</span>
+                <span style={{ fontSize: "11px", color: M, textAlign: "center" }}>
+                  {r.type === "normal" ? `HCP ${r.hcp}` : "—"}
+                </span>
+                <span style={{ fontSize: "12px", fontWeight: r.type !== "normal" ? 700 : 400, color: r.type === "sub" ? GO : r.type === "phantom" ? M : CREAM, textAlign: "center" }}>
+                  {r.type === "sub" ? "SUB" : r.type === "phantom" ? "PHT" : r.gross}
+                </span>
                 <span style={{ fontSize: "12px", fontWeight: 600, color: G, textAlign: "center" }}>{r.stab}</span>
                 <span style={{ fontSize: "11px", fontWeight: 700, color: r.won ? G : r.lost ? R : M, textAlign: "center" }}>
                   {r.won ? "W" : r.lost ? "L" : "T"}
