@@ -93,8 +93,8 @@ export default function AuthGate({ children }) {
       await auth.sendSignInLinkToEmail(email.trim(), ACTION_CODE_SETTINGS);
       localStorage.setItem(EMAIL_KEY, email.trim());
       setStep("sent");
-    } catch {
-      setErrorMsg("Couldn't send email. Check the address and try again.");
+    } catch (err) {
+      setErrorMsg(`Couldn't send email (${err?.code || err?.message || "unknown error"}). Check the address and try again.`);
       setStep("error");
     }
   }
