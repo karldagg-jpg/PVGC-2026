@@ -9,27 +9,29 @@ import {
   setSeasonYear,
 } from "./constants/league";
 
-const BANNER_DISMISS_KEY = "pvgc_banner_dismissed";
-
 function Banner({ banner }) {
-  const [dismissed, setDismissed] = useState(() => localStorage.getItem(BANNER_DISMISS_KEY));
+  const [dismissed, setDismissed] = useState(false);
 
-  if (!banner?.message) return null;
+  if (!banner?.message || dismissed) return null;
   const today = new Date().toISOString().slice(0, 10);
   if (banner.expiresAt && banner.expiresAt < today) return null;
 
-  const dismissKey = banner.message + (banner.expiresAt || "");
-  if (dismissed === dismissKey) return null;
-
   return (
-    <div style={{background:"#fffbe6", borderBottom:"2px solid #e6a800", padding:"10px 18px",
-      fontSize:"13px", color:"#5a3e00", display:"flex", alignItems:"center", gap:"10px"}}>
-      <span style={{fontSize:"16px"}}>📢</span>
-      <span style={{flex:1, fontWeight:500}}>{banner.message}</span>
-      <button onClick={() => { localStorage.setItem(BANNER_DISMISS_KEY, dismissKey); setDismissed(dismissKey); }}
-        style={{background:"none", border:"none", cursor:"pointer", fontSize:"16px", color:"#9a7000", lineHeight:1, padding:"0 4px"}}>
-        ✕
-      </button>
+    <div style={{position:"fixed", inset:0, zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center",
+      background:"rgba(0,0,0,0.55)", padding:"20px"}}>
+      <div style={{background:"#fffbe6", border:"2px solid #e6a800", borderRadius:"16px",
+        padding:"28px 24px", maxWidth:"420px", width:"100%", boxShadow:"0 8px 32px rgba(0,0,0,0.25)",
+        display:"flex", flexDirection:"column", alignItems:"center", gap:"16px", textAlign:"center"}}>
+        <span style={{fontSize:"36px"}}>📢</span>
+        <div style={{fontSize:"17px", fontWeight:700, color:"#5a3e00", lineHeight:1.4}}>
+          {banner.message}
+        </div>
+        <button onClick={() => setDismissed(true)}
+          style={{marginTop:"4px", padding:"10px 32px", borderRadius:"10px", border:"none",
+            background:"#e6a800", color:"#fff", fontSize:"15px", fontWeight:700, cursor:"pointer"}}>
+          Got it
+        </button>
+      </div>
     </div>
   );
 }
