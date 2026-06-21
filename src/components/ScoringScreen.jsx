@@ -187,13 +187,17 @@ function ScoringScreen({
   toggleCancelWeek,
   confirmMatch,
   unlockMatch,
+  currentUserTid,
+  isAdmin,
 }) {
   const isReadOnly = (league.readOnlyWeeks || []).includes(selWeek);
+  const isCancelled = cancelledWeeks?.has(selWeek);
   const [tlow, thigh] = t1id && t2id ? (t1id<t2id?[t1id,t2id]:[t2id,t1id]) : [0,0];
   const mk = tlow && thigh ? matchKey(selWeek, tlow, thigh) : null;
   const matchDoc = mk ? league.results[selWeek]?.[mk] : null;
   const isLocked = !!(matchDoc?.locked);
-  const isDisabled = isLocked || isReadOnly;
+  const canEdit = isAdmin || !currentUserTid || currentUserTid === t1id || currentUserTid === t2id;
+  const isDisabled = isLocked || isReadOnly || !canEdit;
   const confirmations = matchDoc?.confirmations || {};
   const hasConfirmed = !!(confirmations[t1id]);
   const oppConfirmed = !!(confirmations[t2id]);
@@ -423,6 +427,12 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
       }
     </div>
 
+    {!canEdit && currentUserTid && opp && (
+      <div style={{ background: "rgba(180,120,0,0.1)", border: `1px solid ${GOLD}44`, borderRadius: "10px", padding: "10px 14px", marginBottom: "12px", fontSize: "13px", color: GOLD }}>
+        View only — you can only enter scores for your own team's match.
+      </div>
+    )}
+
     {!opp ? (
       <div style={{ textAlign: "center", padding: "50px 20px", color: M, fontSize: "12px" }}>
         No match scheduled for Week {selWeek}.
@@ -523,6 +533,7 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
         };
 
         const getRunTotal = (tIdx, pi, tid) => {
+          if (isCancelled) return 0;
           const type = getType(tIdx, pi);
           if (type === "sub") return 6;
           if (type === "phantom") return 2;

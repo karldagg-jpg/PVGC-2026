@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { LEAGUE_DOC, LEAGUE_DOC_ID, WEEK_SCORES_COL, db, auth } from "./firebase/client";
 import {
   DEFAULT_HCP,
@@ -544,6 +544,16 @@ const [seasonYear] = useState(SEASON_YEAR);
 
   const weekBonus=calcWeekBonus(selWeek,league.results,league.handicaps);
 
+  // Determine which team the signed-in user belongs to via their contact email
+  const currentUserEmail = auth.currentUser?.email?.toLowerCase() || "";
+  const currentUserTid = useMemo(() => {
+    if (!currentUserEmail) return null;
+    for (const [key, c] of Object.entries(league.contacts || {})) {
+      if (c?.email?.toLowerCase() === currentUserEmail) return parseInt(key.split("-")[0]);
+    }
+    return null;
+  }, [currentUserEmail, league.contacts]);
+
   const TABS=["schedule","scoring","entry","standings","masters","weekly","poty","hcp","playoffs","players","rules","admin"];
   const PRIMARY_TABS=["schedule","scoring","standings","players","poty","hcp","rules","contacts"];
   const MORE_TABS=["entry","weekly","masters","playoffs","stats","admin","predict","pulse","howto"];
@@ -680,16 +690,12 @@ const [seasonYear] = useState(SEASON_YEAR);
             cancelledWeeks={cancelledWeeks}
             toggleCancelWeek={(w) => {
               const next = { ...league, cancelledWeeks: toSet(league.cancelledWeeks) };
-              if (next.cancelledWeeks.has(w)) {
-                next.cancelledWeeks.delete(w);
-              } else {
-                const hasScores = league.results[w] && Object.keys(league.results[w]).length > 0;
-                if (hasScores && !confirm(`Week ${w} has scores posted. Cancel the week and delete those scores?`)) return;
-                next.cancelledWeeks.add(w);
-                next.results = { ...next.results, [w]: {} };
-              }
+              if (next.cancelledWeeks.has(w)) next.cancelledWeeks.delete(w);
+              else next.cancelledWeeks.add(w);
               saveLeague(next);
             }}
+            currentUserTid={currentUserTid}
+            isAdmin={isAdmin}
             confirmMatch={confirmMatch}
             unlockMatch={unlockMatch}
           />
@@ -708,7 +714,7 @@ const [seasonYear] = useState(SEASON_YEAR);
       )}
 
       {screen==="weekly"&&(
-        <WeeklyScreen weeklyTeamPts={weeklyTeamPts} />
+        <WeeklyScreen weeklyTeamPts={weeklyTeamPts} results={league.results} cancelledWeeks={cancelledWeeks} />
       )}
 
       {screen==="poty"&&(
