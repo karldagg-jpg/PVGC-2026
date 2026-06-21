@@ -127,7 +127,6 @@ export default function WeeklyScreen({ weeklyTeamPts, results, cancelledWeeks })
             const rc = rank === 1 ? GO : rank === 2 ? G : rank === 3 ? CREAM : M;
             const isTop = rank <= 3;
             const thruHole = !isCancelled && results ? getThruHole(results, selWeek, e.tid) : null;
-            const allDone = thruHole === 9;
             return (
               <div key={e.tid} style={{
                 display: "grid", gridTemplateColumns: "32px 1fr 80px",
@@ -143,7 +142,7 @@ export default function WeeklyScreen({ weeklyTeamPts, results, cancelledWeeks })
                   </div>
                   <div style={{ fontSize: "11px", color: M, marginTop: "1px" }}>
                     {TEAMS[e.tid]?.p1} · {TEAMS[e.tid]?.p2}
-                    {thruHole && !allDone && (
+                    {thruHole && (
                       <span style={{ marginLeft: "8px", color: GOLD }}>· {e.stab} pts thru hole {thruHole}</span>
                     )}
                   </div>
