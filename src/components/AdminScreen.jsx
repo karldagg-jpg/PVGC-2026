@@ -439,6 +439,86 @@ function RoundReplayPanel({ league, initialWeek, initialTeam }) {
   );
 }
 
+const BULK_EMAILS = {
+  "1-0":  "redacted@example.com",
+  "1-1":  "redacted@example.com",
+  "2-0":  "redacted@example.com",
+  "2-1":  "redacted@example.com",
+  "3-0":  "redacted@example.com",
+  "3-1":  "redacted@example.com",
+  "4-0":  "redacted@example.com",
+  "4-1":  "redacted@example.com",
+  "5-0":  "redacted@example.com",
+  "5-1":  "redacted@example.com",
+  "6-0":  "redacted@example.com",
+  "6-1":  "redacted@example.com",
+  "7-0":  "redacted@example.com",
+  "7-1":  "redacted@example.com",
+  "8-0":  "redacted@example.com",
+  "8-1":  "redacted@example.com",
+  "9-0":  "redacted@example.com",
+  "9-1":  "redacted@example.com",
+  "10-0": "redacted@example.com",
+  "10-1": "redacted@example.com",
+  "11-0": "redacted@example.com",
+  "11-1": "redacted@example.com",
+  "12-0": "redacted@example.com",
+  "12-1": "redacted@example.com",
+  "14-1": "redacted@example.com",
+  "15-0": "redacted@example.com",
+  "15-1": "redacted@example.com",
+  "16-0": "redacted@example.com",
+  "16-1": "redacted@example.com",
+  "17-0": "redacted@example.com",
+  "17-1": "redacted@example.com",
+  "18-0": "redacted@example.com",
+};
+
+function BulkEmailImport({ league, saveLeague }) {
+  const [status, setStatus] = useState("");
+  const existing = league.contacts || {};
+
+  const toUpdate = Object.entries(BULK_EMAILS).filter(([key, email]) => {
+    const cur = existing[key]?.email?.toLowerCase();
+    return !cur || cur !== email.toLowerCase();
+  });
+
+  function doImport() {
+    const newContacts = { ...existing };
+    for (const [key, email] of toUpdate) {
+      newContacts[key] = { ...(newContacts[key] || {}), email };
+    }
+    saveLeague({ ...league, contacts: newContacts });
+    setStatus(`✓ Updated ${toUpdate.length} contact${toUpdate.length !== 1 ? "s" : ""}`);
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+      <div style={{ fontSize: "12px", color: M }}>
+        {toUpdate.length === 0
+          ? "All emails are already up to date."
+          : `${toUpdate.length} player${toUpdate.length !== 1 ? "s" : ""} will have email set (existing emails are preserved):`}
+      </div>
+      {toUpdate.length > 0 && (
+        <div style={{ fontSize: "11px", color: M, fontFamily: "monospace", maxHeight: "160px", overflowY: "auto", background: "rgba(0,0,0,0.2)", borderRadius: "6px", padding: "8px 10px", lineHeight: 1.7 }}>
+          {toUpdate.map(([key, email]) => {
+            const [tid, pi] = key.split("-").map(Number);
+            const name = TEAMS[tid]?.[pi === 0 ? "p1" : "p2"] || key;
+            return <div key={key}>{name} → {email}</div>;
+          })}
+        </div>
+      )}
+      {toUpdate.length > 0 && (
+        <button onClick={doImport}
+          style={{ alignSelf: "flex-start", padding: "7px 18px", borderRadius: "8px", border: "none", background: G, color: "#fff", fontFamily: FB, fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+          Import {toUpdate.length} Emails
+        </button>
+      )}
+      {status && <div style={{ fontSize: "12px", color: G, fontWeight: 600 }}>{status}</div>}
+    </div>
+  );
+}
+
 function BannerPanel({ league, saveLeague }) {
   const saved = league.banner || {};
   const [msg, setMsg] = useState(saved.message || "");
@@ -772,6 +852,17 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
           hint={league.banner?.message ? "Active" : "None"}
         >
           <BannerPanel league={league} saveLeague={saveLeague} />
+        </AccordionSection>
+      )}
+
+      {/* ── Bulk Email Import ────────────────────────────────────── */}
+      {isAdmin && (
+        <AccordionSection
+          id="emailimport" open={isOpen("emailimport")} onToggle={toggleSection}
+          title="Import Player Emails" icon="📧"
+          hint="One-time bulk load"
+        >
+          <BulkEmailImport league={league} saveLeague={saveLeague} />
         </AccordionSection>
       )}
 
