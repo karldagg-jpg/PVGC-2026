@@ -127,7 +127,7 @@ export default function WeeklyScreen({ weeklyTeamPts, results, cancelledWeeks })
             const rc = rank === 1 ? GO : rank === 2 ? G : rank === 3 ? CREAM : M;
             const isTop = rank <= 3;
             const thruHole = !isCancelled && results ? getThruHole(results, selWeek, e.tid) : null;
-            const thruLabel = thruHole === 9 ? "F" : thruHole ? `H${thruHole}` : "—";
+            const thruLabel = thruHole === 9 ? "F" : thruHole ? `${thruHole}` : "—";
             const thruColor = thruHole === 9 ? G : thruHole ? GOLD : M + "66";
             return (
               <div key={e.tid} style={{
