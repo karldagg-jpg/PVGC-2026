@@ -501,10 +501,12 @@ const [seasonYear] = useState(SEASON_YEAR);
   const opp=getOpponent(selTeam,selWeek,selDynPairs);
   const t1id=selTeam, t2id=opp||0;
 
+  const canEditCurrentMatch = isAdmin || (currentUserTid != null && (currentUserTid === t1id || currentUserTid === t2id));
   const setMatchUser = React.useCallback((fn) => {
+    if (!canEditCurrentMatch) return;
     matchDirty.current = true;
     setMatch(fn);
-  }, []);
+  }, [canEditCurrentMatch]);
 
   async function saveMatch(matchToSave){
     if(!t1id||!t2id) return;
