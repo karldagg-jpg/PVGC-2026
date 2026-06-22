@@ -501,12 +501,6 @@ const [seasonYear] = useState(SEASON_YEAR);
   const opp=getOpponent(selTeam,selWeek,selDynPairs);
   const t1id=selTeam, t2id=opp||0;
 
-  const canEditCurrentMatch = isAdmin || (currentUserTid != null && (currentUserTid === t1id || currentUserTid === t2id));
-  const setMatchUser = React.useCallback((fn) => {
-    if (!canEditCurrentMatch) return;
-    matchDirty.current = true;
-    setMatch(fn);
-  }, [canEditCurrentMatch]);
 
   async function saveMatch(matchToSave){
     if(!t1id||!t2id) return;
@@ -555,6 +549,13 @@ const [seasonYear] = useState(SEASON_YEAR);
     }
     return null;
   }, [currentUserEmail, league.contacts]);
+
+  const canEditCurrentMatch = isAdmin || (currentUserTid != null && (currentUserTid === t1id || currentUserTid === t2id));
+  const setMatchUser = (fn) => {
+    if (!canEditCurrentMatch) return;
+    matchDirty.current = true;
+    setMatch(fn);
+  };
 
   const TABS=["schedule","scoring","entry","standings","masters","weekly","poty","hcp","playoffs","players","rules","admin"];
   const PRIMARY_TABS=["schedule","scoring","standings","players","poty","hcp","rules","contacts"];
