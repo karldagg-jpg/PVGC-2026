@@ -167,6 +167,7 @@ const [seasonYear] = useState(SEASON_YEAR);
         cancelledWeeks: toSet(p.cancelledWeeks),
         readOnlyWeeks: p.readOnlyWeeks || [],
         banner: p.banner !== undefined ? p.banner : prev.banner,
+        adminEmails: p.adminEmails || prev.adminEmails || [],
       }));
       if (p.rules) setRules(p.rules);
       if (p.adminPin) setAdminPin(p.adminPin);
@@ -206,6 +207,7 @@ const [seasonYear] = useState(SEASON_YEAR);
         contacts: next.contacts || {},
         subs: next.subs || [],
         allowedEmails: next.allowedEmails || [],
+        adminEmails: next.adminEmails || [],
         banner: next.banner || {},
       }, {merge:true});
       setFbStatus("loaded");
@@ -267,6 +269,17 @@ const [seasonYear] = useState(SEASON_YEAR);
     localStorage.removeItem("pvgc_admin");
     setIsAdmin(false);
   }
+
+  // Auto-revoke admin if signed-in email is not in the admin list
+  useEffect(() => {
+    const adminEmails = (league.adminEmails || []).map(e => e.toLowerCase());
+    if (!isAdmin || adminEmails.length === 0) return;
+    const email = auth.currentUser?.email?.toLowerCase() || "";
+    if (email && !adminEmails.includes(email)) {
+      localStorage.removeItem("pvgc_admin");
+      setIsAdmin(false);
+    }
+  }, [league.adminEmails, isAdmin]);
 
   async function saveRules(next) {
     setRules(next);

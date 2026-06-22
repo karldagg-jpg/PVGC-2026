@@ -564,6 +564,54 @@ function BannerPanel({ league, saveLeague }) {
   );
 }
 
+function AdminAccessPanel({ league, saveLeague }) {
+  const [newEmail, setNewEmail] = useState("");
+  const emails = league.adminEmails || [];
+
+  function addEmail(e) {
+    e.preventDefault();
+    const val = newEmail.trim().toLowerCase();
+    if (!val || emails.map(x => x.toLowerCase()).includes(val)) return;
+    saveLeague({ ...league, adminEmails: [...emails, val] });
+    setNewEmail("");
+  }
+
+  function removeEmail(em) {
+    saveLeague({ ...league, adminEmails: emails.filter(x => x !== em) });
+  }
+
+  return (
+    <div>
+      <div style={{ fontSize: "12px", color: M, marginBottom: "10px", lineHeight: 1.5 }}>
+        Only these emails can use admin mode. Anyone signed in with a different email will have admin automatically revoked, even if they know the PIN.
+      </div>
+      {emails.length === 0 && (
+        <div style={{ fontSize: "13px", color: GOLD, marginBottom: "10px" }}>
+          ⚠️ No admin emails set — PIN alone controls access (less secure)
+        </div>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "12px" }}>
+        {emails.map(em => (
+          <div key={em} style={{ display: "flex", alignItems: "center", gap: "8px", background: "#f7f7f2", borderRadius: "8px", padding: "8px 10px" }}>
+            <div style={{ flex: 1, fontSize: "13px", color: CREAM }}>{em}</div>
+            <button onClick={() => removeEmail(em)}
+              style={{ background: "none", border: "none", color: R, cursor: "pointer", fontSize: "13px", padding: "2px 6px" }}>✕</button>
+          </div>
+        ))}
+      </div>
+      <form onSubmit={addEmail} style={{ display: "flex", gap: "8px" }}>
+        <input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)}
+          placeholder="admin@email.com"
+          style={{ flex: 1, padding: "8px 10px", borderRadius: "8px", border: "1px solid #c8d0c0", fontSize: "13px", outline: "none" }} />
+        <button type="submit"
+          style={{ padding: "8px 14px", borderRadius: "8px", border: "none", background: G, color: "#fff", fontWeight: 700, fontSize: "13px", cursor: "pointer" }}>
+          Add
+        </button>
+      </form>
+    </div>
+  );
+}
+
 function MemberAccessPanel({ league, saveLeague }) {
   const [newEmail, setNewEmail] = useState("");
   const emails = league.allowedEmails || [];
@@ -832,6 +880,17 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
           </div>
         )}
       </AccordionSection>
+
+      {/* ── Admin Access ─────────────────────────────────────────── */}
+      {isAdmin && (
+        <AccordionSection
+          id="adminaccess" open={isOpen("adminaccess")} onToggle={toggleSection}
+          title="Admin Access" icon="🛡"
+          hint={`${(league.adminEmails||[]).length} admin${(league.adminEmails||[]).length !== 1 ? "s" : ""}`}
+        >
+          <AdminAccessPanel league={league} saveLeague={saveLeague} />
+        </AccordionSection>
+      )}
 
       {/* ── Member Access ────────────────────────────────────────── */}
       {isAdmin && (

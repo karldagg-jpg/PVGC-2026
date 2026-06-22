@@ -99,6 +99,7 @@ function applySnapshotToLeague(prevLeague, payload, defaultHcp) {
     contacts: p.contacts || {},
     subs: p.subs || [],
     allowedEmails: p.allowedEmails || [],
+    adminEmails: p.adminEmails || [],
     banner: p.banner !== undefined ? p.banner : (prevLeague.banner || {}),
   };
 }
