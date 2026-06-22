@@ -991,6 +991,11 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
 
           {/* Match Summary */}
           {(() => {
+            if (isCancelled) return (
+              <div style={{ background: "rgba(180,120,0,0.1)", border: `1px solid #e6a81744`, borderRadius: "12px", padding: "12px 16px", marginBottom: "12px", fontSize: "13px", color: "#e6a817", fontWeight: 600 }}>
+                ⛈ Week {selWeek} was cancelled — no match points awarded
+              </div>
+            );
             const t1m = matchResults.reduce((s, m) => s + (m.t1pts > m.t2pts ? 2 : m.t1pts === m.t2pts ? 1 : 0), 0);
             const t2m = matchResults.reduce((s, m) => s + (m.t2pts > m.t1pts ? 2 : m.t1pts === m.t2pts ? 1 : 0), 0);
             const t1teamTotal = matchResults.reduce((s, m) => s + m.t1pts, 0);
