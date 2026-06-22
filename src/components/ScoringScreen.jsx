@@ -433,6 +433,23 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
       </div>
     )}
 
+    {/* Debug: show detected auth status — remove after confirming restriction works */}
+    {isAdmin && (
+      <div style={{ background: "rgba(0,80,0,0.15)", border: "1px solid #4a4", borderRadius: "8px", padding: "6px 12px", marginBottom: "10px", fontSize: "11px", color: "#6f6", fontFamily: "monospace" }}>
+        Admin mode — all matches editable
+      </div>
+    )}
+    {!isAdmin && currentUserTid != null && (
+      <div style={{ background: "rgba(0,40,80,0.2)", border: "1px solid #44a", borderRadius: "8px", padding: "6px 12px", marginBottom: "10px", fontSize: "11px", color: "#88f", fontFamily: "monospace" }}>
+        Signed in as Team {currentUserTid}{canEdit ? " — editing this match" : " — view only for this match"}
+      </div>
+    )}
+    {!isAdmin && currentUserTid == null && (
+      <div style={{ background: "rgba(80,0,0,0.2)", border: "1px solid #a44", borderRadius: "8px", padding: "6px 12px", marginBottom: "10px", fontSize: "11px", color: "#f88", fontFamily: "monospace" }}>
+        No team detected — scores locked (contact admin)
+      </div>
+    )}
+
     {!opp ? (
       <div style={{ textAlign: "center", padding: "50px 20px", color: M, fontSize: "12px" }}>
         No match scheduled for Week {selWeek}.
