@@ -110,11 +110,11 @@ export default function WeeklyScreen({ weeklyTeamPts, results, cancelledWeeks })
 
           {/* Header */}
           <div style={{
-            display: "grid", gridTemplateColumns: "32px 1fr 80px",
+            display: "grid", gridTemplateColumns: "32px 1fr 50px 70px",
             padding: "7px 14px", borderBottom: `1px solid ${GOLD}22`,
             background: "rgba(26,61,36,0.05)"
           }}>
-            {["#", "Team", "Pts"].map((h, i) => (
+            {["#", "Team", "Thru", "Pts"].map((h, i) => (
               <div key={i} style={{
                 fontSize: "11px", color: M, letterSpacing: "0.08em", textTransform: "uppercase",
                 textAlign: i >= 2 ? "center" : "left"
@@ -127,9 +127,11 @@ export default function WeeklyScreen({ weeklyTeamPts, results, cancelledWeeks })
             const rc = rank === 1 ? GO : rank === 2 ? G : rank === 3 ? CREAM : M;
             const isTop = rank <= 3;
             const thruHole = !isCancelled && results ? getThruHole(results, selWeek, e.tid) : null;
+            const thruLabel = thruHole === 9 ? "F" : thruHole ? `H${thruHole}` : "—";
+            const thruColor = thruHole === 9 ? G : thruHole ? GOLD : M + "66";
             return (
               <div key={e.tid} style={{
-                display: "grid", gridTemplateColumns: "32px 1fr 80px",
+                display: "grid", gridTemplateColumns: "32px 1fr 50px 70px",
                 padding: "11px 14px",
                 borderBottom: idx < weekEntries.length - 1 ? `1px solid ${GOLD}11` : "none",
                 background: rank === 1 && !isCancelled ? GOLD + "08" : "transparent",
@@ -142,10 +144,10 @@ export default function WeeklyScreen({ weeklyTeamPts, results, cancelledWeeks })
                   </div>
                   <div style={{ fontSize: "11px", color: M, marginTop: "1px" }}>
                     {TEAMS[e.tid]?.p1} · {TEAMS[e.tid]?.p2}
-                    {thruHole && (
-                      <span style={{ marginLeft: "8px", color: GOLD }}>· {e.stab} pts thru hole {thruHole}</span>
-                    )}
                   </div>
+                </div>
+                <div style={{ textAlign: "center", fontSize: "13px", fontWeight: 700, color: isCancelled ? M + "66" : thruColor }}>
+                  {isCancelled ? "—" : thruLabel}
                 </div>
                 <div style={{
                   textAlign: "center", fontSize: "18px", fontWeight: 700,
