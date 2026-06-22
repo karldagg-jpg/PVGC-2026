@@ -196,7 +196,7 @@ function ScoringScreen({
   const mk = tlow && thigh ? matchKey(selWeek, tlow, thigh) : null;
   const matchDoc = mk ? league.results[selWeek]?.[mk] : null;
   const isLocked = !!(matchDoc?.locked);
-  const canEdit = isAdmin || !currentUserTid || currentUserTid === t1id || currentUserTid === t2id;
+  const canEdit = isAdmin || (currentUserTid != null && (currentUserTid === t1id || currentUserTid === t2id));
   const isDisabled = isLocked || isReadOnly || !canEdit;
   const confirmations = matchDoc?.confirmations || {};
   const hasConfirmed = !!(confirmations[t1id]);
