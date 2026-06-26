@@ -560,6 +560,19 @@ function BannerPanel({ league, saveLeague }) {
           Active: "{saved.message}"{saved.expiresAt ? ` · expires ${saved.expiresAt}` : ""}
         </div>
       )}
+      {saved.message && (
+        <a
+          href={`mailto:pickeringvalleygolfleague@googlegroups.com?subject=${encodeURIComponent("PVGC League Update")}&body=${encodeURIComponent(saved.message)}`}
+          style={{
+            display: "inline-block", marginTop: "4px",
+            padding: "6px 16px", borderRadius: "7px",
+            border: `1px solid ${GOLD}66`, background: GOLD + "18",
+            color: GOLD, fontFamily: FB, fontSize: "12px", fontWeight: 600,
+            textDecoration: "none", cursor: "pointer"
+          }}>
+          ✉ Notify Members
+        </a>
+      )}
     </div>
   );
 }
