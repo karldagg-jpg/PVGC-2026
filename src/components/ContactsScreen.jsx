@@ -89,7 +89,7 @@ export default function ContactsScreen({ league, saveLeague, isAdmin }) {
           <div style={{ fontFamily: FD, fontSize: "26px", fontWeight: 600, color: CREAM }}>Subs</div>
           <div style={{ fontSize: "13px", color: M, marginTop: "2px" }}>Available substitutes</div>
         </div>
-        {isAdmin && !editing && (
+        {!editing && (
           <button onClick={startEdit} style={{ padding: "7px 16px", borderRadius: "8px", border: `1px solid ${G}`, background: "transparent", color: G, fontFamily: FB, fontSize: "13px", cursor: "pointer", fontWeight: 600 }}>
             Edit
           </button>
@@ -104,7 +104,7 @@ export default function ContactsScreen({ league, saveLeague, isAdmin }) {
 
       {list.length === 0 && !editing && (
         <div style={{ textAlign: "center", padding: "40px 0", color: M, fontSize: "14px" }}>
-          No subs on file yet.{isAdmin ? " Click Edit to add." : ""}
+          No subs on file yet. Click Edit to add.
         </div>
       )}
 
