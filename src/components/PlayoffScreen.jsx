@@ -296,13 +296,13 @@ export default function PlayoffScreen({ league, playoffSeeds, qfSeeds, knockdown
               {botMatches.length > 0 && (
                 <>
                   <div style={{ fontSize: "11px", color: M, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "6px" }}>
-                    Seeds 9–18 · Non-Playoff
+                    Seeds 9–18 · Still In Contention
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))", gap: "8px" }}>
                     {botMatches.map(([ta, tb], i) => (
                       <MatchCard key={i+4} week={18} ta={ta} tb={tb}
                         seedA={seeds.indexOf(ta) + 1 || 9 + i*2} seedB={seeds.indexOf(tb) + 1 || 10 + i*2}
-                        league={league} label={`Match ${i + 5}`} dim />
+                        league={league} label={`Match ${i + 5}`} />
                     ))}
                   </div>
                 </>
