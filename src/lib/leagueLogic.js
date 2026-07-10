@@ -18,8 +18,8 @@ import {
 const REGULAR_SEASON_MAX_WEEK = PLAYOFF_START_WEEK - 1;
 
 // All 18 teams ranked by regular season (W1-W17)
-function getAllSeeds(results, handicaps) {
-  const {teamStats} = calcLeagueStats(results, handicaps, null, REGULAR_SEASON_MAX_WEEK);
+function getAllSeeds(results, handicaps, cancelledWeeks=null, loHiOverrides=null) {
+  const {teamStats} = calcLeagueStats(results, handicaps, cancelledWeeks, REGULAR_SEASON_MAX_WEEK, undefined, undefined, undefined, loHiOverrides);
   return Object.entries(teamStats)
     .map(([id,s])=>({id:parseInt(id),...s}))
     .sort((a,b)=>b.totalPts-a.totalPts||b.stab-a.stab)
@@ -27,13 +27,13 @@ function getAllSeeds(results, handicaps) {
 }
 
 // Top 8 seeds from regular season — used for display before knockdown
-function getPlayoffSeeds(results, handicaps) {
-  return getAllSeeds(results, handicaps).slice(0, 8);
+function getPlayoffSeeds(results, handicaps, cancelledWeeks=null, loHiOverrides=null) {
+  return getAllSeeds(results, handicaps, cancelledWeeks, loHiOverrides).slice(0, 8);
 }
 
 // All 18 teams ranked after knockdown (W1-W18) — top 8 advance to QF
-function getQFSeeds(results, handicaps) {
-  const {teamStats} = calcLeagueStats(results, handicaps, null, PLAYOFF_START_WEEK);
+function getQFSeeds(results, handicaps, cancelledWeeks=null, loHiOverrides=null) {
+  const {teamStats} = calcLeagueStats(results, handicaps, cancelledWeeks, PLAYOFF_START_WEEK, undefined, undefined, undefined, loHiOverrides);
   return Object.entries(teamStats)
     .map(([id,s])=>({id:parseInt(id),...s}))
     .sort((a,b)=>b.totalPts-a.totalPts||b.stab-a.stab)
@@ -42,8 +42,8 @@ function getQFSeeds(results, handicaps) {
 
 // Week 18 Knockdown: seeds 1-8 play each other (1v8,2v7,3v6,4v5),
 // seeds 9-18 play each other (9v18,10v17,11v16,12v15,13v14)
-function getKnockdownPairs(results, handicaps) {
-  const all = getAllSeeds(results, handicaps); // 18 teams in seed order
+function getKnockdownPairs(results, handicaps, cancelledWeeks=null, loHiOverrides=null) {
+  const all = getAllSeeds(results, handicaps, cancelledWeeks, loHiOverrides); // 18 teams in seed order
   if (all.length < 8) return [];
   const top = all.slice(0, 8);
   const bot = all.slice(8); // 10 teams
