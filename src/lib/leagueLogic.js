@@ -40,19 +40,13 @@ function getQFSeeds(results, handicaps, cancelledWeeks=null, loHiOverrides=null)
     .map(s=>s.id); // return all 18 ranked, QF uses first 8
 }
 
-// Week 18 Knockdown: seeds 1-8 play each other (1v8,2v7,3v6,4v5),
-// seeds 9-18 play each other (9v18,10v17,11v16,12v15,13v14)
+// Week 18 Knockdown: all seeds pair adjacently by standing (1v2, 3v4, 5v6, … 17v18)
 function getKnockdownPairs(results, handicaps, cancelledWeeks=null, loHiOverrides=null) {
   const all = getAllSeeds(results, handicaps, cancelledWeeks, loHiOverrides); // 18 teams in seed order
   if (all.length < 8) return [];
-  const top = all.slice(0, 8);
-  const bot = all.slice(8); // 10 teams
-  const pairs = [
-    [top[0],top[1]], [top[2],top[3]], [top[4],top[5]], [top[6],top[7]],
-  ];
-  // pair bottom 10: best vs worst
-  for (let i = 0; i < Math.floor(bot.length / 2); i++) {
-    pairs.push([bot[i], bot[bot.length - 1 - i]]);
+  const pairs = [];
+  for (let i = 0; i + 1 < all.length; i += 2) {
+    pairs.push([all[i], all[i + 1]]);
   }
   return pairs;
 }
