@@ -691,6 +691,7 @@ const [seasonYear] = useState(SEASON_YEAR);
           finalPairs={finalPairs}
           cancelledWeeks={cancelledWeeks}
           currentUserTid={currentUserTid}
+          ready={fbStatus === "loaded"}
           onPlayerClick={(tid, pi) => { setSelPlayer({ tid, pi }); setScreen("players"); setMoreOpen(false); }}
           toggleCancelWeek={(w) => {
             const next = { ...league, cancelledWeeks: toSet(league.cancelledWeeks) };
