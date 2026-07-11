@@ -46,6 +46,7 @@ function ScheduleScreen({
   cancelledWeeks,
   onPlayerClick,
   currentUserTid,
+  ready = true,
 }) {
   const currentWeekRef = useRef(null);
   const [showCompleted, setShowCompleted] = useState(false);
@@ -156,7 +157,7 @@ function ScheduleScreen({
           🎉 <strong style={{ color: G }}>{TEAMS[myTid]?.name}</strong> — you're all caught up. No upcoming matches to score.
         </div>
       )}
-      {!myTid && (
+      {!myTid && ready && (
         <div style={{ background: CARD, border: `1px solid ${GOLD}33`, borderRadius: "13px", padding: "13px 16px", marginBottom: "18px" }}>
           <div style={{ fontSize: "13px", color: M, marginBottom: "8px" }}>Pick your team to see your next match:</div>
           <select defaultValue="" onChange={(e) => pickTeam(parseInt(e.target.value, 10))}
