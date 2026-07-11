@@ -563,6 +563,23 @@ const [seasonYear] = useState(SEASON_YEAR);
     return null;
   }, [currentUserEmail, league.contacts]);
 
+  // Default the Scoring/Entry team to the signed-in member once known.
+  // Email match is authoritative and locks the default; the Schedule's saved
+  // team is a non-locking fallback for members whose email isn't set. Runs
+  // once — after that the user can switch teams freely with no interference.
+  const didDefaultTeam = useRef(false);
+  useEffect(() => {
+    if (didDefaultTeam.current) return;
+    if (currentUserTid) {
+      didDefaultTeam.current = true;
+      setTeam(currentUserTid);
+      setEntryTeam(currentUserTid);
+    } else {
+      const saved = parseInt(localStorage.getItem("pvgc_my_team") || "", 10);
+      if (saved >= 1 && saved <= 18) { setTeam(saved); setEntryTeam(saved); }
+    }
+  }, [currentUserTid]);
+
   const canEditCurrentMatch = isAdmin || (currentUserTid != null && (currentUserTid === t1id || currentUserTid === t2id));
   const setMatchUser = (fn) => {
     if (!canEditCurrentMatch) return;
