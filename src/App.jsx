@@ -81,6 +81,7 @@ import {
   initLeague,
   initMatch,
   getEffectiveHcp,
+  isMatchComplete,
 } from "./lib/leagueLogic";
 import { applySnapshotToLeague, applyWeekScoreDoc, removeWeekScoreDoc, normalizeMatch, toSet } from "./lib/persistence";
 
@@ -551,6 +552,33 @@ const [seasonYear] = useState(SEASON_YEAR);
     .sort((a,b)=>b.totalPts-a.totalPts||b.stab-a.stab);
   const weeklyTeamPts=calcWeeklyTeamPts(league.results,league.handicaps,league.cancelledWeeks,undefined,undefined,league.loHiOverrides);
 
+  // Standings movement (settled): places gained/lost between the two most
+  // recent fully-scored regular-season weeks. + = up, - = down, 0 = no change.
+  const standingsMovement = useMemo(() => {
+    const rankAt = (maxW) => {
+      const { teamStats } = calcLeagueStats(league.results, league.handicaps, league.cancelledWeeks, maxW, undefined, undefined, undefined, league.loHiOverrides);
+      const rank = {};
+      Object.entries(teamStats)
+        .map(([id, s]) => ({ id: parseInt(id), ...s }))
+        .sort((a, b) => b.totalPts - a.totalPts || b.stab - a.stab)
+        .forEach((s, i) => { rank[s.id] = i + 1; });
+      return rank;
+    };
+    const completed = [];
+    for (let w = 1; w <= PLAYOFF_START_WEEK - 1; w++) {
+      const pairs = SCHEDULE[w]?.pairs || [];
+      if (pairs.length === 0 || league.cancelledWeeks?.has(w)) continue;
+      const allDone = pairs.every(([a, b]) => isMatchComplete(league.results[w]?.[matchKey(w, Math.min(a, b), Math.max(a, b))]));
+      if (allDone) completed.push(w);
+    }
+    if (completed.length < 2) return { movement: {}, throughWeek: null };
+    const cur = rankAt(completed[completed.length - 1]);
+    const prev = rankAt(completed[completed.length - 2]);
+    const movement = {};
+    for (const id of Object.keys(cur)) movement[id] = prev[id] - cur[id];
+    return { movement, throughWeek: completed[completed.length - 1] };
+  }, [league.results, league.handicaps, league.cancelledWeeks, league.loHiOverrides]);
+
   const weekBonus=calcWeekBonus(selWeek,league.results,league.handicaps);
 
   // Determine which team the signed-in user belongs to via their contact email
@@ -741,6 +769,8 @@ const [seasonYear] = useState(SEASON_YEAR);
         <StandingsScreen
           teamStandings={teamStandings}
           weeklyTeamPts={weeklyTeamPts}
+          movement={standingsMovement.movement}
+          movementThroughWeek={standingsMovement.throughWeek}
         />
       )}
 
