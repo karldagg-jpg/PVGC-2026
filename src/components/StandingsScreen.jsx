@@ -1,9 +1,19 @@
 import { TEAMS } from "../constants/league";
 import { G, GO, M, CREAM, GOLD, CARD, CARD2, FB, FD } from "../constants/theme";
 
-export default function StandingsScreen({ teamStandings, weeklyTeamPts }) {
+export default function StandingsScreen({ teamStandings, weeklyTeamPts, movement, movementThroughWeek }) {
   const pts = weeklyTeamPts || {};
   const sorted = teamStandings || [];
+  const mv = movement || {};
+
+  function MoveIndicator({ id }) {
+    const d = mv[id];
+    if (d == null) return null;
+    const label = movementThroughWeek ? `through Week ${movementThroughWeek}` : "";
+    if (d > 0) return <div title={`Up ${d} ${label}`} style={{ fontSize: "9px", fontWeight: 700, color: G, marginTop: "2px", lineHeight: 1 }}>▲{d}</div>;
+    if (d < 0) return <div title={`Down ${-d} ${label}`} style={{ fontSize: "9px", fontWeight: 700, color: "#c0392b", marginTop: "2px", lineHeight: 1 }}>▼{-d}</div>;
+    return <div title={`No change ${label}`} style={{ fontSize: "9px", fontWeight: 700, color: M, marginTop: "2px", lineHeight: 1 }}>–</div>;
+  }
 
   const weeksWithData = [];
   for (let w = 1; w <= 17; w++) {
@@ -69,7 +79,10 @@ export default function StandingsScreen({ teamStandings, weeklyTeamPts }) {
                         textAlign: "center", padding: "9px 8px", fontWeight: 700, fontSize: "13px", color: rc,
                         position: "sticky", left: 0, background: stickyBg, zIndex: 1,
                         width: "36px",
-                      }}>{rank}</td>
+                      }}>
+                        {rank}
+                        <MoveIndicator id={s.id} />
+                      </td>
                       <td style={{
                         padding: "9px 12px", whiteSpace: "nowrap",
                         position: "sticky", left: "36px", background: stickyBg, zIndex: 1,
