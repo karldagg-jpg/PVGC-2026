@@ -10,7 +10,8 @@ const MY_TEAM_KEY = "pvgc_my_team";
 // Friendly relative-date label; returns null when a plain date reads better.
 function relLabel(str) {
   if (!str) return null;
-  const d = new Date(str + "T12:00:00");
+  const d = new Date(str + "T00:00:00"); // local midnight of the match day
+  d.setHours(0, 0, 0, 0);
   const t = new Date();
   t.setHours(0, 0, 0, 0);
   const diff = Math.round((d - t) / 86400000);
