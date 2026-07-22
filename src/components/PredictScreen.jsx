@@ -19,7 +19,7 @@ function normS(s) {
   return [s.p0 || [], s.p1 || []];
 }
 
-function buildPlayerHoleDists(results, handicaps, beforeWeek = 99) {
+function buildPlayerHoleDists(results, handicaps, beforeWeek = 99, cancelledWeeks = null) {
   const dists = {};
   for (let tid = 1; tid <= 18; tid++)
     for (let pi = 0; pi < 2; pi++)
@@ -29,6 +29,7 @@ function buildPlayerHoleDists(results, handicaps, beforeWeek = 99) {
 
   for (const [wStr, weekRecs] of Object.entries(results || {})) {
     if (parseInt(wStr) >= beforeWeek) continue;
+    if (cancelledWeeks?.has(parseInt(wStr))) continue;
     for (const [mk, rec] of Object.entries(weekRecs || {})) {
       if (!rec) continue;
       const parts = mk.split("-");
@@ -178,12 +179,12 @@ function simulateMatchup(tidA, tidB, playerDists, handicaps, matchRec, nSims = N
 // Retroactively compute predictor accuracy for all completed weeks.
 // For each completed matchup, simulates using only prior-week data (same
 // as a real pre-week prediction), then compares to actual scored result.
-function computeScorecard(results, handicaps) {
+function computeScorecard(results, handicaps, cancelledWeeks = null) {
   const entries = [];
 
   for (let w = 1; w <= 17; w++) {
     const pairs = SCHEDULE[w]?.pairs || [];
-    if (!pairs.length || isWeekCancelled(results[w])) continue;
+    if (!pairs.length || isWeekCancelled(results[w]) || cancelledWeeks?.has(w)) continue;
 
     const completePairs = pairs.filter(([ta, tb]) => {
       const mk = `${w}-${Math.min(ta, tb)}-${Math.max(ta, tb)}`;
@@ -192,8 +193,8 @@ function computeScorecard(results, handicaps) {
     if (!completePairs.length) continue;
 
     // Build distributions and handicaps once per week — same inputs the live predictor uses
-    const dists = buildPlayerHoleDists(results, handicaps, w);
-    const wHcps = calcSuggestedHcps(results, w, handicaps);
+    const dists = buildPlayerHoleDists(results, handicaps, w, cancelledWeeks);
+    const wHcps = calcSuggestedHcps(results, w, handicaps, undefined, cancelledWeeks);
 
     for (const [ta, tb] of completePairs) {
       const mk  = `${w}-${Math.min(ta, tb)}-${Math.max(ta, tb)}`;
@@ -449,8 +450,8 @@ export default function PredictScreen({ league }) {
     [league.results, league.handicaps, week, league.cancelledWeeks]
   );
   const playerDists = useMemo(
-    () => buildPlayerHoleDists(league.results, league.handicaps, week),
-    [league.results, league.handicaps, week]
+    () => buildPlayerHoleDists(league.results, league.handicaps, week, league.cancelledWeeks),
+    [league.results, league.handicaps, week, league.cancelledWeeks]
   );
   const simResults = useMemo(() => {
     const pairs = SCHEDULE[week]?.pairs || [];
@@ -463,8 +464,8 @@ export default function PredictScreen({ league }) {
 
   // Scorecard computed once and cached; only runs when results/handicaps change
   const scorecardEntries = useMemo(
-    () => computeScorecard(league.results, league.handicaps),
-    [league.results, league.handicaps]
+    () => computeScorecard(league.results, league.handicaps, league.cancelledWeeks),
+    [league.results, league.handicaps, league.cancelledWeeks]
   );
 
   const weekDate = SCHEDULE[week]?.date

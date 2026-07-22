@@ -307,7 +307,7 @@ function calcLeagueStats(results, handicaps, cancelledWeeksIn=null, maxWeek=REGU
       // Points: pair by handicap order (lower hcp vs lower hcp, higher vs higher).
       // Some teams list their higher-hcp player as p0 — this corrects the matchup.
       const snap = rec.hcpSnapshot;
-      const loHiCtx = { loHiOverrides: loHiOverrides || {}, results, handicaps, hcpOverrides: {} };
+      const loHiCtx = { loHiOverrides: loHiOverrides || {}, results, handicaps, hcpOverrides: {}, cancelledWeeks: cancelledWeeksIn };
       const { loPi: piA_lo, hiPi: piA_hi } = getLoHiOrder(tlow, w, loHiCtx, snap);
       const { loPi: piB_lo, hiPi: piB_hi } = getLoHiOrder(thigh, w, loHiCtx, snap);
       const pairings = [{piA:piA_lo,piB:piB_lo},{piA:piA_hi,piB:piB_hi}];
@@ -587,7 +587,7 @@ function calcWeeklyTeamPts(results, handicaps, cancelledWeeksIn=null, maxWeek=RE
       const totB = computeTeamTotal(rec, 1, thigh, handicaps);
 
       let mA = 0, mB = 0;
-      const loHiCtx2 = { loHiOverrides: loHiOverrides || {}, results, handicaps, hcpOverrides: {} };
+      const loHiCtx2 = { loHiOverrides: loHiOverrides || {}, results, handicaps, hcpOverrides: {}, cancelledWeeks: cancelledWeeksIn };
       const { loPi: plo, hiPi: phi } = getLoHiOrder(tlow, w, loHiCtx2, rec.hcpSnapshot);
       const { loPi: qlo, hiPi: qhi } = getLoHiOrder(thigh, w, loHiCtx2, rec.hcpSnapshot);
       for (const {piA, piB} of [{piA:plo,piB:qlo},{piA:phi,piB:qhi}]) {
@@ -808,7 +808,7 @@ function buildWeekRecap(week, results, handicaps, cancelledWeeks=null, loHiOverr
       for (const [tid, label] of [[tlow, tAname], [thigh, tBname]]) {
         for (let pi = 0; pi < 2; pi++) {
           const name = teams[tid]?.[pi === 0 ? "p1" : "p2"] || `P${pi+1}`;
-          const hcp = getEffectiveHcp(tid, pi, nextWeek, results, handicaps, {});
+          const hcp = getEffectiveHcp(tid, pi, nextWeek, results, handicaps, {}, cancelledWeeks);
           lines.push(`    ${name} (HCP ${hcp})`);
         }
       }
