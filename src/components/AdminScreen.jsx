@@ -706,7 +706,7 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
   const [recapCopied, setRecapCopied] = useState(false);
 
   function copyRecap() {
-    const text = buildWeekRecap(recapWeek, league.results || {}, league.handicaps || {});
+    const text = buildWeekRecap(recapWeek, league.results || {}, league.handicaps || {}, league.cancelledWeeks, league.loHiOverrides);
     navigator.clipboard.writeText(text).then(() => {
       setRecapCopied(true);
       setTimeout(() => setRecapCopied(false), 2500);

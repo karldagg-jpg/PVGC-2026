@@ -618,7 +618,7 @@ function initMatch() {
 
 
 // ── Weekly recap text builder ───────────────────────────────────
-function buildWeekRecap(week, results, handicaps, schedule=SCHEDULE, teams=TEAMS) {
+function buildWeekRecap(week, results, handicaps, cancelledWeeks=null, loHiOverrides=null, schedule=SCHEDULE, teams=TEAMS) {
   const weekInfo = schedule[week];
   if (!weekInfo) return "";
   const lines = [];
@@ -733,7 +733,7 @@ function buildWeekRecap(week, results, handicaps, schedule=SCHEDULE, teams=TEAMS
   }
 
   // ── Standings ──
-  const stats = calcLeagueStats(results, handicaps);
+  const stats = calcLeagueStats(results, handicaps, cancelledWeeks, undefined, undefined, undefined, undefined, loHiOverrides);
   const sorted = Object.entries(stats.teamStats)
     .filter(([,s]) => s.played > 0)
     .sort(([,a],[,b]) => b.totalPts - a.totalPts || b.stab - a.stab);
