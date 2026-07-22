@@ -49,13 +49,13 @@ function holeBucket(gross, par, hcp, si) {
 }
 
 // ── Data: per-player per-round {week, stab, gross, hcp, holes[9]} ─
-function buildPlayerRounds(results, handicaps) {
+function buildPlayerRounds(results, handicaps, cancelledWeeks = null) {
   const data = {};
   ALL_PLAYERS.forEach(p => { data[`${p.tid}-${p.pi}`] = []; });
 
   for (let w = 1; w < PLAYOFF_START_WEEK; w++) {
     const wRes = results[w] || {};
-    if (isWeekCancelled(wRes)) continue;
+    if (isWeekCancelled(wRes) || cancelledWeeks?.has(w)) continue;
     for (const [mk, rec] of Object.entries(wRes)) {
       if (!rec) continue;
       const pts = mk.split("-");
@@ -624,10 +624,10 @@ function LeaguePulseView({ playerRounds, hotcold, timeframe, setTimeframe, leagu
     const weeks = [];
     for (let w = 17; w >= 1 && weeks.length < (timeframe==="week"?1:timeframe==="4w"?4:4); w--) {
       const wr = league.results[w];
-      if (wr && Object.keys(wr).length > 0 && !isWeekCancelled(wr)) weeks.push(w);
+      if (wr && Object.keys(wr).length > 0 && !isWeekCancelled(wr) && !league.cancelledWeeks?.has(w)) weeks.push(w);
     }
     return weeks;
-  }, [league.results, timeframe]);
+  }, [league.results, timeframe, league.cancelledWeeks]);
 
   return (
     <div>
@@ -761,10 +761,10 @@ function MatchesListView({ league, onMatchClick }) {
     const out=[];
     for(let w=17;w>=1;w--){
       const wr=league.results[w]||{};
-      if(Object.keys(wr).length>0&&!isWeekCancelled(wr)) out.push(w);
+      if(Object.keys(wr).length>0&&!isWeekCancelled(wr)&&!league.cancelledWeeks?.has(w)) out.push(w);
     }
     return out;
-  },[league.results]);
+  },[league.results, league.cancelledWeeks]);
 
   return (
     <div>
@@ -858,8 +858,8 @@ export default function PulseScreen({ league }) {
   const [sheetMatch, setSheetMatch]   = useState(null);  // {week,ta,tb} or null
 
   const playerRounds = useMemo(
-    () => buildPlayerRounds(league.results, league.handicaps),
-    [league.results, league.handicaps]
+    () => buildPlayerRounds(league.results, league.handicaps, league.cancelledWeeks),
+    [league.results, league.handicaps, league.cancelledWeeks]
   );
   const hotcold = useMemo(
     () => computeHotCold(playerRounds),
