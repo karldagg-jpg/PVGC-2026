@@ -366,14 +366,22 @@ const [seasonYear] = useState(SEASON_YEAR);
     const weeksCovered = Object.keys(league.results || {}).filter(w => Object.keys(league.results[w] || {}).length > 0).length;
     // Convert Set → Array so JSON.stringify preserves it
     const serializable = { ...league, cancelledWeeks: [...(league.cancelledWeeks || [])] };
+    const data = JSON.stringify(serializable);
+    const createdAt = new Date().toLocaleString("en-US");
+    // Firestore hard-caps documents at 1 MiB; warn well before we'd hit it.
+    if (data.length > 900000) {
+      console.warn(`Snapshot is ${(data.length / 1048576).toFixed(2)} MiB — approaching Firestore's 1 MiB per-document limit; snapshots may soon fail to save.`);
+    }
     try {
       await SNAPSHOTS_COL.doc(id).set({
-        createdAt: new Date().toLocaleString("en-US"),
-        label: label || "",
-        weeksCovered,
-        data: JSON.stringify(serializable),
+        createdAt, label: label || "", weeksCovered, data,
         ...(auto ? { auto: true } : {}),
       });
+      // Lightweight index (id → metadata only) so list/prune never download blobs.
+      await SNAPSHOTS_COL.doc("_index").set(
+        { [id]: { auto: !!auto, createdAt, label: label || "", weeksCovered } },
+        { merge: true }
+      );
       if (auto) pruneAutoSnapshots();
       return true;
     } catch(e) {
@@ -382,17 +390,22 @@ const [seasonYear] = useState(SEASON_YEAR);
     }
   }
 
-  // Keep only the most recent N auto-backups so they don't accumulate forever.
+  // Keep only the most recent N auto-backups. Reads the small index doc
+  // (one lightweight read) instead of downloading every snapshot blob.
   async function pruneAutoSnapshots(keep = 30) {
     try {
-      const snap = await SNAPSHOTS_COL.get();
-      const autos = snap.docs.filter(d => d.data()?.auto).sort((a, b) => b.id.localeCompare(a.id));
-      const excess = autos.slice(keep);
-      if (excess.length) {
-        const batch = db.batch();
-        excess.forEach(d => batch.delete(d.ref));
-        await batch.commit();
-      }
+      const idxRef = SNAPSHOTS_COL.doc("_index");
+      const idxSnap = await idxRef.get();
+      const idx = idxSnap.exists ? (idxSnap.data() || {}) : {};
+      const autoIds = Object.keys(idx).filter(id => idx[id]?.auto).sort((a, b) => b.localeCompare(a));
+      const excess = autoIds.slice(keep);
+      if (!excess.length) return;
+      const batch = db.batch();
+      excess.forEach(id => batch.delete(SNAPSHOTS_COL.doc(id)));
+      const nextIdx = { ...idx };
+      excess.forEach(id => { delete nextIdx[id]; });
+      batch.set(idxRef, nextIdx); // rewrite trimmed index (tiny doc)
+      await batch.commit();
     } catch(e) { console.warn("pruneAutoSnapshots error:", e); }
   }
 
@@ -400,6 +413,7 @@ const [seasonYear] = useState(SEASON_YEAR);
     try {
       const snap = await SNAPSHOTS_COL.limit(20).get();
       return snap.docs
+        .filter(d => d.id !== "_index")
         .map(d => ({ id: d.id, ...d.data(), data: undefined }))
         .sort((a, b) => b.id.localeCompare(a.id))
         .slice(0, 10);
