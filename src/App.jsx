@@ -85,6 +85,22 @@ import {
 } from "./lib/leagueLogic";
 import { applySnapshotToLeague, applyWeekScoreDoc, removeWeekScoreDoc, normalizeMatch, toSet } from "./lib/persistence";
 
+// True if saving `next` would erase real scores a player had in `existing`
+// (a scored player turned into a sub/phantom, or their holes cleared).
+function editLosesScores(existing, next) {
+  if (!existing || !next) return false;
+  const flat = (s) => Array.isArray(s) ? s : (s ? [s.p0 || [], s.p1 || []] : [[], []]);
+  const scored = (rec, tIdx, pi) => {
+    const type = (tIdx === 0 ? rec.t1types : rec.t2types)?.[pi] || "normal";
+    if (type === "sub" || type === "phantom") return false;
+    return (flat(tIdx === 0 ? rec.t1scores : rec.t2scores)[pi] || []).some(v => (v || 0) > 0);
+  };
+  for (let t = 0; t < 2; t++)
+    for (let pi = 0; pi < 2; pi++)
+      if (scored(existing, t, pi) && !scored(next, t, pi)) return true;
+  return false;
+}
+
 function App() {
   const [screen,  setScreen]  = useState("schedule");
   const [selPlayer, setSelPlayer] = useState(null); // {tid, pi} — set when navigating from POTY
@@ -221,6 +237,11 @@ const [seasonYear] = useState(SEASON_YEAR);
   async function saveMatchDoc(toSave, week, tlow, thigh){
     const key = matchKey(week, tlow, thigh);
     const docId = `${week}_${key}`;
+    // Safety net: back up before an edit that would erase a player's scores
+    // (e.g. accidentally subbing a player who already has scores entered).
+    if (editLosesScores(league.results[week]?.[key], toSave)) {
+      await createSnapshot(`Auto-backup — before edit, Week ${week}`, true);
+    }
     lastMatchSaveTime.current = Date.now();
     // Firestore doesn't support nested arrays — flatten [[p0],[p1]] → {p0:[],p1:[]}
     const flatScores = (arr) => Array.isArray(arr) ? { p0: arr[0]||[], p1: arr[1]||[] } : arr;
@@ -293,6 +314,9 @@ const [seasonYear] = useState(SEASON_YEAR);
 
   async function clearMatch(week, mk){
     const docId = `${week}_${mk}`;
+    if (league.results[week]?.[mk]) {
+      await createSnapshot(`Auto-backup — before clearing match, Week ${week}`, true);
+    }
     try {
       // Delete from subcollection
       await WEEK_SCORES_COL.doc(docId).delete();
@@ -315,6 +339,7 @@ const [seasonYear] = useState(SEASON_YEAR);
   }
 
   async function clearSeason(){
+    await createSnapshot("Auto-backup — before Clear Season", true);
     const fresh = { ...initLeague(), handicaps: league.handicaps };
     setMatch(initMatch());
     try {
@@ -336,8 +361,8 @@ const [seasonYear] = useState(SEASON_YEAR);
   // ── Snapshots ────────────────────────────────────────────────
   const SNAPSHOTS_COL = LEAGUE_DOC.collection("snapshots");
 
-  async function createSnapshot(label) {
-    const id = new Date().toISOString().replace(/[:.]/g, "-");
+  async function createSnapshot(label, auto = false) {
+    const id = new Date().toISOString().replace(/[:.]/g, "-") + (auto ? "-" + Math.random().toString(36).slice(2, 6) : "");
     const weeksCovered = Object.keys(league.results || {}).filter(w => Object.keys(league.results[w] || {}).length > 0).length;
     // Convert Set → Array so JSON.stringify preserves it
     const serializable = { ...league, cancelledWeeks: [...(league.cancelledWeeks || [])] };
@@ -347,12 +372,28 @@ const [seasonYear] = useState(SEASON_YEAR);
         label: label || "",
         weeksCovered,
         data: JSON.stringify(serializable),
+        ...(auto ? { auto: true } : {}),
       });
+      if (auto) pruneAutoSnapshots();
       return true;
     } catch(e) {
       console.warn("snapshot error:", e);
       return false;
     }
+  }
+
+  // Keep only the most recent N auto-backups so they don't accumulate forever.
+  async function pruneAutoSnapshots(keep = 30) {
+    try {
+      const snap = await SNAPSHOTS_COL.get();
+      const autos = snap.docs.filter(d => d.data()?.auto).sort((a, b) => b.id.localeCompare(a.id));
+      const excess = autos.slice(keep);
+      if (excess.length) {
+        const batch = db.batch();
+        excess.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+      }
+    } catch(e) { console.warn("pruneAutoSnapshots error:", e); }
   }
 
   async function listSnapshots() {
