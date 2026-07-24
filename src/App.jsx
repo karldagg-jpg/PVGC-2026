@@ -65,6 +65,7 @@ import StatsScreen from "./components/StatsScreen";
 import PredictScreen from "./components/PredictScreen";
 import PulseScreen from "./components/PulseScreen";
 import ContactsScreen from "./components/ContactsScreen";
+import ConfirmedScoresScreen from "./components/ConfirmedScoresScreen";
 import AuthGate from "./components/AuthGate";
 import {
   getPlayoffSeeds,
@@ -360,6 +361,8 @@ const [seasonYear] = useState(SEASON_YEAR);
 
   // ── Snapshots ────────────────────────────────────────────────
   const SNAPSHOTS_COL = LEAGUE_DOC.collection("snapshots");
+  // Permanent, immutable record written when each team confirms their match.
+  const CONFIRMED_COL = LEAGUE_DOC.collection("confirmedScores");
 
   async function createSnapshot(label, auto = false) {
     const id = new Date().toISOString().replace(/[:.]/g, "-") + (auto ? "-" + Math.random().toString(36).slice(2, 6) : "");
@@ -477,6 +480,28 @@ const [seasonYear] = useState(SEASON_YEAR);
     }
   }
 
+  async function listConfirmedScores() {
+    try {
+      const snap = await CONFIRMED_COL.get();
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch(e) { console.warn("listConfirmedScores error:", e); return []; }
+  }
+
+  // Restore a match's live scores from an immutable confirmed record.
+  async function restoreConfirmedRecord(rec) {
+    if (!rec) return false;
+    const unflat = (s) => Array.isArray(s) ? s : (s ? [s.p0 || [], s.p1 || []] : [[], []]);
+    const toSave = {
+      t1scores: unflat(rec.t1scores),
+      t2scores: unflat(rec.t2scores),
+      t1types: rec.t1types || ["normal", "normal"],
+      t2types: rec.t2types || ["normal", "normal"],
+      ...(rec.hcpSnapshot ? { hcpSnapshot: rec.hcpSnapshot } : {}),
+    };
+    await saveMatchDoc(toSave, rec.week, rec.tlow, rec.thigh);
+    return true;
+  }
+
   async function confirmMatch(week, mk, tid){
     const existing = league.results[week]?.[mk] || {};
     const confirmations = {
@@ -497,6 +522,21 @@ const [seasonYear] = useState(SEASON_YEAR);
         { ...existing, t1scores: flatScores(existing.t1scores), t2scores: flatScores(existing.t2scores), week, matchKey: mk, confirmations, locked: bothConfirmed },
         { merge: false }
       );
+      // Failsafe: permanent immutable copy of the scores as this team confirmed
+      // them. Isolated so a failure here can never block the confirmation itself.
+      try {
+        const recId = `${week}_${mk}_${tid}_${Date.now().toString(36)}`;
+        await CONFIRMED_COL.doc(recId).set({
+          week, matchKey: mk, tid, tlow, thigh,
+          confirmedBy: userName || `T${tid}`,
+          confirmedAt: new Date().toISOString(),
+          t1scores: flatScores(existing.t1scores),
+          t2scores: flatScores(existing.t2scores),
+          t1types: existing.t1types || null,
+          t2types: existing.t2types || null,
+          hcpSnapshot: existing.hcpSnapshot || null,
+        });
+      } catch(e) { console.warn("confirmedScores write error:", e); }
       setLeague(prev => ({
         ...prev,
         results: {
@@ -672,8 +712,8 @@ const [seasonYear] = useState(SEASON_YEAR);
 
   const TABS=["schedule","scoring","entry","standings","masters","weekly","poty","hcp","playoffs","players","rules","admin"];
   const PRIMARY_TABS=["schedule","scoring","standings","players","poty","hcp","rules","contacts"];
-  const MORE_TABS=["entry","weekly","masters","playoffs","stats","admin","predict","pulse","howto"];
-  const TAB_LABEL={schedule:"Schedule",scoring:"Scoring",entry:"Entry",standings:"Standings",masters:"Board",weekly:"Weekly",poty:"POTY",hcp:"HCP",playoffs:"Playoffs",players:"Players",contacts:"Subs",stats:"Stats",rules:"Rules",admin:"Admin",predict:"Predict",pulse:"Pulse",howto:"How To"};
+  const MORE_TABS=["entry","weekly","masters","playoffs","stats","admin","verify","predict","pulse","howto"].filter(t => t !== "verify" || isAdmin);
+  const TAB_LABEL={schedule:"Schedule",scoring:"Scoring",entry:"Entry",standings:"Standings",masters:"Board",weekly:"Weekly",poty:"POTY",hcp:"HCP",playoffs:"Playoffs",players:"Players",contacts:"Subs",stats:"Stats",rules:"Rules",admin:"Admin",verify:"Verify",predict:"Predict",pulse:"Pulse",howto:"How To"};
   const inMore = MORE_TABS.includes(screen);
 
   // Current match doc (for confirm/lock)
@@ -920,6 +960,14 @@ const [seasonYear] = useState(SEASON_YEAR);
           src="how-to.html"
           style={{ width:"100%", height:"calc(100vh - 48px)", border:"none" }}
           title="How To"
+        />
+      )}
+
+      {screen==="verify"&&isAdmin&&(
+        <ConfirmedScoresScreen
+          league={league}
+          listConfirmedScores={listConfirmedScores}
+          restoreConfirmedRecord={restoreConfirmedRecord}
         />
       )}
 
