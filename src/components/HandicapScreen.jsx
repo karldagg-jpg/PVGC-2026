@@ -8,6 +8,7 @@ function HandicapScreen({ league, saveLeague, isAdmin }) {
   function getGrossHistory(tid, pi) {
     const grosses = [];
     for (let w = 1; w <= 17; w++) {
+      if (league.cancelledWeeks?.has(w)) continue; // exclude admin-cancelled weeks (matches the HCP calc)
       const opp = getOpponent(tid, w);
       if (!opp) continue;
       const mk = matchKey(w, Math.min(tid, opp), Math.max(tid, opp));
