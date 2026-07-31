@@ -249,6 +249,14 @@ function calcWeekBonus(week, results, handicaps, schedule=SCHEDULE) {
   return bonus;
 }
 
+// True only once every match in the week has been confirmed by both teams —
+// the bonus ranking can still shift until then, even if all scores are in.
+function isWeekFullyConfirmed(week, results, schedule=SCHEDULE) {
+  const w = schedule[week];
+  if (!w?.pairs?.length) return false;
+  return w.pairs.every(([ta, tb]) => !!results?.[week]?.[matchKey(week, ta, tb)]?.locked);
+}
+
 // Returns true if an entire week was cancelled (all player slots are phantom)
 function isWeekCancelled(weekResults) {
   if (!weekResults) return false;
@@ -834,6 +842,7 @@ export {
   computePlayerTotal,
   isMatchComplete,
   calcWeekBonus,
+  isWeekFullyConfirmed,
   calcLeagueStats,
   calcWeeklyTeamPts,
   initLeague,

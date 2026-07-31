@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { TEAMS, SCHEDULE_RAW, SCHEDULE } from "../constants/league";
+import { isWeekFullyConfirmed } from "../lib/leagueLogic";
 import { G, GO, R, M, CREAM, GOLD, CARD2, FD, FB } from "../constants/theme";
+
+const AMBER = "#e6a817";
 
 // Derive list of regular season weeks from schedule
 const REGULAR_WEEKS = SCHEDULE_RAW
@@ -46,6 +49,7 @@ export default function WeeklyScreen({ weeklyTeamPts, results, cancelledWeeks })
   const [selWeek, setSelWeek] = useState(defaultWeek);
 
   const isCancelled = cancelledWeeks?.has(selWeek);
+  const bonusConfirmed = !isCancelled && results ? isWeekFullyConfirmed(selWeek, results) : false;
 
   // Build ranked list — include cancelled weeks showing 0 pts
   const weekEntries = isCancelled
@@ -110,11 +114,11 @@ export default function WeeklyScreen({ weeklyTeamPts, results, cancelledWeeks })
 
           {/* Header */}
           <div style={{
-            display: "grid", gridTemplateColumns: "32px 1fr 50px 70px",
+            display: "grid", gridTemplateColumns: "32px 1fr 42px 56px 64px",
             padding: "7px 14px", borderBottom: `1px solid ${GOLD}22`,
             background: "rgba(26,61,36,0.05)"
           }}>
-            {["#", "Team", "Thru", "Pts"].map((h, i) => (
+            {["#", "Team", "Thru", "Bonus", "Pts"].map((h, i) => (
               <div key={i} style={{
                 fontSize: "11px", color: M, letterSpacing: "0.08em", textTransform: "uppercase",
                 textAlign: i >= 2 ? "center" : "left"
@@ -131,7 +135,7 @@ export default function WeeklyScreen({ weeklyTeamPts, results, cancelledWeeks })
             const thruColor = thruHole === 9 ? G : thruHole ? GOLD : M + "66";
             return (
               <div key={e.tid} style={{
-                display: "grid", gridTemplateColumns: "32px 1fr 50px 70px",
+                display: "grid", gridTemplateColumns: "32px 1fr 42px 56px 64px",
                 padding: "11px 14px",
                 borderBottom: idx < weekEntries.length - 1 ? `1px solid ${GOLD}11` : "none",
                 background: rank === 1 && !isCancelled ? GOLD + "08" : "transparent",
@@ -150,6 +154,12 @@ export default function WeeklyScreen({ weeklyTeamPts, results, cancelledWeeks })
                   {isCancelled ? "—" : thruLabel}
                 </div>
                 <div style={{
+                  textAlign: "center", fontSize: "13px", fontWeight: 700,
+                  color: isCancelled ? M : bonusConfirmed ? G : AMBER
+                }} title={isCancelled ? "" : bonusConfirmed ? "Confirmed" : "Estimated — not all teams have confirmed yet"}>
+                  {isCancelled ? "—" : `${bonusConfirmed ? "" : "~"}${e.bonusPts ?? 0}`}
+                </div>
+                <div style={{
                   textAlign: "center", fontSize: "18px", fontWeight: 700,
                   color: isCancelled ? M : rank === 1 ? GOLD : rank <= 3 ? G : CREAM
                 }}>{isCancelled ? "0" : e.stab}</div>
@@ -163,6 +173,15 @@ export default function WeeklyScreen({ weeklyTeamPts, results, cancelledWeeks })
           }}>
             {isCancelled ? "Week cancelled — 0 points awarded to all teams" : "Stableford total for both players on the team"}
           </div>
+          {!isCancelled && (
+            <div style={{
+              padding: "0 14px 9px", fontSize: "11px", color: bonusConfirmed ? M : AMBER, fontWeight: bonusConfirmed ? 400 : 600
+            }}>
+              {bonusConfirmed
+                ? "✓ Bonus points confirmed — all matches locked in"
+                : "~ Bonus points are estimated until every team this week confirms their score"}
+            </div>
+          )}
         </div>
       )}
     </div>
