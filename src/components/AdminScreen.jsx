@@ -673,6 +673,115 @@ function MemberAccessPanel({ league, saveLeague }) {
   );
 }
 
+// Group consecutive teams that are tied on total points (rankStandings tags them
+// with _tieWith). Returns [{ pts, startRank, teams:[...] }] in standings order.
+function detectTieGroups(standings) {
+  const groups = [];
+  let i = 0;
+  while (i < standings.length) {
+    const s = standings[i];
+    if (s._tieWith && s._tieWith.length) {
+      const start = i, pts = s.totalPts, teams = [];
+      while (i < standings.length && standings[i].totalPts === pts) teams.push(standings[i++]);
+      groups.push({ pts, startRank: start + 1, teams });
+    } else i++;
+  }
+  return groups;
+}
+function countTieGroups(standings) { return detectTieGroups(standings).length; }
+
+const TB_METHOD = {
+  override: { label: "Commissioner override", color: GO },
+  h2h: { label: "Head-to-head (TB1)", color: G },
+  tb2: { label: "Common opponent (TB2)", color: G },
+  stableford: { label: "Unresolved — provisional (Stableford)", color: R },
+  multi: { label: "Multi-team tie — provisional", color: R },
+};
+
+function TiebreakerManager({ league, teamStandings, saveLeague }) {
+  const groups = detectTieGroups(teamStandings);
+  const [working, setWorking] = useState({});
+  const [msg, setMsg] = useState("");
+  const overrides = league.seedOverrides || [];
+
+  if (groups.length === 0) {
+    return <div style={{ fontSize: "13px", color: M, padding: "4px 2px" }}>No ties in the current standings — nothing to set.</div>;
+  }
+  const orderOf = (g) => working[g.pts] || g.teams.map((t) => t.id);
+  const move = (g, idx, dir) => {
+    const o = [...orderOf(g)]; const j = idx + dir;
+    if (j < 0 || j >= o.length) return;
+    [o[idx], o[j]] = [o[j], o[idx]];
+    setWorking((w) => ({ ...w, [g.pts]: o }));
+  };
+  const flash = (t) => { setMsg(t); setTimeout(() => setMsg(""), 2600); };
+  const saveGroup = (g) => {
+    const o = orderOf(g);
+    const groupIds = new Set(g.teams.map((t) => t.id));
+    const kept = overrides.filter((id) => !groupIds.has(id));
+    saveLeague({ ...league, seedOverrides: [...kept, ...o] });
+    flash(`Saved seed order for the ${g.pts}-point tie.`);
+  };
+  const clearGroup = (g) => {
+    const groupIds = new Set(g.teams.map((t) => t.id));
+    saveLeague({ ...league, seedOverrides: overrides.filter((id) => !groupIds.has(id)) });
+    setWorking((w) => { const n = { ...w }; delete n[g.pts]; return n; });
+    flash("Override cleared — reverting to head-to-head / TB2.");
+  };
+
+  return (
+    <div style={{ padding: "2px" }}>
+      <div style={{ fontSize: "12px", color: M, marginBottom: "12px", lineHeight: 1.5 }}>
+        Teams level on total points are ordered automatically by <b>head-to-head (TB1)</b>, then <b>result vs. a common opponent (TB2)</b> — this applies to every tie, the 8th seed included.
+        If TB1 and TB2 don't separate them, set the order here (the rulebook's final decision). Overrides feed the standings, the Week 18 Knockdown, and the playoff seeds.
+      </div>
+      {groups.map((g) => {
+        const order = orderOf(g);
+        const method = g.teams[0]?._tb;
+        const overridden = g.teams.some((t) => overrides.includes(t.id));
+        const touchesBubble = g.startRank <= 8 && g.startRank + g.teams.length - 1 >= 8;
+        const dirty = !!working[g.pts];
+        return (
+          <div key={g.pts} style={{ border: `1px solid ${touchesBubble ? GO : GOLD}44`, borderRadius: "10px", padding: "12px", marginBottom: "12px", background: touchesBubble ? GO + "0a" : "transparent" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "8px" }}>
+              <span style={{ fontSize: "13px", fontWeight: 700, color: CREAM }}>
+                Tie at {g.pts} pts · seeds {g.startRank}–{g.startRank + g.teams.length - 1}
+              </span>
+              {touchesBubble && <Tag color={GO}>8th-seed bubble</Tag>}
+              <span style={{ marginLeft: "auto", fontSize: "11px", fontWeight: 600, color: (TB_METHOD[overridden ? "override" : method] || {}).color || M }}>
+                {(TB_METHOD[overridden ? "override" : method] || {}).label || "—"}
+              </span>
+            </div>
+            {order.map((id, idx) => (
+              <div key={id} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 0", borderBottom: idx < order.length - 1 ? `1px solid ${GOLD}14` : "none" }}>
+                <span style={{ fontSize: "13px", fontWeight: 700, color: idx + g.startRank <= 8 ? G : M, minWidth: "26px" }}>{g.startRank + idx}{idx + g.startRank <= 8 ? "" : ""}</span>
+                <span style={{ flex: 1, fontSize: "14px", color: CREAM }}>{TEAMS[id]?.name || `Team ${id}`}</span>
+                <button onClick={() => move(g, idx, -1)} disabled={idx === 0}
+                  style={{ width: "30px", height: "30px", borderRadius: "6px", border: `1px solid ${GOLD}44`, background: "transparent", color: idx === 0 ? "#ccc" : CREAM, cursor: idx === 0 ? "default" : "pointer", fontSize: "14px" }}>▲</button>
+                <button onClick={() => move(g, idx, 1)} disabled={idx === order.length - 1}
+                  style={{ width: "30px", height: "30px", borderRadius: "6px", border: `1px solid ${GOLD}44`, background: "transparent", color: idx === order.length - 1 ? "#ccc" : CREAM, cursor: idx === order.length - 1 ? "default" : "pointer", fontSize: "14px" }}>▼</button>
+              </div>
+            ))}
+            <div style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
+              <button onClick={() => saveGroup(g)}
+                style={{ padding: "8px 16px", borderRadius: "8px", border: "none", background: G, color: "#fff", fontFamily: FB, fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+                {dirty ? "Save this order" : "Set as override"}
+              </button>
+              {overridden && (
+                <button onClick={() => clearGroup(g)}
+                  style={{ padding: "8px 16px", borderRadius: "8px", border: `1px solid ${R}55`, background: R + "12", color: R, fontFamily: FB, fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>
+                  Clear override
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })}
+      {msg && <div style={{ fontSize: "12px", color: G, fontWeight: 600, marginTop: "4px" }}>{msg}</div>}
+    </div>
+  );
+}
+
 export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, finalPairs, saveLeague, unlockMatch, clearMatch, clearSeason, isAdmin, adminPin, adminUnlock, adminLock, saveAdminPin, teamStandings, weeklyTeamPts, createSnapshot, listSnapshots, restoreSnapshot, match, setMatch, activeWeek, activeTeam, cancelledWeeks, toggleCancelWeek }) {
   const printYears = Object.keys(PRINT_SCHEDULES).map(Number).sort();
   const [printYear, setPrintYear] = useState(printYears[printYears.length - 1] || SEASON_YEAR);
@@ -1302,6 +1411,17 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
           </div>
         )}
       </AccordionSection>
+
+      {/* ── Standings Tiebreakers ───────────────────────────────── */}
+      {teamStandings?.length > 0 && (
+        <AccordionSection
+          id="tiebreakers" open={isOpen("tiebreakers")} onToggle={toggleSection}
+          title="Standings Tiebreakers" icon="⚖️"
+          badge={(() => { const n = countTieGroups(teamStandings); return n > 0 ? `${n} tie${n > 1 ? "s" : ""}` : null; })()}
+        >
+          <TiebreakerManager league={league} teamStandings={teamStandings} saveLeague={saveLeague} />
+        </AccordionSection>
+      )}
 
       {/* ── Leaderboard ─────────────────────────────────────────── */}
       {teamStandings?.length > 0 && (

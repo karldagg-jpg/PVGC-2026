@@ -83,6 +83,7 @@ import {
   initMatch,
   getEffectiveHcp,
   isMatchComplete,
+  rankStandings,
 } from "./lib/leagueLogic";
 import { applySnapshotToLeague, applyWeekScoreDoc, removeWeekScoreDoc, normalizeMatch, toSet } from "./lib/persistence";
 
@@ -112,9 +113,9 @@ function App() {
   const matchDirty = useRef(false);
   const [hole,    setHole]    = useState(0);
   const [potyTab, setPotyTab] = useState("season");
-  const playoffSeeds = React.useMemo(()=>getPlayoffSeeds(league.results,league.handicaps,league.cancelledWeeks,league.loHiOverrides),[league]);
-  const qfSeeds = React.useMemo(()=>getQFSeeds(league.results,league.handicaps,league.cancelledWeeks,league.loHiOverrides),[league]);
-  const knockdownPairs = React.useMemo(()=>getKnockdownPairs(league.results,league.handicaps,league.cancelledWeeks,league.loHiOverrides),[league]);
+  const playoffSeeds = React.useMemo(()=>getPlayoffSeeds(league.results,league.handicaps,league.cancelledWeeks,league.loHiOverrides,league.seedOverrides),[league]);
+  const qfSeeds = React.useMemo(()=>getQFSeeds(league.results,league.handicaps,league.cancelledWeeks,league.loHiOverrides,league.seedOverrides),[league]);
+  const knockdownPairs = React.useMemo(()=>getKnockdownPairs(league.results,league.handicaps,league.cancelledWeeks,league.loHiOverrides,league.seedOverrides),[league]);
   const qfPairs = React.useMemo(()=>getQFPairs(qfSeeds),[qfSeeds]);
   const sfPairs = React.useMemo(()=>getSFPairs(qfSeeds,league.results),[qfSeeds,league.results]);
   const finalPairs = React.useMemo(()=>getFinalPairs(qfSeeds,league.results),[qfSeeds,league.results]);
@@ -182,6 +183,7 @@ const [seasonYear] = useState(SEASON_YEAR);
         handicaps: { ...(DEFAULT_HCP || {}), ...(p.handicaps || {}) },
         hcpOverrides: p.hcpOverrides || {},
         loHiOverrides: p.loHiOverrides || {},
+        seedOverrides: p.seedOverrides || [],
         cancelledWeeks: toSet(p.cancelledWeeks),
         readOnlyWeeks: p.readOnlyWeeks || [],
         banner: p.banner !== undefined ? p.banner : prev.banner,
@@ -220,6 +222,7 @@ const [seasonYear] = useState(SEASON_YEAR);
         handicaps: next.handicaps,
         hcpOverrides: next.hcpOverrides||{},
         loHiOverrides: next.loHiOverrides||{},
+        seedOverrides: next.seedOverrides||[],
         cancelledWeeks: [...(next.cancelledWeeks || [])],
         readOnlyWeeks: next.readOnlyWeeks || [],
         contacts: next.contacts || {},
@@ -642,9 +645,7 @@ const [seasonYear] = useState(SEASON_YEAR);
   },[match]);
 
   const {teamStats,potyList,weeklyPoty,cancelledWeeks}=calcLeagueStats(league.results,league.handicaps,league.cancelledWeeks,undefined,undefined,undefined,undefined,league.loHiOverrides);
-  const teamStandings=Object.entries(teamStats)
-    .map(([id,s])=>({id:parseInt(id),...s}))
-    .sort((a,b)=>b.totalPts-a.totalPts||b.stab-a.stab);
+  const teamStandings=rankStandings(teamStats,{results:league.results,handicaps:league.handicaps,seedOverrides:league.seedOverrides});
   const weeklyTeamPts=calcWeeklyTeamPts(league.results,league.handicaps,league.cancelledWeeks,undefined,undefined,league.loHiOverrides);
 
   // Standings movement (settled): places gained/lost between the two most
@@ -653,9 +654,7 @@ const [seasonYear] = useState(SEASON_YEAR);
     const rankAt = (maxW) => {
       const { teamStats } = calcLeagueStats(league.results, league.handicaps, league.cancelledWeeks, maxW, undefined, undefined, undefined, league.loHiOverrides);
       const rank = {};
-      Object.entries(teamStats)
-        .map(([id, s]) => ({ id: parseInt(id), ...s }))
-        .sort((a, b) => b.totalPts - a.totalPts || b.stab - a.stab)
+      rankStandings(teamStats, { results: league.results, handicaps: league.handicaps, seedOverrides: league.seedOverrides })
         .forEach((s, i) => { rank[s.id] = i + 1; });
       return rank;
     };
@@ -672,7 +671,7 @@ const [seasonYear] = useState(SEASON_YEAR);
     const movement = {};
     for (const id of Object.keys(cur)) movement[id] = prev[id] - cur[id];
     return { movement, throughWeek: completed[completed.length - 1] };
-  }, [league.results, league.handicaps, league.cancelledWeeks, league.loHiOverrides]);
+  }, [league.results, league.handicaps, league.cancelledWeeks, league.loHiOverrides, league.seedOverrides]);
 
   const weekBonus=calcWeekBonus(selWeek,league.results,league.handicaps);
 

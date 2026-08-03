@@ -17,32 +17,130 @@ import {
 
 const REGULAR_SEASON_MAX_WEEK = PLAYOFF_START_WEEK - 1;
 
+// ── Regular-season standings tiebreakers (per rulebook) ─────────────────────
+// Order of teams LEVEL ON TOTAL POINTS is decided by, in order:
+//   0. Admin override (commissioner's call — e.g. the 8th-seed 3-hole playoff)
+//   1. TB1 head-to-head result from the regular season
+//   2. TB2 highest total vs. a common playoff-qualified opponent, top-down
+//   3. Fallback: total Stableford (the app's historical behavior — never worse)
+// Teams NOT tied on total points are never reordered by any of this.
+const TIEBREAK_MAX_WEEK = REGULAR_SEASON_MAX_WEEK; // head-to-head uses regular season only
+
+function findSeasonMatch(aId, bId, results) {
+  for (let w = 1; w <= TIEBREAK_MAX_WEEK; w++) {
+    if (getOpponent(aId, w) === bId) {
+      const [lo, hi] = aId < bId ? [aId, bId] : [bId, aId];
+      const rec = results?.[w]?.[matchKey(w, lo, hi)];
+      if (rec) return { w, lo, hi, rec };
+    }
+  }
+  return null;
+}
+function teamTotalInMatch(teamId, m, handicaps) {
+  return teamId === m.lo
+    ? computeTeamTotal(m.rec, 0, m.lo, handicaps)
+    : computeTeamTotal(m.rec, 1, m.hi, handicaps);
+}
+// TB1 — head-to-head. Returns 1 if a wins, -1 if b wins, 0 if tied / didn't play.
+function tb1HeadToHead(aId, bId, results, handicaps) {
+  const m = findSeasonMatch(aId, bId, results);
+  if (!m) return 0;
+  const ta = teamTotalInMatch(aId, m, handicaps);
+  const tb = teamTotalInMatch(bId, m, handicaps);
+  return ta === tb ? 0 : ta > tb ? 1 : -1;
+}
+// TB2 — walk the standings from the top; first playoff-qualified team both tied
+// teams played, compare each tied team's total in that match. 1=a, -1=b, 0=none.
+function tb2CommonOpponent(aId, bId, ctx) {
+  const { baseOrder, qualified, results, handicaps } = ctx;
+  for (const rId of baseOrder) {
+    if (rId === aId || rId === bId || !qualified.has(rId)) continue;
+    const ma = findSeasonMatch(aId, rId, results);
+    const mb = findSeasonMatch(bId, rId, results);
+    if (!ma || !mb) continue;
+    const ta = teamTotalInMatch(aId, ma, handicaps);
+    const tb = teamTotalInMatch(bId, mb, handicaps);
+    if (ta !== tb) return ta > tb ? 1 : -1;
+  }
+  return 0;
+}
+// Order a two-team tie; returns { order:[teamA,teamB], tb:'override'|'h2h'|'tb2'|'stableford' }
+function orderTiedPair(a, b, ctx) {
+  const ov = ctx.seedOverrides || [];
+  const oa = ov.indexOf(a.id), ob = ov.indexOf(b.id);
+  if (oa !== -1 && ob !== -1 && oa !== ob) return { order: oa < ob ? [a, b] : [b, a], tb: "override" };
+  const h = tb1HeadToHead(a.id, b.id, ctx.results, ctx.handicaps);
+  if (h !== 0) return { order: h > 0 ? [a, b] : [b, a], tb: "h2h" };
+  const t = tb2CommonOpponent(a.id, b.id, ctx);
+  if (t !== 0) return { order: t > 0 ? [a, b] : [b, a], tb: "tb2" };
+  return { order: a.stab >= b.stab ? [a, b] : [b, a], tb: "stableford" };
+}
+// Resolve a group of teams tied on total points into a strict order.
+function resolveTiedGroup(group, ctx) {
+  if (group.length === 1) return [{ ...group[0], _tb: null, _tieWith: [] }];
+  const tieWith = (t) => group.map((g) => g.id).filter((id) => id !== t.id);
+  if (group.length === 2) {
+    const { order, tb } = orderTiedPair(group[0], group[1], ctx);
+    return order.map((t) => ({ ...t, _tb: tb, _tieWith: tieWith(t) }));
+  }
+  // 3+ teams: override first (by list index), then head-to-head wins within the
+  // group, then Stableford. The rulebook resolves these with on-course playoffs,
+  // so this is a deterministic provisional order — set the override for the real one.
+  const ov = ctx.seedOverrides || [];
+  const scored = group.map((t) => {
+    let wins = 0;
+    for (const o of group) if (o.id !== t.id && tb1HeadToHead(t.id, o.id, ctx.results, ctx.handicaps) > 0) wins++;
+    return { t, wins, ovIdx: ov.indexOf(t.id) };
+  });
+  scored.sort((x, y) => {
+    const xo = x.ovIdx === -1 ? Infinity : x.ovIdx, yo = y.ovIdx === -1 ? Infinity : y.ovIdx;
+    if (xo !== yo) return xo - yo;
+    if (y.wins !== x.wins) return y.wins - x.wins;
+    return y.t.stab - x.t.stab;
+  });
+  return scored.map((s) => ({ ...s.t, _tb: s.ovIdx !== -1 ? "override" : "multi", _tieWith: tieWith(s.t) }));
+}
+// Rank all teams: primary = total points; ties broken per the rulebook above.
+// Returns team objects (with id + _tb/_tieWith metadata) in seed order.
+function rankStandings(teamStats, opts = {}) {
+  const { results = {}, handicaps = {}, seedOverrides = [] } = opts;
+  const teams = Object.entries(teamStats).map(([id, s]) => ({ id: parseInt(id), ...s }));
+  const base = [...teams].sort((a, b) => b.totalPts - a.totalPts || b.stab - a.stab);
+  const ctx = {
+    results, handicaps, seedOverrides,
+    baseOrder: base.map((t) => t.id),
+    qualified: new Set(base.slice(0, 8).map((t) => t.id)),
+  };
+  const byPts = new Map();
+  for (const t of base) {
+    if (!byPts.has(t.totalPts)) byPts.set(t.totalPts, []);
+    byPts.get(t.totalPts).push(t);
+  }
+  const out = [];
+  for (const pts of [...byPts.keys()].sort((a, b) => b - a)) out.push(...resolveTiedGroup(byPts.get(pts), ctx));
+  return out;
+}
+
 // All 18 teams ranked by regular season (W1-W17)
-function getAllSeeds(results, handicaps, cancelledWeeks=null, loHiOverrides=null) {
+function getAllSeeds(results, handicaps, cancelledWeeks=null, loHiOverrides=null, seedOverrides=[]) {
   const {teamStats} = calcLeagueStats(results, handicaps, cancelledWeeks, REGULAR_SEASON_MAX_WEEK, undefined, undefined, undefined, loHiOverrides);
-  return Object.entries(teamStats)
-    .map(([id,s])=>({id:parseInt(id),...s}))
-    .sort((a,b)=>b.totalPts-a.totalPts||b.stab-a.stab)
-    .map(s=>s.id);
+  return rankStandings(teamStats, { results, handicaps, seedOverrides }).map(s=>s.id);
 }
 
 // Top 8 seeds from regular season — used for display before knockdown
-function getPlayoffSeeds(results, handicaps, cancelledWeeks=null, loHiOverrides=null) {
-  return getAllSeeds(results, handicaps, cancelledWeeks, loHiOverrides).slice(0, 8);
+function getPlayoffSeeds(results, handicaps, cancelledWeeks=null, loHiOverrides=null, seedOverrides=[]) {
+  return getAllSeeds(results, handicaps, cancelledWeeks, loHiOverrides, seedOverrides).slice(0, 8);
 }
 
 // All 18 teams ranked after knockdown (W1-W18) — top 8 advance to QF
-function getQFSeeds(results, handicaps, cancelledWeeks=null, loHiOverrides=null) {
+function getQFSeeds(results, handicaps, cancelledWeeks=null, loHiOverrides=null, seedOverrides=[]) {
   const {teamStats} = calcLeagueStats(results, handicaps, cancelledWeeks, PLAYOFF_START_WEEK, undefined, undefined, undefined, loHiOverrides);
-  return Object.entries(teamStats)
-    .map(([id,s])=>({id:parseInt(id),...s}))
-    .sort((a,b)=>b.totalPts-a.totalPts||b.stab-a.stab)
-    .map(s=>s.id); // return all 18 ranked, QF uses first 8
+  return rankStandings(teamStats, { results, handicaps, seedOverrides }).map(s=>s.id); // all 18 ranked, QF uses first 8
 }
 
 // Week 18 Knockdown: all seeds pair adjacently by standing (1v2, 3v4, 5v6, … 17v18)
-function getKnockdownPairs(results, handicaps, cancelledWeeks=null, loHiOverrides=null) {
-  const all = getAllSeeds(results, handicaps, cancelledWeeks, loHiOverrides); // 18 teams in seed order
+function getKnockdownPairs(results, handicaps, cancelledWeeks=null, loHiOverrides=null, seedOverrides=[]) {
+  const all = getAllSeeds(results, handicaps, cancelledWeeks, loHiOverrides, seedOverrides); // 18 teams in seed order
   if (all.length < 8) return [];
   const pairs = [];
   for (let i = 0; i + 1 < all.length; i += 2) {
@@ -397,7 +495,7 @@ function initLeague() {
   const handicaps={}, results={};
   for (let t=1;t<=18;t++) handicaps[t]=[...DEFAULT_HCP[t]];
   for (let w=1;w<=21;w++) results[w]={};
-  return {handicaps, results, hcpOverrides:{}, loHiOverrides:{}, cancelledWeeks: new Set(), readOnlyWeeks:[]};
+  return {handicaps, results, hcpOverrides:{}, loHiOverrides:{}, seedOverrides:[], cancelledWeeks: new Set(), readOnlyWeeks:[]};
 }
 
 // ── Auto-handicap calculation ─────────────────────────────────
@@ -843,6 +941,7 @@ export {
   isMatchComplete,
   calcWeekBonus,
   isWeekFullyConfirmed,
+  rankStandings,
   calcLeagueStats,
   calcWeeklyTeamPts,
   initLeague,

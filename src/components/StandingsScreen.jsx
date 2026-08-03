@@ -6,6 +6,24 @@ export default function StandingsScreen({ teamStandings, weeklyTeamPts, movement
   const sorted = teamStandings || [];
   const mv = movement || {};
 
+  const TB_LABEL = {
+    override: "Tied on points — order set by commissioner (per playoff/tiebreaker rules)",
+    h2h: "Tied on points — broken by head-to-head result (TB1)",
+    tb2: "Tied on points — broken by result vs. common opponent (TB2)",
+    stableford: "Tied on points — no rule resolved it; provisional order by Stableford. Admin can set the order.",
+    multi: "Multi-team tie on points — provisional order; admin should set the order.",
+  };
+  function TieTag({ s }) {
+    if (!s?._tieWith?.length || !s._tb) return null;
+    const needsAdmin = s._tb === "stableford" || s._tb === "multi";
+    return (
+      <span title={TB_LABEL[s._tb] || "Tied on points"}
+        style={{ fontSize: "8px", fontWeight: 800, color: needsAdmin ? "#c0392b" : GOLD, marginLeft: "2px", cursor: "help" }}>
+        T{needsAdmin ? "?" : ""}
+      </span>
+    );
+  }
+
   function MoveIndicator({ id }) {
     const d = mv[id];
     if (d == null) return null;
@@ -80,7 +98,7 @@ export default function StandingsScreen({ teamStandings, weeklyTeamPts, movement
                         position: "sticky", left: 0, background: stickyBg, zIndex: 1,
                         width: "36px",
                       }}>
-                        {rank}
+                        {rank}<TieTag s={s} />
                         <MoveIndicator id={s.id} />
                       </td>
                       <td style={{
