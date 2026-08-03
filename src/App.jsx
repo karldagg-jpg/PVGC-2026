@@ -710,8 +710,8 @@ const [seasonYear] = useState(SEASON_YEAR);
   };
 
   const TABS=["schedule","scoring","entry","standings","masters","weekly","poty","hcp","playoffs","players","rules","admin"];
-  const PRIMARY_TABS=["schedule","scoring","standings","players","poty","hcp","rules","contacts"];
-  const MORE_TABS=["entry","weekly","masters","playoffs","stats","admin","verify","predict","pulse","howto"].filter(t => t !== "verify" || isAdmin);
+  const PRIMARY_TABS=["schedule","scoring","standings","players","poty","hcp","rules","contacts","weekly"];
+  const MORE_TABS=["entry","masters","playoffs","stats","admin","verify","predict","pulse","howto"].filter(t => t !== "verify" || isAdmin);
   const TAB_LABEL={schedule:"Schedule",scoring:"Scoring",entry:"Entry",standings:"Standings",masters:"Board",weekly:"Weekly",poty:"POTY",hcp:"HCP",playoffs:"Playoffs",players:"Players",contacts:"Subs",stats:"Stats",rules:"Rules",admin:"Admin",verify:"Verify",predict:"Predict",pulse:"Pulse",howto:"How To"};
   const inMore = MORE_TABS.includes(screen);
 
