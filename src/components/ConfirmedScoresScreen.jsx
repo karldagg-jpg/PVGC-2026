@@ -24,29 +24,15 @@ function playerLine(rec, tIdx, pi, tid) {
 
 const sameLine = (a, b) => a.type === b.type && a.gross === b.gross;
 
-export default function ConfirmedScoresScreen({ league, listConfirmedScores, restoreConfirmedRecord }) {
+export default function ConfirmedScoresScreen({ league, subscribeConfirmedScores, restoreConfirmedRecord }) {
   const [records, setRecords] = useState(null); // null = loading
   const [filter, setFilter] = useState("attention");
   const [busy, setBusy] = useState(null);
   const [toast, setToast] = useState("");
 
-  // Signature of every match's confirmations — changes whenever any team
-  // confirms/unconfirms (locally or from another device). Re-reading the
-  // confirmed records on this signal keeps the tab live as matches get
-  // verified, instead of only loading once when the tab opens.
-  const confirmSig = useMemo(() => {
-    const parts = [];
-    const res = league.results || {};
-    for (const w of Object.keys(res)) {
-      for (const mk of Object.keys(res[w] || {})) {
-        const c = res[w][mk]?.confirmations;
-        if (c && Object.keys(c).length) parts.push(`${w}:${mk}:${Object.keys(c).sort().join(",")}`);
-      }
-    }
-    return parts.sort().join("|");
-  }, [league.results]);
-
-  useEffect(() => { listConfirmedScores().then(setRecords); }, [confirmSig]);
+  // Live subscription: loads once, then updates as matches get confirmed
+  // (locally or from another device) — no repeated full-collection reads.
+  useEffect(() => subscribeConfirmedScores(setRecords), []);
 
   // Group records by match; build confirmed-vs-live comparison for each.
   const matches = useMemo(() => {

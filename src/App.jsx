@@ -483,11 +483,14 @@ const [seasonYear] = useState(SEASON_YEAR);
     }
   }
 
-  async function listConfirmedScores() {
-    try {
-      const snap = await CONFIRMED_COL.get();
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    } catch(e) { console.warn("listConfirmedScores error:", e); return []; }
+  // Live subscription — reads once, then pushes only incremental changes as new
+  // confirmed records arrive. Keeps the Verify tab current without re-reading the
+  // whole (season-long, growing) collection each time.
+  function subscribeConfirmedScores(cb) {
+    return CONFIRMED_COL.onSnapshot(
+      snap => cb(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+      err => { console.warn("confirmedScores subscribe error:", err); cb([]); }
+    );
   }
 
   // Restore a match's live scores from an immutable confirmed record.
@@ -965,7 +968,7 @@ const [seasonYear] = useState(SEASON_YEAR);
       {screen==="verify"&&isAdmin&&(
         <ConfirmedScoresScreen
           league={league}
-          listConfirmedScores={listConfirmedScores}
+          subscribeConfirmedScores={subscribeConfirmedScores}
           restoreConfirmedRecord={restoreConfirmedRecord}
         />
       )}
