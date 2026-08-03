@@ -66,11 +66,25 @@ export default function ConfirmedScoresScreen({ league, subscribeConfirmedScores
         }
       });
 
-      const bothConfirmed = !!(byTeam[tlow] && byTeam[thigh]);
+      // A team counts as confirmed from the live match's confirmations (the
+      // source of truth) OR a snapshot record — so teams that confirmed before
+      // the snapshot feature existed still read as confirmed, not "awaiting".
+      const liveConf = live?.confirmations || {};
+      const confBy = {};
+      [tlow, thigh].forEach((tid) => {
+        const rec = byTeam[tid], lc = liveConf[tid];
+        if (rec || lc) confBy[tid] = {
+          by: rec?.confirmedBy || lc?.confirmedBy || `T${tid}`,
+          at: rec?.confirmedAt || null, // ISO from snapshot (else null)
+          liveTime: lc?.confirmedAt || null, // "h:mm AM" from live confirmation
+          hasSnapshot: !!rec,
+        };
+      });
+      const bothConfirmed = !!(confBy[tlow] && confBy[thigh]);
       const status = changed ? "flagged" : bothConfirmed ? "verified" : "awaiting";
-      const missing = bothConfirmed ? null : (byTeam[tlow] ? thigh : tlow);
+      const missing = bothConfirmed ? null : (confBy[tlow] ? thigh : tlow);
       const teeIdx = (SCHEDULE[week]?.pairs || []).findIndex(([a, b]) => matchKey(week, Math.min(a, b), Math.max(a, b)) === mk);
-      return { key: `${week}::${mk}`, week, mk, tlow, thigh, byTeam, latest, players, status, missing,
+      return { key: `${week}::${mk}`, week, mk, tlow, thigh, byTeam, confBy, latest, players, status, missing,
         tee: teeIdx >= 0 ? getTeeTimes(week)[teeIdx] : "" };
     });
     // Newest week first, flagged first within a week
@@ -199,13 +213,12 @@ function MatchCard({ m, busy, onRestore }) {
 
       <div style={{ display: "flex", gap: "8px", padding: "9px 15px", flexWrap: "wrap", background: "rgba(26,61,36,0.025)", borderBottom: line }}>
         {[m.tlow, m.thigh].map(tid => {
-          const rec = m.byTeam[tid];
-          const t = new Date(rec?.confirmedAt || 0);
-          const time = rec ? t.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "";
+          const cb = m.confBy[tid];
+          const time = cb?.at ? new Date(cb.at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : (cb?.liveTime || "");
           return (
-            <span key={tid} style={{ display: "flex", alignItems: "center", gap: "7px", fontSize: "12px", color: rec ? M : "#9a9683", background: "#fff", border: line, borderRadius: "8px", padding: "5px 10px" }}>
-              <span style={{ color: rec ? G : "#c9c4b4", fontWeight: 800 }}>{rec ? "✓" : "○"}</span>
-              {rec ? <>Team {tid} confirmed by <b style={{ color: CREAM }}>{rec.confirmedBy}</b> · {time}</> : <>Team {tid} — not yet confirmed</>}
+            <span key={tid} style={{ display: "flex", alignItems: "center", gap: "7px", fontSize: "12px", color: cb ? M : "#9a9683", background: "#fff", border: line, borderRadius: "8px", padding: "5px 10px" }}>
+              <span style={{ color: cb ? G : "#c9c4b4", fontWeight: 800 }}>{cb ? "✓" : "○"}</span>
+              {cb ? <>Team {tid} confirmed by <b style={{ color: CREAM }}>{cb.by}</b>{time ? ` · ${time}` : ""}</> : <>Team {tid} — not yet confirmed</>}
             </span>
           );
         })}
