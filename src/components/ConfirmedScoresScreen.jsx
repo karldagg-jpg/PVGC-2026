@@ -30,7 +30,23 @@ export default function ConfirmedScoresScreen({ league, listConfirmedScores, res
   const [busy, setBusy] = useState(null);
   const [toast, setToast] = useState("");
 
-  useEffect(() => { listConfirmedScores().then(setRecords); }, []);
+  // Signature of every match's confirmations — changes whenever any team
+  // confirms/unconfirms (locally or from another device). Re-reading the
+  // confirmed records on this signal keeps the tab live as matches get
+  // verified, instead of only loading once when the tab opens.
+  const confirmSig = useMemo(() => {
+    const parts = [];
+    const res = league.results || {};
+    for (const w of Object.keys(res)) {
+      for (const mk of Object.keys(res[w] || {})) {
+        const c = res[w][mk]?.confirmations;
+        if (c && Object.keys(c).length) parts.push(`${w}:${mk}:${Object.keys(c).sort().join(",")}`);
+      }
+    }
+    return parts.sort().join("|");
+  }, [league.results]);
+
+  useEffect(() => { listConfirmedScores().then(setRecords); }, [confirmSig]);
 
   // Group records by match; build confirmed-vs-live comparison for each.
   const matches = useMemo(() => {
