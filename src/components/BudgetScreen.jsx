@@ -94,6 +94,13 @@ export default function BudgetScreen({ league, saveLeague, teamStandings, potyLi
   const surplus = pot - totalPayouts;
   const usedPct = pot > 0 ? Math.min(100, (totalPayouts / pot) * 100) : 0;
 
+  // Projected end-of-season: assume every remaining (non-rainout) week pays POTW.
+  const rainoutWeeks = potwRows.filter((r) => r.rainout).length;
+  const projPotwWeeks = 18 - rainoutWeeks;
+  const weeksRemaining = Math.max(0, projPotwWeeks - potwPaidWeeks);
+  const projPayouts = totalPayouts - potwSpend + projPotwWeeks * B.potwPerWeek;
+  const projSurplus = pot - projPayouts;
+
   const shownDues = duesFilter === "unpaid" ? players.filter((p) => !isExempt(p) && !dues[p.key]) : players;
 
   return (
@@ -135,13 +142,25 @@ export default function BudgetScreen({ league, saveLeague, teamStandings, potyLi
           <Panel title="Club expenses" total={clubTotal}>
             {clubLines.map((l, i) => <LedgerRow key={i} {...l} last={i === clubLines.length - 1} />)}
           </Panel>
-          <div style={{ background: CREAM, borderRadius: "14px", padding: "14px 18px", color: "#f0ece0", display: "flex", alignItems: "center", flexWrap: "wrap", gap: "6px" }}>
-            <span style={{ fontSize: "13px", opacity: 0.75 }}>Pot {money(pot)} − payouts {money(totalPayouts)}</span>
-            <span style={{ marginLeft: "auto", fontSize: "13px", opacity: 0.75, marginRight: "8px" }}>{surplus >= 0 ? "Cushion" : "Over"}</span>
-            <span style={{ fontFamily: FD, fontSize: "26px", fontWeight: 700, color: surplus >= 0 ? "#8fd6a6" : "#f0a5a5" }}>{surplus < 0 ? "−" : "+"}{money(Math.abs(surplus))}</span>
+          <div style={{ background: CREAM, borderRadius: "14px", padding: "14px 18px", color: "#f0ece0" }}>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: "14px", flexWrap: "wrap" }}>
+              <div>
+                <div style={{ fontSize: "11px", opacity: 0.7, textTransform: "uppercase", letterSpacing: "0.06em" }}>{surplus >= 0 ? "Cushion now" : "Over now"}</div>
+                <div style={{ fontFamily: FD, fontSize: "30px", fontWeight: 700, lineHeight: 1, color: surplus >= 0 ? "#8fd6a6" : "#f0a5a5" }}>{surplus < 0 ? "−" : "+"}{money(Math.abs(surplus))}</div>
+                <div style={{ fontSize: "11px", opacity: 0.6, marginTop: "2px" }}>{potwPaidWeeks} of {projPotwWeeks} POTW weeks paid</div>
+              </div>
+              {weeksRemaining > 0 && (
+                <div style={{ marginLeft: "auto", textAlign: "right", paddingLeft: "14px", borderLeft: "1px solid rgba(240,236,224,0.18)" }}>
+                  <div style={{ fontSize: "11px", opacity: 0.7, textTransform: "uppercase", letterSpacing: "0.06em" }}>Projected · {weeksRemaining} wk{weeksRemaining > 1 ? "s" : ""} left, no rainouts</div>
+                  <div style={{ fontFamily: FD, fontSize: "30px", fontWeight: 700, lineHeight: 1, color: projSurplus >= 0 ? "#8fd6a6" : "#f0a5a5" }}>{projSurplus < 0 ? "−" : "+"}{money(Math.abs(projSurplus))}</div>
+                  <div style={{ fontSize: "11px", opacity: 0.6, marginTop: "2px" }}>if the last {weeksRemaining} pay out</div>
+                </div>
+              )}
+            </div>
           </div>
           <div style={{ fontSize: "11.5px", color: M, lineHeight: 1.5, padding: "0 2px" }}>
             <b>AUTO</b> lines fill from the season data. Set playoff placements and any overrides in <b>Amounts</b>. Rainout weeks returned {money(potwReturned)} to the pot.
+            {weeksRemaining > 0 && <> Projection assumes the last {weeksRemaining} POTW week{weeksRemaining > 1 ? "s" : ""} all pay ({money(B.potwPerWeek)} each).</>}
           </div>
         </div>
       )}
