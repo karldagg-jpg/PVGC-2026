@@ -66,6 +66,7 @@ import PredictScreen from "./components/PredictScreen";
 import PulseScreen from "./components/PulseScreen";
 import ContactsScreen from "./components/ContactsScreen";
 import ConfirmedScoresScreen from "./components/ConfirmedScoresScreen";
+import BudgetScreen from "./components/BudgetScreen";
 import AuthGate from "./components/AuthGate";
 import {
   getPlayoffSeeds,
@@ -184,6 +185,8 @@ const [seasonYear] = useState(SEASON_YEAR);
         hcpOverrides: p.hcpOverrides || {},
         loHiOverrides: p.loHiOverrides || {},
         seedOverrides: p.seedOverrides || [],
+        budget: p.budget || {},
+        dues: p.dues || {},
         cancelledWeeks: toSet(p.cancelledWeeks),
         readOnlyWeeks: p.readOnlyWeeks || [],
         banner: p.banner !== undefined ? p.banner : prev.banner,
@@ -223,6 +226,8 @@ const [seasonYear] = useState(SEASON_YEAR);
         hcpOverrides: next.hcpOverrides||{},
         loHiOverrides: next.loHiOverrides||{},
         seedOverrides: next.seedOverrides||[],
+        budget: next.budget||{},
+        dues: next.dues||{},
         cancelledWeeks: [...(next.cancelledWeeks || [])],
         readOnlyWeeks: next.readOnlyWeeks || [],
         contacts: next.contacts || {},
@@ -714,8 +719,8 @@ const [seasonYear] = useState(SEASON_YEAR);
 
   const TABS=["schedule","scoring","entry","standings","masters","weekly","poty","hcp","playoffs","players","rules","admin"];
   const PRIMARY_TABS=["schedule","scoring","standings","players","poty","hcp","rules","contacts","weekly"];
-  const MORE_TABS=["entry","masters","playoffs","stats","admin","verify","predict","pulse","howto"].filter(t => t !== "verify" || isAdmin);
-  const TAB_LABEL={schedule:"Schedule",scoring:"Scoring",entry:"Entry",standings:"Standings",masters:"Board",weekly:"Weekly",poty:"POTY",hcp:"HCP",playoffs:"Playoffs",players:"Players",contacts:"Subs",stats:"Stats",rules:"Rules",admin:"Admin",verify:"Verify",predict:"Predict",pulse:"Pulse",howto:"How To"};
+  const MORE_TABS=["entry","masters","playoffs","stats","admin","verify","budget","predict","pulse","howto"].filter(t => (t !== "verify" && t !== "budget") || isAdmin);
+  const TAB_LABEL={schedule:"Schedule",scoring:"Scoring",entry:"Entry",standings:"Standings",masters:"Board",weekly:"Weekly",poty:"POTY",hcp:"HCP",playoffs:"Playoffs",players:"Players",contacts:"Subs",stats:"Stats",rules:"Rules",admin:"Admin",verify:"Verify",budget:"Winnings",predict:"Predict",pulse:"Pulse",howto:"How To"};
   const inMore = MORE_TABS.includes(screen);
 
   // Current match doc (for confirm/lock)
@@ -970,6 +975,15 @@ const [seasonYear] = useState(SEASON_YEAR);
           league={league}
           subscribeConfirmedScores={subscribeConfirmedScores}
           restoreConfirmedRecord={restoreConfirmedRecord}
+        />
+      )}
+
+      {screen==="budget"&&isAdmin&&(
+        <BudgetScreen
+          league={league}
+          saveLeague={saveLeague}
+          teamStandings={teamStandings}
+          potyList={potyList}
         />
       )}
 

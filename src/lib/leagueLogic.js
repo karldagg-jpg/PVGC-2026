@@ -490,12 +490,46 @@ function calcLeagueStats(results, handicaps, cancelledWeeksIn=null, maxWeek=REGU
   return {teamStats, potyList, weeklyPoty, cancelledWeeks};
 }
 
+// Highest individual point-getter per week for Weeks 1–maxWeek (incl. the Week 18
+// Knockdown), reading whatever matches exist in results — so it covers the
+// dynamic knockdown pairings too. Real players only (subs/phantoms can't win the
+// weekly). Returns { [week]: {pts, winners:[{tid,pi,pts}]} | {rainout} | {noData} }.
+// Ties are all returned in `winners` (the payout is split among them).
+function weeklyHighScorers(results, handicaps, cancelledWeeks = null, maxWeek = PLAYOFF_START_WEEK) {
+  const out = {};
+  for (let w = 1; w <= maxWeek; w++) {
+    const wk = results[w] || {};
+    if (cancelledWeeks?.has(w) || isWeekCancelled(wk)) { out[w] = { rainout: true }; continue; }
+    if (!Object.keys(wk).length) { out[w] = { noData: true }; continue; }
+    let best = -Infinity, winners = [];
+    for (const mk of Object.keys(wk)) {
+      const rec = wk[mk];
+      if (!rec) continue;
+      const parts = mk.split("-");
+      const tlow = parseInt(parts[parts.length - 2]);
+      const thigh = parseInt(parts[parts.length - 1]);
+      [[0, tlow], [1, thigh]].forEach(([tIdx, tid]) => {
+        const types = (tIdx === 0 ? rec.t1types : rec.t2types) || [];
+        for (let pi = 0; pi < 2; pi++) {
+          if ((types[pi] || "normal") !== "normal") continue;
+          const pts = computePlayerTotal(rec, tIdx, pi, tid, handicaps);
+          if (!(pts > 0)) continue;
+          if (pts > best) { best = pts; winners = [{ tid, pi, pts }]; }
+          else if (pts === best) winners.push({ tid, pi, pts });
+        }
+      });
+    }
+    out[w] = winners.length ? { pts: best, winners } : { noData: true };
+  }
+  return out;
+}
+
 // ── Default handicaps ──────────────────────────────────────────
 function initLeague() {
   const handicaps={}, results={};
   for (let t=1;t<=18;t++) handicaps[t]=[...DEFAULT_HCP[t]];
   for (let w=1;w<=21;w++) results[w]={};
-  return {handicaps, results, hcpOverrides:{}, loHiOverrides:{}, seedOverrides:[], cancelledWeeks: new Set(), readOnlyWeeks:[]};
+  return {handicaps, results, hcpOverrides:{}, loHiOverrides:{}, seedOverrides:[], budget:{}, dues:{}, cancelledWeeks: new Set(), readOnlyWeeks:[]};
 }
 
 // ── Auto-handicap calculation ─────────────────────────────────
@@ -942,6 +976,7 @@ export {
   calcWeekBonus,
   isWeekFullyConfirmed,
   rankStandings,
+  weeklyHighScorers,
   calcLeagueStats,
   calcWeeklyTeamPts,
   initLeague,
