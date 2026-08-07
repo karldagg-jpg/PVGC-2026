@@ -15,7 +15,7 @@ const DEFAULT_BUDGET = {
 const money = (n) => `$${(Math.round((Number(n) || 0) * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 const pname = (key) => { const [t, pi] = String(key).split("-").map(Number); return TEAMS[t]?.[pi === 0 ? "p1" : "p2"] || key; };
 
-export default function BudgetScreen({ league, saveLeague, teamStandings, potyList }) {
+export default function BudgetScreen({ league, saveLeague, teamStandings, potyList, embedded }) {
   const B = { ...DEFAULT_BUDGET, ...(league.budget || {}) };
   const dues = league.dues || {};
   const [tab, setTab] = useState("ledger");
@@ -104,9 +104,11 @@ export default function BudgetScreen({ league, saveLeague, teamStandings, potyLi
   const shownDues = duesFilter === "unpaid" ? players.filter((p) => !isExempt(p) && !dues[p.key]) : players;
 
   return (
-    <div style={{ maxWidth: "820px", margin: "0 auto", padding: "22px 14px 40px" }}>
-      <div style={{ fontFamily: FD, fontSize: "32px", fontWeight: 600, color: CREAM, letterSpacing: "0.01em" }}>Winnings &amp; Budget</div>
-      <div style={{ fontSize: "13px", color: M, marginBottom: "18px" }}>2026 season pot, payouts & dues · winners auto-fill from the scores</div>
+    <div style={{ maxWidth: embedded ? "100%" : "820px", margin: "0 auto", padding: embedded ? "2px 0" : "22px 14px 40px" }}>
+      {!embedded && <>
+        <div style={{ fontFamily: FD, fontSize: "32px", fontWeight: 600, color: CREAM, letterSpacing: "0.01em" }}>Winnings &amp; Budget</div>
+        <div style={{ fontSize: "13px", color: M, marginBottom: "18px" }}>2026 season pot, payouts & dues · winners auto-fill from the scores</div>
+      </>}
 
       {/* ── Hero: the pot ─────────────────────────────────────────── */}
       <div style={{ background: CARD2, border: `1px solid ${GOLD}33`, borderRadius: "16px", overflow: "hidden", marginBottom: "18px" }}>

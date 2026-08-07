@@ -6,6 +6,7 @@ import { fmtDate } from "../lib/format";
 import { exportStandings, exportHandicaps, exportScores } from "../lib/exportUtils";
 import { matchKey, getOpponent, buildWeekRecap, stabPts, hcpStr } from "../lib/leagueLogic";
 import { Tag } from "./ui";
+import BudgetScreen from "./BudgetScreen";
 
 function AccordionSection({ id, open, onToggle, title, icon, badge, hint, danger, children }) {
   const accent = danger ? R : GOLD;
@@ -782,7 +783,7 @@ function TiebreakerManager({ league, teamStandings, saveLeague }) {
   );
 }
 
-export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, finalPairs, saveLeague, unlockMatch, clearMatch, clearSeason, isAdmin, adminPin, adminUnlock, adminLock, saveAdminPin, teamStandings, weeklyTeamPts, createSnapshot, listSnapshots, restoreSnapshot, match, setMatch, activeWeek, activeTeam, cancelledWeeks, toggleCancelWeek }) {
+export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, finalPairs, saveLeague, unlockMatch, clearMatch, clearSeason, isAdmin, adminPin, adminUnlock, adminLock, saveAdminPin, teamStandings, potyList, weeklyTeamPts, createSnapshot, listSnapshots, restoreSnapshot, match, setMatch, activeWeek, activeTeam, cancelledWeeks, toggleCancelWeek }) {
   const printYears = Object.keys(PRINT_SCHEDULES).map(Number).sort();
   const [printYear, setPrintYear] = useState(printYears[printYears.length - 1] || SEASON_YEAR);
 
@@ -1411,6 +1412,16 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
           </div>
         )}
       </AccordionSection>
+
+      {/* ── Winnings & Budget (admin-only, like the old tab) ──────── */}
+      {isAdmin && (
+        <AccordionSection
+          id="winnings" open={isOpen("winnings")} onToggle={toggleSection}
+          title="Winnings & Budget" icon="💰"
+        >
+          <BudgetScreen league={league} saveLeague={saveLeague} teamStandings={teamStandings} potyList={potyList} embedded />
+        </AccordionSection>
+      )}
 
       {/* ── Standings Tiebreakers ───────────────────────────────── */}
       {teamStandings?.length > 0 && (
