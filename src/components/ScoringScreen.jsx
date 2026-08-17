@@ -388,9 +388,12 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
             background: "rgba(255,255,255,0.95)", border: `1px solid ${GOLD}44`,
             borderRadius: "7px", color: CREAM, fontFamily: FB, fontSize: "14px", padding: "6px 9px", cursor: "pointer", outline: "none"
           }}>
-          {Array.from({ length: 17 }, (_, i) => i + 1).map(w => (
-            <option key={w} value={w}>W{w} — {fmtDate(SCHEDULE[w]?.date)}</option>
-          ))}
+          {Array.from({ length: 21 }, (_, i) => i + 1).map(w => {
+            const d = SCHEDULE[w]?.date;
+            const round = { 18: "Knockdown", 19: "Quarterfinals", 20: "Semifinals", 21: "Championship" }[w];
+            const label = round ? (d ? `${round} · ${fmtDate(d)}` : round) : fmtDate(d);
+            return <option key={w} value={w}>W{w} — {label}</option>;
+          })}
         </select>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
