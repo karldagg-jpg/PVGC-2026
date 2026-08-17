@@ -861,6 +861,7 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
   const schedTeams = activeSched.teams;
 
   const regularWeeks = schedRaw.filter(([w]) => w < 18).map(([w]) => w);
+  const playoffWeeks = [[18, "Knockdown"], [19, "Quarterfinals"], [20, "Semifinals"], [21, "Championship"]];
   const [selWeek, setSelWeek] = useState(regularWeeks[regularWeeks.length - 1] || 1);
 
   const weekRow = schedRaw.find(([w]) => w === selWeek);
@@ -1138,6 +1139,23 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
                   color: isRO ? "#7a4f00" : M,
                 }}>
                 {isRO ? "🔒" : ""} W{w}
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "8px" }}>
+          {playoffWeeks.map(([w, label]) => {
+            const isRO = readOnlyWeeks.includes(w);
+            return (
+              <button key={w} onClick={() => toggleReadOnly(w)}
+                style={{
+                  padding: "6px 12px", borderRadius: "7px", fontFamily: FB, fontSize: "13px",
+                  fontWeight: isRO ? 700 : 400, cursor: "pointer",
+                  border: isRO ? `2px solid #e6a817` : `1px solid ${GO}55`,
+                  background: isRO ? "#fff3cd" : "transparent",
+                  color: isRO ? "#7a4f00" : GO,
+                }}>
+                {isRO ? "🔒 " : ""}W{w} · {label}
               </button>
             );
           })}
