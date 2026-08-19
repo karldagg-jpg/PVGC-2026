@@ -653,7 +653,14 @@ const [seasonYear] = useState(SEASON_YEAR);
 
   const {teamStats,potyList,weeklyPoty,cancelledWeeks}=calcLeagueStats(league.results,league.handicaps,league.cancelledWeeks,undefined,undefined,undefined,undefined,league.loHiOverrides);
   const teamStandings=rankStandings(teamStats,{results:league.results,handicaps:league.handicaps,seedOverrides:league.seedOverrides});
-  const weeklyTeamPts=calcWeeklyTeamPts(league.results,league.handicaps,league.cancelledWeeks,PLAYOFF_START_WEEK,undefined,league.loHiOverrides);
+  // Week 18 (Knockdown) has no static pairs in SCHEDULE — they're computed
+  // dynamically from seeds. Splice them in so weekly points/thru-hole logic,
+  // which reads schedule[w].pairs, can see Week 18 matches.
+  const scheduleWithKnockdown = React.useMemo(() => ({
+    ...SCHEDULE,
+    [PLAYOFF_START_WEEK]: { ...SCHEDULE[PLAYOFF_START_WEEK], pairs: knockdownPairs },
+  }), [knockdownPairs]);
+  const weeklyTeamPts=calcWeeklyTeamPts(league.results,league.handicaps,league.cancelledWeeks,PLAYOFF_START_WEEK,scheduleWithKnockdown,league.loHiOverrides);
 
   // Standings movement (settled): places gained/lost between the two most
   // recent fully-scored regular-season weeks. + = up, - = down, 0 = no change.
@@ -880,7 +887,7 @@ const [seasonYear] = useState(SEASON_YEAR);
       )}
 
       {screen==="weekly"&&(
-        <WeeklyScreen weeklyTeamPts={weeklyTeamPts} results={league.results} cancelledWeeks={cancelledWeeks} />
+        <WeeklyScreen weeklyTeamPts={weeklyTeamPts} results={league.results} cancelledWeeks={cancelledWeeks} schedule={scheduleWithKnockdown} />
       )}
 
       {screen==="poty"&&(

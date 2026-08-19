@@ -12,8 +12,8 @@ const REGULAR_WEEKS = SCHEDULE_RAW
   .map(([w, date]) => ({ week: w, date }));
 
 // Find the highest hole (1-based) that has any score entered for a team in a match
-function getThruHole(results, week, tid) {
-  const weekInfo = SCHEDULE[week];
+function getThruHole(results, week, tid, schedule) {
+  const weekInfo = (schedule || SCHEDULE)[week];
   if (!weekInfo) return null;
   const pair = (weekInfo.pairs || []).find(p => Array.isArray(p) && p.includes(tid));
   if (!pair) return null;
@@ -39,7 +39,7 @@ function getThruHole(results, week, tid) {
   return maxHole >= 0 ? maxHole + 1 : null; // 1-based hole number
 }
 
-export default function WeeklyScreen({ weeklyTeamPts, results, cancelledWeeks }) {
+export default function WeeklyScreen({ weeklyTeamPts, results, cancelledWeeks, schedule }) {
   const pts = weeklyTeamPts || {};
 
   // Default to most recent week that has data
@@ -131,7 +131,7 @@ export default function WeeklyScreen({ weeklyTeamPts, results, cancelledWeeks })
             const rank = idx + 1;
             const rc = rank === 1 ? GO : rank === 2 ? G : rank === 3 ? CREAM : M;
             const isTop = rank <= 3;
-            const thruHole = !isCancelled && results ? getThruHole(results, selWeek, e.tid) : null;
+            const thruHole = !isCancelled && results ? getThruHole(results, selWeek, e.tid, schedule) : null;
             const thruLabel = thruHole === 9 ? "F" : thruHole ? `${thruHole}` : "—";
             const thruColor = thruHole === 9 ? G : thruHole ? GOLD : M + "66";
             return (
