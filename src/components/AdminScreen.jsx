@@ -736,7 +736,13 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
   const [recapCopied, setRecapCopied] = useState(false);
 
   function copyRecap() {
-    const text = buildWeekRecap(recapWeek, league.results || {}, league.handicaps || {}, league.cancelledWeeks, league.loHiOverrides);
+    const dynPairsByWeek = {
+      18: knockdownPairs || [],
+      19: qfPairs || [],
+      20: sfPairs || [],
+      21: finalPairs ? [finalPairs.championship, finalPairs.thirdPlace].filter(Boolean) : [],
+    };
+    const text = buildWeekRecap(recapWeek, league.results || {}, league.handicaps || {}, league.cancelledWeeks, league.loHiOverrides, dynPairsByWeek);
     navigator.clipboard.writeText(text).then(() => {
       setRecapCopied(true);
       setTimeout(() => setRecapCopied(false), 2500);
@@ -1195,6 +1201,9 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
           <select value={recapWeek} onChange={e => setRecapWeek(parseInt(e.target.value))}
             style={{ background: "#fff", border: `1px solid ${GOLD}44`, borderRadius: "7px", color: "#0f2a14", fontFamily: FB, fontSize: "14px", padding: "6px 10px", cursor: "pointer", outline: "none" }}>
             {regularWeeks.map(w => <option key={w} value={w}>Week {w}</option>)}
+            {[[18, "Knockdown"], [19, "Quarterfinals"], [20, "Semifinals"], [21, "Championship"]].map(([w, l]) => (
+              <option key={w} value={w}>Week {w} — {l}</option>
+            ))}
           </select>
           <button onClick={copyRecap} style={{
             padding: "8px 18px", borderRadius: "8px", fontFamily: FB, fontSize: "14px", fontWeight: 600,

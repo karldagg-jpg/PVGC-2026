@@ -758,21 +758,25 @@ function initMatch() {
 
 
 // ── Weekly recap text builder ───────────────────────────────────
-function buildWeekRecap(week, results, handicaps, cancelledWeeks=null, loHiOverrides=null, schedule=SCHEDULE, teams=TEAMS) {
+// dynPairsByWeek lets the caller supply the seed-based Knockdown/playoff pairings
+// for weeks 18-21 (they aren't in the static schedule): { 18:[[a,b]…], 19:…, … }.
+function buildWeekRecap(week, results, handicaps, cancelledWeeks=null, loHiOverrides=null, dynPairsByWeek={}, schedule=SCHEDULE, teams=TEAMS) {
   const weekInfo = schedule[week];
-  if (!weekInfo) return "";
+  const ROUND = { 18: "Knockdown Round", 19: "Quarterfinals", 20: "Semifinals", 21: "Championship" };
+  const pairsFor = (w) => (dynPairsByWeek[w]?.length ? dynPairsByWeek[w] : (schedule[w]?.pairs || []));
+  if (!weekInfo && !pairsFor(week).length) return "";
   const lines = [];
   const hr = (char="─", len=42) => char.repeat(len);
 
-  lines.push(`PVGC 2026 — Week ${week} Recap${weekInfo.date ? ` (${weekInfo.date})` : ""}`);
+  lines.push(`PVGC 2026 — ${ROUND[week] ? `${ROUND[week]} (Week ${week})` : `Week ${week}`} Recap${weekInfo?.date ? ` (${weekInfo.date})` : ""}`);
   lines.push(hr("="));
   lines.push("");
 
   // ── Tee Times ──
-  const teeTimes = getTeeTimes(week);
+  const teeTimes = getTeeTimes(week) || [];
   lines.push("TEE TIMES");
   lines.push(hr());
-  (weekInfo.pairs || []).forEach((pair, i) => {
+  pairsFor(week).forEach((pair, i) => {
     if (!Array.isArray(pair)) return;
     const [ta, tb] = pair;
     const [tlow, thigh] = ta < tb ? [ta, tb] : [tb, ta];
@@ -788,7 +792,7 @@ function buildWeekRecap(week, results, handicaps, cancelledWeeks=null, loHiOverr
   const weekResults = results[week] || {};
   const allPlayerScores = []; // for top scorers
 
-  for (const pair of (weekInfo.pairs || [])) {
+  for (const pair of pairsFor(week)) {
     if (!Array.isArray(pair)) continue;
     const [ta, tb] = pair;
     const [tlow, thigh] = ta < tb ? [ta, tb] : [tb, ta];
@@ -930,14 +934,16 @@ function buildWeekRecap(week, results, handicaps, cancelledWeeks=null, loHiOverr
     }
   }
 
-  // ── Next Week Preview ──
+  // ── Next Week Preview (regular schedule OR seed-based Knockdown/playoffs) ──
   const nextWeek = week + 1;
   const nextWeekInfo = schedule[nextWeek];
-  if (nextWeekInfo) {
-    const nextTeeTimes = getTeeTimes(nextWeek);
-    lines.push(`WEEK ${nextWeek} PREVIEW${nextWeekInfo.date ? ` (${nextWeekInfo.date})` : ""}`);
+  const nextPairs = pairsFor(nextWeek);
+  if (nextWeek <= 21 && nextPairs.length) {
+    const nextTeeTimes = getTeeTimes(nextWeek) || [];
+    const nextLabel = ROUND[nextWeek] ? `${ROUND[nextWeek].toUpperCase()} (WEEK ${nextWeek})` : `WEEK ${nextWeek}`;
+    lines.push(`${nextLabel} PREVIEW${nextWeekInfo?.date ? ` (${nextWeekInfo.date})` : ""}`);
     lines.push(hr());
-    (nextWeekInfo.pairs || []).forEach((pair, i) => {
+    nextPairs.forEach((pair, i) => {
       if (!Array.isArray(pair)) return;
       const [ta, tb] = pair;
       const [tlow, thigh] = ta < tb ? [ta, tb] : [tb, ta];
