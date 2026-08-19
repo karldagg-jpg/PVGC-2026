@@ -5,9 +5,10 @@ import { G, GO, R, M, CREAM, GOLD, CARD2, FD, FB } from "../constants/theme";
 
 const AMBER = "#e6a817";
 
-// Derive list of regular season weeks from schedule
+// Derive list of regular season weeks from schedule, including the
+// Week 18 Knockdown round (which also awards stableford points)
 const REGULAR_WEEKS = SCHEDULE_RAW
-  .filter(([w]) => w <= 17)
+  .filter(([w]) => w <= 18)
   .map(([w, date]) => ({ week: w, date }));
 
 // Find the highest hole (1-based) that has any score entered for a team in a match

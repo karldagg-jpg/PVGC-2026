@@ -653,7 +653,7 @@ const [seasonYear] = useState(SEASON_YEAR);
 
   const {teamStats,potyList,weeklyPoty,cancelledWeeks}=calcLeagueStats(league.results,league.handicaps,league.cancelledWeeks,undefined,undefined,undefined,undefined,league.loHiOverrides);
   const teamStandings=rankStandings(teamStats,{results:league.results,handicaps:league.handicaps,seedOverrides:league.seedOverrides});
-  const weeklyTeamPts=calcWeeklyTeamPts(league.results,league.handicaps,league.cancelledWeeks,undefined,undefined,league.loHiOverrides);
+  const weeklyTeamPts=calcWeeklyTeamPts(league.results,league.handicaps,league.cancelledWeeks,PLAYOFF_START_WEEK,undefined,league.loHiOverrides);
 
   // Standings movement (settled): places gained/lost between the two most
   // recent fully-scored regular-season weeks. + = up, - = down, 0 = no change.
