@@ -34,7 +34,7 @@ export default function StandingsScreen({ teamStandings, weeklyTeamPts, movement
   }
 
   const weeksWithData = [];
-  for (let w = 1; w <= 17; w++) {
+  for (let w = 1; w <= 18; w++) { // include the Week 18 Knockdown once it's scored
     if (Object.values(pts).some(tw => tw[w] != null)) weeksWithData.push(w);
   }
 
