@@ -5,10 +5,11 @@ import { getEffectiveHcp, getEffectiveHcpRaw, getOpponent, matchKey, hcpStr, max
 function HandicapScreen({ league, saveLeague, isAdmin, schedule = SCHEDULE }) {
 
   // Build gross score history for a player — caps each hole at max gross for handicap accuracy.
-  // Includes the Week 18 Knockdown (opponent resolved via the passed schedule).
+  // Includes the Week 18 Knockdown and the playoff rounds (QF/SF/Final) — opponents
+  // are resolved via the passed schedule, which carries the dynamic playoff pairings.
   function getGrossHistory(tid, pi) {
     const grosses = [];
-    for (let w = 1; w <= 18; w++) {
+    for (let w = 1; w <= 21; w++) {
       if (league.cancelledWeeks?.has(w)) continue; // exclude admin-cancelled weeks (matches the HCP calc)
       const opp = getOpponent(tid, w, null, schedule);
       if (!opp) continue;
@@ -62,15 +63,19 @@ function HandicapScreen({ league, saveLeague, isAdmin, schedule = SCHEDULE }) {
               <td style={{ padding: "9px 12px", fontWeight: 700, color: CREAM, fontSize: "13px", position: "sticky", left: 0, top: 0, background: "rgba(240,236,224,0.98)", zIndex: 3, whiteSpace: "nowrap", borderBottom: `2px solid ${GOLD}33` }}>Player</td>
               <td style={{ padding: "9px 8px", fontWeight: 700, color: M, fontSize: "11px", letterSpacing: "0.06em", textTransform: "uppercase", whiteSpace: "nowrap", position: "sticky", top: 0, background: "rgba(240,236,224,0.98)", zIndex: 2, borderBottom: `2px solid ${GOLD}33` }}>Team</td>
               <td style={{ padding: "9px 8px", fontWeight: 700, color: GOLD, fontSize: "12px", textAlign: "center", borderRight: `2px solid ${GOLD}44`, position: "sticky", top: 0, background: "rgba(240,236,224,0.98)", zIndex: 2, borderBottom: `2px solid ${GOLD}33` }}>Start</td>
-              {Array.from({ length: 19 }, (_, i) => i + 1).map((w) => (
+              {Array.from({ length: 21 }, (_, i) => i + 1).map((w) => {
+                const isPlayoff = w >= 19;
+                const label = w === 19 ? "QF" : w === 20 ? "SF" : w === 21 ? "F" : `W${w}`;
+                return (
                 <td key={w} style={{
-                  padding: "9px 6px", fontWeight: w === 19 ? 700 : 600, color: w === 19 ? GOLD : M, fontSize: "11px",
+                  padding: "9px 6px", fontWeight: isPlayoff ? 700 : 600, color: isPlayoff ? GOLD : M, fontSize: "11px",
                   textAlign: "center", letterSpacing: "0.04em",
                   borderRight: w === 18 ? `2px solid ${GOLD}44` : `1px solid ${GOLD}11`,
                   position: "sticky", top: 0, background: "rgba(240,236,224,0.98)", zIndex: 2,
                   borderBottom: `2px solid ${GOLD}33`,
-                }}>{w === 19 ? "Final" : `W${w}`}</td>
-              ))}
+                }}>{label}</td>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
@@ -123,7 +128,7 @@ function HandicapScreen({ league, saveLeague, isAdmin, schedule = SCHEDULE }) {
                       <span style={{ fontSize: "14px", fontWeight: 700, color: GOLD }}>{startHcp}</span>
                     )}
                   </td>
-                  {Array.from({ length: 19 }, (_, i) => i + 1).map((w) => {
+                  {Array.from({ length: 21 }, (_, i) => i + 1).map((w) => {
                     const autoHcp = getEffectiveHcp(tid, pi, w, league.results, league.handicaps, {}, league.cancelledWeeks);
                     const rawHcp  = getEffectiveHcpRaw(tid, pi, w, league.results, league.handicaps, {}, league.cancelledWeeks);
                     const overrideKey = `${tid}-${pi}-${w}`;
@@ -219,6 +224,7 @@ function HandicapScreen({ league, saveLeague, isAdmin, schedule = SCHEDULE }) {
         <span>Small number = gross score shot</span>
         <span><span style={{ color: GO, fontWeight: 700 }}>R</span> = rainout</span>
         <span><span style={{ color: "#ccc" }}>—</span> = not yet reached</span>
+        <span style={{ color: GOLD }}><strong>QF / SF / F</strong> = handicap going into each playoff round (updates after the prior round)</span>
       </div>
 
       {/* ── Calculation Breakdown ── */}

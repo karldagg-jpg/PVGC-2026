@@ -659,6 +659,14 @@ const [seasonYear] = useState(SEASON_YEAR);
     ...SCHEDULE,
     [PLAYOFF_START_WEEK]: { ...SCHEDULE[PLAYOFF_START_WEEK], pairs: knockdownPairs },
   }), [knockdownPairs]);
+  // Full schedule incl. the dynamic playoff pairings — used by the Handicap screen
+  // so the QF/SF/Final rounds resolve opponents and show each round's handicap.
+  const handicapSchedule = React.useMemo(() => ({
+    ...scheduleWithKnockdown,
+    19: { ...(SCHEDULE[19] || {}), pairs: qfPairs || [] },
+    20: { ...(SCHEDULE[20] || {}), pairs: sfPairs || [] },
+    21: { ...(SCHEDULE[21] || {}), pairs: finalPairs ? [finalPairs.championship, finalPairs.thirdPlace] : [] },
+  }), [scheduleWithKnockdown, qfPairs, sfPairs, finalPairs]);
   const {teamStats,potyList,weeklyPoty,cancelledWeeks}=calcLeagueStats(league.results,league.handicaps,league.cancelledWeeks,PLAYOFF_START_WEEK,scheduleWithKnockdown,undefined,undefined,league.loHiOverrides);
   const teamStandings=rankStandings(teamStats,{results:league.results,handicaps:league.handicaps,seedOverrides:league.seedOverrides});
   const weeklyTeamPts=calcWeeklyTeamPts(league.results,league.handicaps,league.cancelledWeeks,PLAYOFF_START_WEEK,scheduleWithKnockdown,league.loHiOverrides);
@@ -929,7 +937,7 @@ const [seasonYear] = useState(SEASON_YEAR);
           league={league}
           saveLeague={saveLeague}
           isAdmin={isAdmin}
-          schedule={scheduleWithKnockdown}
+          schedule={handicapSchedule}
         />
       )}
 
