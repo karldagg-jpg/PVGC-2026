@@ -1,15 +1,16 @@
-import { ALL_PLAYERS, TEAMS, DEFAULT_HCP, isNewMember, HCP_PCT, HCP_CAP, HCP_ROUNDS, NEW_MEMBER_HCP_PCT, SEASON_YEAR, RAINOUT_SUB, PAR, SI } from "../constants/league";
+import { ALL_PLAYERS, TEAMS, DEFAULT_HCP, isNewMember, HCP_PCT, HCP_CAP, HCP_ROUNDS, NEW_MEMBER_HCP_PCT, SEASON_YEAR, RAINOUT_SUB, PAR, SI, SCHEDULE } from "../constants/league";
 import { G, GO, R, M, CREAM, GOLD, CARD2, FD, FB } from "../constants/theme";
 import { getEffectiveHcp, getEffectiveHcpRaw, getOpponent, matchKey, hcpStr, maxGross } from "../lib/leagueLogic";
 
-function HandicapScreen({ league, saveLeague, isAdmin }) {
+function HandicapScreen({ league, saveLeague, isAdmin, schedule = SCHEDULE }) {
 
-  // Build gross score history for a player — caps each hole at max gross for handicap accuracy
+  // Build gross score history for a player — caps each hole at max gross for handicap accuracy.
+  // Includes the Week 18 Knockdown (opponent resolved via the passed schedule).
   function getGrossHistory(tid, pi) {
     const grosses = [];
-    for (let w = 1; w <= 17; w++) {
+    for (let w = 1; w <= 18; w++) {
       if (league.cancelledWeeks?.has(w)) continue; // exclude admin-cancelled weeks (matches the HCP calc)
-      const opp = getOpponent(tid, w);
+      const opp = getOpponent(tid, w, null, schedule);
       if (!opp) continue;
       const mk = matchKey(w, Math.min(tid, opp), Math.max(tid, opp));
       const rec = league.results[w]?.[mk];
@@ -61,14 +62,14 @@ function HandicapScreen({ league, saveLeague, isAdmin }) {
               <td style={{ padding: "9px 12px", fontWeight: 700, color: CREAM, fontSize: "13px", position: "sticky", left: 0, top: 0, background: "rgba(240,236,224,0.98)", zIndex: 3, whiteSpace: "nowrap", borderBottom: `2px solid ${GOLD}33` }}>Player</td>
               <td style={{ padding: "9px 8px", fontWeight: 700, color: M, fontSize: "11px", letterSpacing: "0.06em", textTransform: "uppercase", whiteSpace: "nowrap", position: "sticky", top: 0, background: "rgba(240,236,224,0.98)", zIndex: 2, borderBottom: `2px solid ${GOLD}33` }}>Team</td>
               <td style={{ padding: "9px 8px", fontWeight: 700, color: GOLD, fontSize: "12px", textAlign: "center", borderRight: `2px solid ${GOLD}44`, position: "sticky", top: 0, background: "rgba(240,236,224,0.98)", zIndex: 2, borderBottom: `2px solid ${GOLD}33` }}>Start</td>
-              {Array.from({ length: 18 }, (_, i) => i + 1).map((w) => (
+              {Array.from({ length: 19 }, (_, i) => i + 1).map((w) => (
                 <td key={w} style={{
-                  padding: "9px 6px", fontWeight: 600, color: M, fontSize: "11px",
+                  padding: "9px 6px", fontWeight: w === 19 ? 700 : 600, color: w === 19 ? GOLD : M, fontSize: "11px",
                   textAlign: "center", letterSpacing: "0.04em",
                   borderRight: w === 18 ? `2px solid ${GOLD}44` : `1px solid ${GOLD}11`,
                   position: "sticky", top: 0, background: "rgba(240,236,224,0.98)", zIndex: 2,
                   borderBottom: `2px solid ${GOLD}33`,
-                }}>W{w}</td>
+                }}>{w === 19 ? "Final" : `W${w}`}</td>
               ))}
             </tr>
           </thead>
@@ -122,12 +123,12 @@ function HandicapScreen({ league, saveLeague, isAdmin }) {
                       <span style={{ fontSize: "14px", fontWeight: 700, color: GOLD }}>{startHcp}</span>
                     )}
                   </td>
-                  {Array.from({ length: 18 }, (_, i) => i + 1).map((w) => {
+                  {Array.from({ length: 19 }, (_, i) => i + 1).map((w) => {
                     const autoHcp = getEffectiveHcp(tid, pi, w, league.results, league.handicaps, {}, league.cancelledWeeks);
                     const rawHcp  = getEffectiveHcpRaw(tid, pi, w, league.results, league.handicaps, {}, league.cancelledWeeks);
                     const overrideKey = `${tid}-${pi}-${w}`;
                     const override = (league.hcpOverrides || {})[overrideKey];
-                    const opp = getOpponent(tid, w);
+                    const opp = getOpponent(tid, w, null, schedule);
                     const mk = opp ? matchKey(w, Math.min(tid, opp), Math.max(tid, opp)) : null;
                     const rec = mk ? league.results[w]?.[mk] : null;
                     const played = !!rec;

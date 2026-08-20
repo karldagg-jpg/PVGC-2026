@@ -87,7 +87,7 @@ function PotyScreen({ potyTab, setPotyTab, potyList, weeklyPoty, cancelledWeeks,
 
       {potyTab === "weekly" && (
         <div style={{ display: "grid", gap: "8px" }}>
-          {Array.from({ length: 17 }, (_, i) => i + 1).map((w) => {
+          {Array.from({ length: 18 }, (_, i) => i + 1).map((w) => {
             const wr = weeklyPoty[w];
             if (!wr) {
               const isCancelled = cancelledWeeks?.has(w);

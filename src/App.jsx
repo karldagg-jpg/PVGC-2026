@@ -929,6 +929,7 @@ const [seasonYear] = useState(SEASON_YEAR);
           league={league}
           saveLeague={saveLeague}
           isAdmin={isAdmin}
+          schedule={scheduleWithKnockdown}
         />
       )}
 
