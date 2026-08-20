@@ -146,7 +146,7 @@ function HandicapScreen({ league, saveLeague, isAdmin, schedule = SCHEDULE }) {
                       return g;
                     })() : 0;
                     const prevPlayed = w === 1 || (() => {
-                      const prevOpp = getOpponent(tid, w - 1);
+                      const prevOpp = getOpponent(tid, w - 1, null, schedule);
                       return prevOpp && !!league.results[w - 1]?.[matchKey(w - 1, Math.min(tid, prevOpp), Math.max(tid, prevOpp))];
                     })();
                     const showHcp = w === 1 || played || prevPlayed;
