@@ -64,6 +64,10 @@ const SCHEDULE_RAW = [
 const BASE_TEE_TIMES = ["4:10 PM","4:20 PM","4:30 PM","4:40 PM","4:50 PM","5:00 PM","5:10 PM","5:20 PM","5:30 PM"];
 const TEE_TIME_OVERRIDES = {
   // Example: 3: ["4:15 PM","4:25 PM","4:35 PM","4:45 PM","4:55 PM","5:05 PM","5:15 PM","5:25 PM","5:35 PM"],
+  // Week 19 Quarterfinals: 4:10 & 4:20 left open for league play, then the four
+  // QF matches go off 4:30–5:00 in seed order (#1 seed first). 5:10–5:30 open for
+  // league play. QF pairs are ordered [1v8, 2v7, 3v6, 4v5], so index maps to seed.
+  19: ["4:30 PM","4:40 PM","4:50 PM","5:00 PM"],
 };
 function getTeeTimes(week) {
   return TEE_TIME_OVERRIDES[week] || BASE_TEE_TIMES;
