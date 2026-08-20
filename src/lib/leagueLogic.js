@@ -170,29 +170,26 @@ function getQFPairs(qfSeeds) {
 }
 
 // Get winner of a playoff match (higher stab score wins; tie = lower seed/ta advances)
-function getPlayoffWinner(week, ta, tb, results) {
+function getPlayoffWinner(week, ta, tb, results, handicaps={}) {
   const mk = matchKey(week, Math.min(ta,tb), Math.max(ta,tb));
   const rec = results[week]?.[mk];
   if(!rec) return null;
-  const flatScores = (arr) => {
-    if (!arr) return [];
-    if (Array.isArray(arr)) return arr.flat();
-    return [...(arr.p0||[]), ...(arr.p1||[])];
-  };
-  const totA = flatScores(rec.t1scores).reduce((s,v)=>s+(v||0),0);
-  const totB = flatScores(rec.t2scores).reduce((s,v)=>s+(v||0),0);
-  const tlow=Math.min(ta,tb);
-  const scoreA = ta===tlow ? totA : totB;
-  const scoreB = tb===tlow ? totA : totB;
+  // Playoffs are decided on team Stableford points (same metric shown in the
+  // bracket and used all season) — HIGHER wins, not raw gross strokes.
+  const tlow=Math.min(ta,tb), thigh=Math.max(ta,tb);
+  const totLow  = computeTeamTotal(rec, 0, tlow,  handicaps);
+  const totHigh = computeTeamTotal(rec, 1, thigh, handicaps);
+  const scoreA = ta===tlow ? totLow : totHigh;
+  const scoreB = tb===tlow ? totLow : totHigh;
   if(scoreA > scoreB) return ta;
   if(scoreB > scoreA) return tb;
-  return ta; // tie: ta advances (lower seed by convention)
+  return ta; // tie: higher seed (ta) advances by convention
 }
 
 // Get SF pairs — reseed QF winners by original QF seed
-function getSFPairs(qfSeeds, results) {
+function getSFPairs(qfSeeds, results, handicaps={}) {
   const qf = getQFPairs(qfSeeds);
-  const w = qf.map(([a,b])=>getPlayoffWinner(19,a,b,results));
+  const w = qf.map(([a,b])=>getPlayoffWinner(19,a,b,results,handicaps));
   if(w.some(x=>!x)) return null;
   // Reseed: sort winners by their original seed position, match 1v4 and 2v3
   const sorted = [...w].sort((a,b) => qfSeeds.indexOf(a) - qfSeeds.indexOf(b));
@@ -200,10 +197,10 @@ function getSFPairs(qfSeeds, results) {
 }
 
 // Get Finals pairs — reseed SF winners by original QF seed
-function getFinalPairs(qfSeeds, results) {
-  const sf = getSFPairs(qfSeeds, results);
+function getFinalPairs(qfSeeds, results, handicaps={}) {
+  const sf = getSFPairs(qfSeeds, results, handicaps);
   if(!sf) return null;
-  const w = sf.map(([a,b])=>getPlayoffWinner(20,a,b,results));
+  const w = sf.map(([a,b])=>getPlayoffWinner(20,a,b,results,handicaps));
   if(w.some(x=>!x)) return null;
   const l = sf.map(([a,b],i)=>w[i]===a?b:a);
   // Reseed winners and losers by original seed

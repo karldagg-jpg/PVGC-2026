@@ -117,8 +117,8 @@ function App() {
   const qfSeeds = React.useMemo(()=>getQFSeeds(league.results,league.handicaps,league.cancelledWeeks,league.loHiOverrides,league.seedOverrides),[league]);
   const knockdownPairs = React.useMemo(()=>getKnockdownPairs(league.results,league.handicaps,league.cancelledWeeks,league.loHiOverrides,league.seedOverrides),[league]);
   const qfPairs = React.useMemo(()=>getQFPairs(qfSeeds),[qfSeeds]);
-  const sfPairs = React.useMemo(()=>getSFPairs(qfSeeds,league.results),[qfSeeds,league.results]);
-  const finalPairs = React.useMemo(()=>getFinalPairs(qfSeeds,league.results),[qfSeeds,league.results]);
+  const sfPairs = React.useMemo(()=>getSFPairs(qfSeeds,league.results,league.handicaps),[qfSeeds,league.results,league.handicaps]);
+  const finalPairs = React.useMemo(()=>getFinalPairs(qfSeeds,league.results,league.handicaps),[qfSeeds,league.results,league.handicaps]);
   const [entryTeam, setEntryTeam] = useState(1);
   const [entryScores, setEntryScores] = useState({});
   const [entrySaved, setEntrySaved] = useState(false);

@@ -34,7 +34,7 @@ function MatchCard({ week, ta, tb, seedA, seedB, league, label, dim }) {
   const played = hasScores(rec);
   const scoreA = played ? getScore(rec, ta, ta, tb, league.handicaps) : null;
   const scoreB = played ? getScore(rec, tb, ta, tb, league.handicaps) : null;
-  const winner = played ? getPlayoffWinner(week, ta, tb, league.results) : null;
+  const winner = played ? getPlayoffWinner(week, ta, tb, league.results, league.handicaps) : null;
   const winA = winner === ta;
   const winB = winner === tb;
   const nameA = TEAMS[ta]?.name || `Team ${ta}`;
@@ -164,7 +164,7 @@ export default function PlayoffScreen({ league, playoffSeeds, qfSeeds, knockdown
   const sfComplete = sfPairs && sfPairs.every(([a, b]) => hasScores(getRec(league, 20, a, b)));
   const finalComplete = finalPairs && hasScores(getRec(league, 21, finalPairs.championship[0], finalPairs.championship[1]));
 
-  const champion = finalComplete ? getPlayoffWinner(21, finalPairs.championship[0], finalPairs.championship[1], league.results) : null;
+  const champion = finalComplete ? getPlayoffWinner(21, finalPairs.championship[0], finalPairs.championship[1], league.results, league.handicaps) : null;
 
   // SF pairs may not exist yet (QF not complete)
   const sf1 = sfPairs?.[0] || null;
