@@ -17,6 +17,15 @@ import {
 
 const REGULAR_SEASON_MAX_WEEK = PLAYOFF_START_WEEK - 1;
 
+// A schedule copy with the Knockdown week (W18) filled in with its seed-based
+// pairings, so the stats engine treats W18 as a normal scored week (it otherwise
+// has no pairs in the static schedule and gets skipped). Used for standings/POY/
+// POW and the final playoff seeding — NOT for the knockdown pairing itself.
+function scheduleWithKnockdown(knockdownPairs, schedule = SCHEDULE) {
+  if (!knockdownPairs?.length) return schedule;
+  return { ...schedule, [PLAYOFF_START_WEEK]: { ...(schedule[PLAYOFF_START_WEEK] || {}), pairs: knockdownPairs } };
+}
+
 // ── Regular-season standings tiebreakers (per rulebook) ─────────────────────
 // Order of teams LEVEL ON TOTAL POINTS is decided by, in order:
 //   0. Admin override (commissioner's call — e.g. the 8th-seed 3-hole playoff)
@@ -134,7 +143,11 @@ function getPlayoffSeeds(results, handicaps, cancelledWeeks=null, loHiOverrides=
 
 // All 18 teams ranked after knockdown (W1-W18) — top 8 advance to QF
 function getQFSeeds(results, handicaps, cancelledWeeks=null, loHiOverrides=null, seedOverrides=[]) {
-  const {teamStats} = calcLeagueStats(results, handicaps, cancelledWeeks, PLAYOFF_START_WEEK, undefined, undefined, undefined, loHiOverrides);
+  // Final seeding includes the Knockdown (W18). Inject its seed-based pairs so
+  // calcLeagueStats scores that week; the pairs come from the pre-knockdown
+  // (W1-17) standings, so there's no circularity.
+  const kd = getKnockdownPairs(results, handicaps, cancelledWeeks, loHiOverrides, seedOverrides);
+  const {teamStats} = calcLeagueStats(results, handicaps, cancelledWeeks, PLAYOFF_START_WEEK, scheduleWithKnockdown(kd), undefined, undefined, loHiOverrides);
   return rankStandings(teamStats, { results, handicaps, seedOverrides }).map(s=>s.id); // all 18 ranked, QF uses first 8
 }
 
@@ -460,9 +473,10 @@ function calcLeagueStats(results, handicaps, cancelledWeeksIn=null, maxWeek=REGU
     return {...p, total, keptRounds:kept.length, droppedRounds:sorted.slice(0,toDrop)};
   }).sort((a,b)=>b.total-a.total);
 
-  // Weekly POTY: highest individual score per week across all players
+  // Weekly POTY: highest individual score per week across all players (through
+  // maxWeek — includes the Knockdown when the caller passes a W18-filled schedule)
   const weeklyPoty = {};
-  for (let w=1;w<=17;w++) {
+  for (let w=1;w<=maxWeek;w++) {
     if (isWeekCancelled(results[w]) || cancelledWeeksIn?.has(w)) continue; // no weekly winner for cancelled weeks
     let best = -Infinity;
     let winners = [];

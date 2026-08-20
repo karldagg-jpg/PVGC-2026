@@ -651,30 +651,31 @@ const [seasonYear] = useState(SEASON_YEAR);
     return ()=>clearTimeout(autoSaveTimer.current);
   },[match]);
 
-  const {teamStats,potyList,weeklyPoty,cancelledWeeks}=calcLeagueStats(league.results,league.handicaps,league.cancelledWeeks,undefined,undefined,undefined,undefined,league.loHiOverrides);
-  const teamStandings=rankStandings(teamStats,{results:league.results,handicaps:league.handicaps,seedOverrides:league.seedOverrides});
   // Week 18 (Knockdown) has no static pairs in SCHEDULE — they're computed
-  // dynamically from seeds. Splice them in so weekly points/thru-hole logic,
-  // which reads schedule[w].pairs, can see Week 18 matches.
+  // dynamically from seeds. Splice them in so the stats engine (which reads
+  // schedule[w].pairs) treats W18 as a normal scored week: standings, POY, POW,
+  // and the weekly breakdown all count through the knockdown.
   const scheduleWithKnockdown = React.useMemo(() => ({
     ...SCHEDULE,
     [PLAYOFF_START_WEEK]: { ...SCHEDULE[PLAYOFF_START_WEEK], pairs: knockdownPairs },
   }), [knockdownPairs]);
+  const {teamStats,potyList,weeklyPoty,cancelledWeeks}=calcLeagueStats(league.results,league.handicaps,league.cancelledWeeks,PLAYOFF_START_WEEK,scheduleWithKnockdown,undefined,undefined,league.loHiOverrides);
+  const teamStandings=rankStandings(teamStats,{results:league.results,handicaps:league.handicaps,seedOverrides:league.seedOverrides});
   const weeklyTeamPts=calcWeeklyTeamPts(league.results,league.handicaps,league.cancelledWeeks,PLAYOFF_START_WEEK,scheduleWithKnockdown,league.loHiOverrides);
 
   // Standings movement (settled): places gained/lost between the two most
   // recent fully-scored regular-season weeks. + = up, - = down, 0 = no change.
   const standingsMovement = useMemo(() => {
     const rankAt = (maxW) => {
-      const { teamStats } = calcLeagueStats(league.results, league.handicaps, league.cancelledWeeks, maxW, undefined, undefined, undefined, league.loHiOverrides);
+      const { teamStats } = calcLeagueStats(league.results, league.handicaps, league.cancelledWeeks, maxW, scheduleWithKnockdown, undefined, undefined, league.loHiOverrides);
       const rank = {};
       rankStandings(teamStats, { results: league.results, handicaps: league.handicaps, seedOverrides: league.seedOverrides })
         .forEach((s, i) => { rank[s.id] = i + 1; });
       return rank;
     };
     const completed = [];
-    for (let w = 1; w <= PLAYOFF_START_WEEK - 1; w++) {
-      const pairs = SCHEDULE[w]?.pairs || [];
+    for (let w = 1; w <= PLAYOFF_START_WEEK; w++) {
+      const pairs = scheduleWithKnockdown[w]?.pairs || [];
       if (pairs.length === 0 || league.cancelledWeeks?.has(w)) continue;
       const allDone = pairs.every(([a, b]) => isMatchComplete(league.results[w]?.[matchKey(w, Math.min(a, b), Math.max(a, b))]));
       if (allDone) completed.push(w);
@@ -685,7 +686,7 @@ const [seasonYear] = useState(SEASON_YEAR);
     const movement = {};
     for (const id of Object.keys(cur)) movement[id] = prev[id] - cur[id];
     return { movement, throughWeek: completed[completed.length - 1] };
-  }, [league.results, league.handicaps, league.cancelledWeeks, league.loHiOverrides, league.seedOverrides]);
+  }, [league.results, league.handicaps, league.cancelledWeeks, league.loHiOverrides, league.seedOverrides, scheduleWithKnockdown]);
 
   const weekBonus=calcWeekBonus(selWeek,league.results,league.handicaps);
 
