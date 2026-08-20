@@ -887,13 +887,21 @@ function buildWeekRecap(week, results, handicaps, cancelledWeeks=null, loHiOverr
     lines.push("");
   }
 
-  // ── Standings ──
-  const stats = calcLeagueStats(results, handicaps, cancelledWeeks, undefined, undefined, undefined, undefined, loHiOverrides);
+  // ── Standings ── include the dynamic Knockdown pairing so Week 18 counts
+  // (the default schedule has no W18 pairs, and calcLeagueStats otherwise caps
+  // at Week 17). Cap at the Knockdown for playoff-week recaps — the QF/SF/Final
+  // are a bracket, not standings points.
+  const effSchedule = { ...schedule };
+  for (const w of Object.keys(dynPairsByWeek || {})) {
+    if (dynPairsByWeek[w]?.length) effSchedule[w] = { ...(schedule[w] || {}), pairs: dynPairsByWeek[w] };
+  }
+  const standingsMax = Math.min(week, PLAYOFF_START_WEEK);
+  const stats = calcLeagueStats(results, handicaps, cancelledWeeks, standingsMax, effSchedule, undefined, undefined, loHiOverrides);
   const sorted = Object.entries(stats.teamStats)
     .filter(([,s]) => s.played > 0)
     .sort(([,a],[,b]) => b.totalPts - a.totalPts || b.stab - a.stab);
 
-  lines.push("STANDINGS AFTER WEEK " + week);
+  lines.push(week >= PLAYOFF_START_WEEK ? "STANDINGS — FINAL SEEDING (THROUGH KNOCKDOWN)" : `STANDINGS AFTER WEEK ${week}`);
   lines.push(hr());
   sorted.forEach(([tid, s], i) => {
     lines.push(`${i+1}. ${teams[tid]?.name || `Team ${tid}`} — ${s.totalPts} pts (W${s.wins} L${s.losses} T${s.ties})`);
