@@ -744,7 +744,8 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
       20: sfPairs || [],
       21: finalPairs ? [finalPairs.championship, finalPairs.thirdPlace].filter(Boolean) : [],
     };
-    const text = buildWeekRecap(recapWeek, league.results || {}, league.handicaps || {}, league.cancelledWeeks, league.loHiOverrides, dynPairsByWeek);
+    const text = buildWeekRecap(recapWeek, league.results || {}, league.handicaps || {}, league.cancelledWeeks, league.loHiOverrides, dynPairsByWeek, undefined, undefined,
+      { dues: league.dues || {}, exempt: league.budget?.exempt, perPlayer: league.budget?.duesPerPlayer });
     navigator.clipboard.writeText(text).then(() => {
       setRecapCopied(true);
       setTimeout(() => setRecapCopied(false), 2500);

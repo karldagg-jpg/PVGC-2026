@@ -771,7 +771,7 @@ function initMatch() {
 // ── Weekly recap text builder ───────────────────────────────────
 // dynPairsByWeek lets the caller supply the seed-based Knockdown/playoff pairings
 // for weeks 18-21 (they aren't in the static schedule): { 18:[[a,b]…], 19:…, … }.
-function buildWeekRecap(week, results, handicaps, cancelledWeeks=null, loHiOverrides=null, dynPairsByWeek={}, schedule=SCHEDULE, teams=TEAMS) {
+function buildWeekRecap(week, results, handicaps, cancelledWeeks=null, loHiOverrides=null, dynPairsByWeek={}, schedule=SCHEDULE, teams=TEAMS, duesInfo=null) {
   const weekInfo = schedule[week];
   const ROUND = { 18: "Knockdown Round", 19: "Quarterfinals", 20: "Semifinals", 21: "Championship" };
   const pairsFor = (w) => (dynPairsByWeek[w]?.length ? dynPairsByWeek[w] : (schedule[w]?.pairs || []));
@@ -979,6 +979,28 @@ function buildWeekRecap(week, results, handicaps, cancelledWeeks=null, loHiOverr
       }
       lines.push("");
     });
+  }
+
+  // ── Outstanding Dues ──
+  if (duesInfo && duesInfo.dues) {
+    const paid = duesInfo.dues || {};
+    const exemptSet = new Set((duesInfo.exempt || ["Brian Charles", "Jack Carickhoff", "Karl Dagg"]).map(n => n.trim().toLowerCase()));
+    const per = duesInfo.perPlayer || 60;
+    const unpaid = [];
+    for (let t = 1; t <= 18; t++) for (let pi = 0; pi < 2; pi++) {
+      const name = teams[t]?.[pi === 0 ? "p1" : "p2"]; if (!name) continue;
+      if (exemptSet.has(name.trim().toLowerCase())) continue;
+      if (!paid[`${t}-${pi}`]) unpaid.push(name);
+    }
+    lines.push(`OUTSTANDING DUES ($${per} each)`);
+    lines.push(hr());
+    if (!unpaid.length) lines.push("All dues collected — everyone has paid.");
+    else {
+      lines.push(`${unpaid.length} player${unpaid.length === 1 ? "" : "s"} still owe dues:`);
+      unpaid.forEach(n => lines.push(`  • ${n}`));
+      lines.push(`  Total outstanding: $${unpaid.length * per}`);
+    }
+    lines.push("");
   }
 
   return lines.join("\n");
