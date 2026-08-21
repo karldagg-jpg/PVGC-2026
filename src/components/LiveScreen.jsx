@@ -16,6 +16,7 @@ function teamThru(rec, tIdx) {
 }
 // per-hole team Stableford (from real grosses; subs/phantoms omitted from the heat)
 function teamHolePts(rec, tIdx, tid, hi, H) {
+  if (!rec) return 0;
   const s = unflat(tIdx === 0 ? rec.t1scores : rec.t2scores);
   const types = (tIdx === 0 ? rec.t1types : rec.t2types) || [];
   const snap = rec.hcpSnapshot;
