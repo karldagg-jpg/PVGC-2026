@@ -59,6 +59,7 @@ import HandicapScreen from "./components/HandicapScreen";
 import RulesScreen from "./components/RulesScreen";
 import AdminScreen from "./components/AdminScreen";
 import PlayoffScreen from "./components/PlayoffScreen";
+import LiveScreen from "./components/LiveScreen";
 import MastersBoard from "./components/MastersBoard";
 import PlayerScreen from "./components/PlayerScreen";
 import StatsScreen from "./components/StatsScreen";
@@ -732,10 +733,10 @@ const [seasonYear] = useState(SEASON_YEAR);
     setMatch(fn);
   };
 
-  const TABS=["schedule","scoring","entry","standings","masters","weekly","poty","hcp","playoffs","players","rules","admin"];
-  const PRIMARY_TABS=["schedule","scoring","standings","players","poty","hcp","rules","contacts","weekly"];
+  const TABS=["schedule","live","scoring","entry","standings","masters","weekly","poty","hcp","playoffs","players","rules","admin"];
+  const PRIMARY_TABS=["schedule","live","scoring","standings","players","poty","hcp","rules","contacts","weekly"];
   const MORE_TABS=["entry","masters","playoffs","stats","admin","verify","predict","pulse","howto"].filter(t => t !== "verify" || isAdmin);
-  const TAB_LABEL={schedule:"Schedule",scoring:"Scoring",entry:"Entry",standings:"Standings",masters:"Board",weekly:"Weekly",poty:"POTY",hcp:"HCP",playoffs:"Playoffs",players:"Players",contacts:"Subs",stats:"Stats",rules:"Rules",admin:"Admin",verify:"Verify",predict:"Predict",pulse:"Pulse",howto:"How To"};
+  const TAB_LABEL={schedule:"Schedule",live:"Live",scoring:"Scoring",entry:"Entry",standings:"Standings",masters:"Board",weekly:"Weekly",poty:"POTY",hcp:"HCP",playoffs:"Playoffs",players:"Players",contacts:"Subs",stats:"Stats",rules:"Rules",admin:"Admin",verify:"Verify",predict:"Predict",pulse:"Pulse",howto:"How To"};
   const inMore = MORE_TABS.includes(screen);
 
   // Current match doc (for confirm/lock)
@@ -938,6 +939,15 @@ const [seasonYear] = useState(SEASON_YEAR);
           saveLeague={saveLeague}
           isAdmin={isAdmin}
           schedule={handicapSchedule}
+        />
+      )}
+
+      {screen==="live"&&(
+        <LiveScreen
+          league={league}
+          schedule={handicapSchedule}
+          qfSeeds={qfSeeds}
+          playoffSeeds={playoffSeeds}
         />
       )}
 
