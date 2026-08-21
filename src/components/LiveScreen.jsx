@@ -92,14 +92,16 @@ export default function LiveScreen({ league, schedule = SCHEDULE, qfSeeds = [], 
     else if (started && Math.abs(A - B) > left * 4) badge = { cls: "clinch", txt: "CLINCHED" };
     else if (started && Math.abs(A - B) <= 2 && left <= 4) badge = { cls: "tight", txt: "TIGHT" };
     else badge = { cls: "live", txt: started ? "IN PLAY" : (teeTimes[i] || "UPCOMING") };
-    let mA = 0, mB = 0; for (let h = Math.max(0, thru - 2); h < thru; h++) { mA += teamHolePts(rec, 0, tlow, h, H); mB += teamHolePts(rec, 1, thigh, h, H); }
-    const mt = Math.max(1, mA + mB), wA = Math.round(mA / mt * 100);
-    const teams = [{ tid: tlow, tIdx: 0, tot: A }, { tid: thigh, tIdx: 1, tot: B }].map(t => ({
-      ...t, name: TEAMS[t.tid]?.name || `Team ${t.tid}`, seed: seedOf(t.tid),
-      thru: teamThru(rec, t.tIdx), lead: leadTid === t.tid,
-      pips: Array.from({ length: 9 }, (_, h) => h < thru ? Math.max(0, Math.min(4, teamHolePts(rec, t.tIdx, t.tid, h, H))) : -1),
-    }));
-    return { key, i, rec, ta, tb, tlow, thigh, A, B, thru, left, started, final, leadTid, badge, wA, teams };
+    // per-hole result vs opponent (only holes BOTH teams have finished): 2=won, 1=halved, 0=lost
+    const decided = Math.min(thruA, thruB);
+    const hp0 = Array.from({ length: 9 }, (_, h) => teamHolePts(rec, 0, tlow, h, H));
+    const hp1 = Array.from({ length: 9 }, (_, h) => teamHolePts(rec, 1, thigh, h, H));
+    const pipFor = (mine, other) => Array.from({ length: 9 }, (_, h) => h < decided ? (mine[h] > other[h] ? 2 : mine[h] === other[h] ? 1 : 0) : -1);
+    const teams = [
+      { tid: tlow, tIdx: 0, tot: A, pips: pipFor(hp0, hp1) },
+      { tid: thigh, tIdx: 1, tot: B, pips: pipFor(hp1, hp0) },
+    ].map(t => ({ ...t, name: TEAMS[t.tid]?.name || `Team ${t.tid}`, seed: seedOf(t.tid), thru: teamThru(rec, t.tIdx), lead: leadTid === t.tid }));
+    return { key, i, rec, ta, tb, tlow, thigh, A, B, thru, left, decided, started, final, leadTid, badge, teams };
   });
 
   // ── moments feed ──
@@ -111,15 +113,18 @@ export default function LiveScreen({ league, schedule = SCHEDULE, qfSeeds = [], 
         const [tlow, thigh] = ta < tb ? [ta, tb] : [tb, ta];
         const rec = results[activeWeek]?.[matchKey(activeWeek, tlow, thigh)]; if (!rec) continue;
         const thru = Math.max(teamThru(rec, 0), teamThru(rec, 1)); if (h >= thru) continue;
+        const snap = rec.hcpSnapshot;
         [[tlow, 0], [thigh, 1]].forEach(([tid, ti]) => {
           const s = unflat(ti === 0 ? rec.t1scores : rec.t2scores);
           const types = (ti === 0 ? rec.t1types : rec.t2types) || [];
           [0, 1].forEach(pi => {
             if ((types[pi] || "normal") !== "normal") return;
             const g = (s[pi] || [])[h] || 0; if (!g) return;
-            const d = g - PAR[h]; const nm = TEAMS[tid]?.[pi === 0 ? "p1" : "p2"] || "";
-            if (d <= -2) out.push({ c: "clinch", t: `🦅 ${nm} eagle #${h + 1}` });
-            else if (d === -1) out.push({ c: "", t: `🐦 ${nm} birdie #${h + 1}` });
+            const hcp = snap ? (snap[tid] || [0, 0])[pi] || 0 : (H[tid] || [0, 0])[pi] || 0;
+            const pts = stabPts(g, PAR[h], hcpStr(hcp, SI[h])) || 0; // net Stableford: 3=net birdie, 4+=net eagle
+            const nm = TEAMS[tid]?.[pi === 0 ? "p1" : "p2"] || "";
+            if (pts >= 4) out.push({ c: "clinch", t: `🦅 ${nm} net eagle #${h + 1}` });
+            else if (pts === 3) out.push({ c: "", t: `🐦 ${nm} net birdie #${h + 1}` });
           });
         });
         const A = cumTeam(rec, 0, tlow, h + 1, H), B = cumTeam(rec, 1, thigh, h + 1, H);
@@ -237,7 +242,7 @@ export default function LiveScreen({ league, schedule = SCHEDULE, qfSeeds = [], 
                   <div key={t.tid} className={"row" + (t.lead ? " lead" : "")}>
                     {t.seed > 0 && <span className="seed">{t.seed}</span>}
                     <div className="team"><div className="nm">{t.name}</div>
-                      <div className="spark">{t.pips.map((p, h) => <span key={h} className={"pip" + (p >= 0 ? " p" + p : "") + (m.started && h === m.thru - 1 && p >= 0 ? " just" : "")} />)}</div>
+                      <div className="spark">{t.pips.map((p, h) => <span key={h} className={"pip" + (p === 2 ? " win" : p === 1 ? " tie" : p === 0 ? " loss" : "") + (h === m.decided - 1 && p >= 0 ? " just" : "")} />)}</div>
                     </div>
                     <div className="thru"><div className="t">{m.started ? "thru " + t.thru : ""}</div></div>
                     <div className={"score" + (bumped(m.key + (ti === 0 ? "a" : "b"), t.tot) ? " bumped" : "")}>{m.started ? t.tot : "–"}</div>
@@ -245,7 +250,6 @@ export default function LiveScreen({ league, schedule = SCHEDULE, qfSeeds = [], 
                   </div>
                 ))}
                 <div className="cfoot">
-                  <div className="mom"><div className="a" style={{ width: m.wA + "%" }} /><div className="b" style={{ width: (100 - m.wA) + "%" }} /></div>
                   <div className="margin" dangerouslySetInnerHTML={{ __html: marginText(m) }} />
                 </div>
                 {m.started && (
@@ -259,7 +263,10 @@ export default function LiveScreen({ league, schedule = SCHEDULE, qfSeeds = [], 
           </div>
         )}
 
-        <div className="foot"><span className="g">▲</span> leads · tap a match for the hole-by-hole card · scores update automatically as they're entered</div>
+        <div className="foot">
+          <span className="leg"><span className="pip win" /> won hole<span className="pip tie" /> halved<span className="pip loss" /> lost</span>
+          <div style={{ marginTop: "7px" }}><span className="g">▲</span> leads · net birdies/eagles in the ticker · tap a match for the hole-by-hole card</div>
+        </div>
       </div>
     </div>
   );
@@ -313,7 +320,7 @@ const CSS = `
   --bg:#f4f1e8;--bg2:#fff;--bg3:#f0f4ec;--ink:#17281e;--muted:#66786c;--line:rgba(26,61,36,.14);
   --gold:#a97d20;--green:#1c854a;--green-dim:#7bb492;--red:#cf372c;--amber:#c67d14;--sky:#3a6f8f;
   --shadow:0 8px 22px rgba(40,55,35,.10);
-  --pip0:#e39a91;--pip1:#dcc790;--pip2:#9ec7ad;--pip3:#4fae77;--pip4:#1c854a;--pipe:rgba(26,61,36,.07);
+  --pw:#1c854a;--pt:#a9dcbf;--pl:#eaa9a1;--pipe:rgba(26,61,36,.07);
   --mast:linear-gradient(120deg,rgba(255,253,247,.96),rgba(250,245,232,.95) 65%,rgba(245,228,196,.95));
   --tickbg:rgba(26,61,36,.035);--plbg:#fff;--futc:rgba(0,0,0,.2);
   --num:'SF Pro Display',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
@@ -324,7 +331,7 @@ const CSS = `
 .pvgc-live.dark{
   --bg:#07110d;--bg2:#0d1a14;--bg3:#12241a;--ink:#f1eee2;--muted:#7f978a;--line:rgba(227,186,78,.14);
   --gold:#e3ba4e;--green:#45d17f;--green-dim:#2f8f57;--red:#ff5b52;--amber:#f4a52a;--shadow:0 10px 30px rgba(0,0,0,.45);
-  --pip0:#7a2622;--pip1:#5c4a2a;--pip2:#3a5a45;--pip3:#2f8f57;--pip4:#45d17f;--pipe:rgba(255,255,255,.06);
+  --pw:#45d17f;--pt:#2f6b47;--pl:#b0605a;--pipe:rgba(255,255,255,.06);
   --mast:linear-gradient(120deg,rgba(9,20,15,.94),rgba(24,20,10,.92) 70%,rgba(52,36,14,.9));
   --tickbg:rgba(0,0,0,.25);--plbg:#0b1611;--futc:rgba(255,255,255,.18);
   background:radial-gradient(120% 90% at 85% -10%,rgba(244,165,42,.16),transparent 55%),linear-gradient(180deg,#07110d,#060d0a 60%,#050a08);
@@ -388,19 +395,17 @@ const CSS = `
 .pvgc-live .nm{font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pvgc-live .spark{display:flex;gap:3px;margin-top:6px}
 .pvgc-live .pip{width:11px;height:11px;border-radius:3px;background:var(--pipe);border:1px solid var(--pipe)}
-.pvgc-live .pip.p0{background:var(--pip0)}.pvgc-live .pip.p1{background:var(--pip1)}.pvgc-live .pip.p2{background:var(--pip2)}
-.pvgc-live .pip.p3{background:var(--pip3)}.pvgc-live .pip.p4{background:var(--pip4);box-shadow:0 0 8px rgba(69,209,127,.4)}
+.pvgc-live .pip.win{background:var(--pw)}
+.pvgc-live .pip.tie{background:var(--pt)}
+.pvgc-live .pip.loss{background:var(--pl)}
 .pvgc-live .pip.just{animation:ldot .6s ease-out}
 .pvgc-live .thru{text-align:right;flex-shrink:0}.pvgc-live .thru .t{font-size:11px;color:var(--muted);font-weight:600}
 .pvgc-live .score{font-weight:800;font-size:34px;line-height:1;min-width:50px;text-align:right;flex-shrink:0;letter-spacing:-.02em}
 .pvgc-live .row.lead .score{color:var(--green)}
 .pvgc-live .score.bumped{animation:lpop .55s cubic-bezier(.2,1.4,.4,1)}
 .pvgc-live .arw{width:14px;flex-shrink:0;color:var(--green);font-size:13px;text-align:center}
-.pvgc-live .cfoot{display:flex;align-items:center;gap:10px;padding:8px 14px 11px}
-.pvgc-live .mom{flex:1;height:6px;border-radius:4px;background:var(--pipe);overflow:hidden;display:flex}
-.pvgc-live .mom .a{background:linear-gradient(90deg,var(--gold),rgba(169,125,32,.4));transition:width .5s}
-.pvgc-live .mom .b{background:linear-gradient(90deg,rgba(58,111,143,.4),var(--sky));transition:width .5s}
-.pvgc-live .margin{font-size:11.5px;font-weight:700;color:var(--muted);white-space:nowrap;flex-shrink:0}
+.pvgc-live .cfoot{padding:2px 14px 11px}
+.pvgc-live .margin{font-size:12px;font-weight:700;color:var(--muted);white-space:nowrap}
 .pvgc-live .margin b{color:var(--ink)}
 .pvgc-live .expander{font-size:10px;color:var(--muted);text-align:center;padding:0 0 9px;cursor:pointer;user-select:none}
 .pvgc-live .card:hover .expander{color:var(--gold)}
@@ -416,6 +421,9 @@ const CSS = `
 .pvgc-live .sheet .tot{color:var(--gold);font-weight:800}
 .pvgc-live .foot{max-width:760px;margin:18px auto 0;padding:0 16px;font-size:11px;color:var(--muted);text-align:center;line-height:1.5}
 .pvgc-live .foot .g{color:var(--green)}
+.pvgc-live .leg{font-size:11px}
+.pvgc-live .leg .pip{display:inline-block;vertical-align:middle;margin:0 4px 0 12px}
+.pvgc-live .leg .pip:first-child{margin-left:0}
 .pvgc-live.tv .wrap{max-width:1200px}
 .pvgc-live.tv .strip,.pvgc-live.tv .expander,.pvgc-live.tv .selrow,.pvgc-live.tv .foot{display:none}
 .pvgc-live.tv h1{font-size:clamp(18px,2.6vw,30px)}
@@ -435,7 +443,6 @@ const CSS = `
 .pvgc-live.tv .arw{font-size:clamp(17px,2vw,28px);width:24px}
 .pvgc-live.tv .cfoot{padding:13px 18px 17px}
 .pvgc-live.tv .margin{font-size:clamp(13px,1.5vw,19px)}
-.pvgc-live.tv .mom{height:8px}
 @media(min-width:760px){.pvgc-live.tv .cards{grid-template-columns:1fr 1fr}}
 @keyframes lpulse{0%{box-shadow:0 0 0 0 rgba(207,55,44,.6)}70%{box-shadow:0 0 0 8px rgba(207,55,44,0)}100%{box-shadow:0 0 0 0 rgba(207,55,44,0)}}
 @keyframes lmarq{from{transform:translateX(0)}to{transform:translateX(-50%)}}
