@@ -233,7 +233,9 @@ function RaceChart({ series }) {
   );
 }
 
-function RoundReplayPanel({ league, initialWeek, initialTeam }) {
+const REPLAY_WEEK_LABEL = { 18: "Knockdown", 19: "Quarterfinals", 20: "Semifinals", 21: "Finals" };
+
+function RoundReplayPanel({ league, initialWeek, initialTeam, dynPairsFor }) {
   const [week, setWeek] = useState(initialWeek || 1);
   const [team, setTeam] = useState(initialTeam || 1);
   const [playHole, setPlayHole] = useState(0);
@@ -260,10 +262,10 @@ function RoundReplayPanel({ league, initialWeek, initialTeam }) {
   const doReset = () => { setPlaying(false); setPlayHole(0); };
 
   const weeksWithData = [];
-  for (let w = 1; w <= 17; w++) {
+  for (let w = 1; w <= 21; w++) { // include Knockdown (18) + playoffs (19-21)
     if (league?.results?.[w] && Object.keys(league.results[w]).length > 0) weeksWithData.push(w);
   }
-  const opp = getOpponent(team, week);
+  const opp = getOpponent(team, week, dynPairsFor ? dynPairsFor(week) : undefined);
   const tlow = opp ? Math.min(team, opp) : 0;
   const thigh = opp ? Math.max(team, opp) : 0;
   const mk = tlow && thigh ? matchKey(week, tlow, thigh) : null;
@@ -323,8 +325,8 @@ function RoundReplayPanel({ league, initialWeek, initialTeam }) {
           <div style={{ fontSize: "11px", color: M, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px", fontWeight: 600 }}>Week</div>
           <select value={week} onChange={e => setWeek(parseInt(e.target.value))}
             style={{ padding: "7px 10px", borderRadius: "8px", border: `1px solid ${GOLD}44`, background: CARD, color: CREAM, fontFamily: FB, fontSize: "13px", cursor: "pointer", outline: "none" }}>
-            {(weeksWithData.length ? weeksWithData : Array.from({length:17},(_,i)=>i+1)).map(w => (
-              <option key={w} value={w}>Week {w}</option>
+            {(weeksWithData.length ? weeksWithData : Array.from({length:21},(_,i)=>i+1)).map(w => (
+              <option key={w} value={w}>{REPLAY_WEEK_LABEL[w] || `Week ${w}`}</option>
             ))}
           </select>
         </div>
@@ -1482,7 +1484,8 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
         title="Round Replay" icon="📈"
         hint="charts"
       >
-        <RoundReplayPanel league={league} initialWeek={activeWeek || 1} initialTeam={activeTeam || 1} />
+        <RoundReplayPanel league={league} initialWeek={activeWeek || 1} initialTeam={activeTeam || 1}
+          dynPairsFor={(w) => w === 18 ? knockdownPairs : w === 19 ? qfPairs : w === 20 ? (sfPairs || []) : w === 21 ? (finalPairs ? [finalPairs.championship, finalPairs.thirdPlace] : []) : null} />
       </AccordionSection>
 
       {/* ── Reset Season ─────────────────────────────────────────── */}
