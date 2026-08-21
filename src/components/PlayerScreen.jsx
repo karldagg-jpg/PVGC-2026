@@ -10,7 +10,7 @@ const ALL_SEASON_WEEKS = Array.from({ length: 18 }, (_, i) => i + 1); // include
 // Returns { played, missed, weeksLeft, minEligible, totalEligible, status }
 // status: "eligible" | "onPace" | "atRisk" | "ineligible"
 // Denominator shrinks for cancelled/rainout weeks.
-function getEligibility(tid, pi, league) {
+function getEligibility(tid, pi, league, schedule = SCHEDULE) {
   const cancelled = league.cancelledWeeks || new Set();
 
   // Eligible weeks = season weeks that were not cancelled
@@ -25,7 +25,7 @@ function getEligibility(tid, pi, league) {
 
   let played = 0;
   for (const w of eligibleWeeks) {
-    const opp = getOpponent(tid, w);
+    const opp = getOpponent(tid, w, null, schedule); // dynamic schedule so the W18 Knockdown resolves
     if (!opp) continue;
     const mk = matchKey(w, Math.min(tid, opp), Math.max(tid, opp));
     const rec = league.results[w]?.[mk];
@@ -217,7 +217,7 @@ function PlayerCard({ tid, pi, league, onClick, schedule = SCHEDULE }) {
     if (getPlayerGross(rec, tIdx, pi) === 0) continue;
     totalStab += getPlayerStab(rec, tIdx, pi, tid);
   }
-  const { played, status, minEligible, totalEligible } = getEligibility(tid, pi, league);
+  const { played, status, minEligible, totalEligible } = getEligibility(tid, pi, league, schedule);
   const eligColor = status === "eligible" ? G : status === "onPace" ? G : status === "atRisk" ? GO : R;
   const eligLabel = { eligible: "✓ Eligible", onPace: "On Pace", atRisk: "At Risk", ineligible: "✗ Ineligible" }[status];
 
@@ -376,7 +376,7 @@ function PlayerProfile({ tid, pi, league, onBack, isAdmin, saveLeague, schedule 
 
       {/* Playoff eligibility */}
       {(() => {
-        const { played, missed, weeksLeft, minEligible, totalEligible, status } = getEligibility(tid, pi, league);
+        const { played, missed, weeksLeft, minEligible, totalEligible, status } = getEligibility(tid, pi, league, schedule);
         const needed = Math.max(0, minEligible - played);
         const eligColor = status === "eligible" ? G : status === "onPace" ? G : status === "atRisk" ? GO : R;
         const statusLabel = { eligible: "✓ Eligible", onPace: "On Pace", atRisk: "At Risk", ineligible: "✗ Ineligible" }[status];
