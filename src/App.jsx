@@ -106,6 +106,8 @@ function editLosesScores(existing, next) {
 
 function App() {
   const [screen,  setScreen]  = useState("schedule");
+  const prevScreenRef = React.useRef("schedule"); // last non-live screen, for the Live "Menu" exit
+  React.useEffect(() => { if (screen !== "live") prevScreenRef.current = screen; }, [screen]);
   const [selPlayer, setSelPlayer] = useState(null); // {tid, pi} — set when navigating from POTY
   const [league,  setLeague]  = useState(initLeague);
   const [selWeek, setWeek]    = useState(calcCurrentWeek);
@@ -774,6 +776,7 @@ const [seasonYear] = useState(SEASON_YEAR);
       )}
       <Banner banner={league?.banner} />
 
+      {screen!=="live" && (
       <div style={{padding:"12px 18px 0 18px",
         display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:"8px",
         background:"#ffffff",position:"sticky",top:0,zIndex:20,
@@ -824,6 +827,7 @@ const [seasonYear] = useState(SEASON_YEAR);
           </div>
         )}
       </div>
+      )}
 
       {screen==="schedule"&&(
         <ScheduleScreen
@@ -949,6 +953,7 @@ const [seasonYear] = useState(SEASON_YEAR);
           schedule={handicapSchedule}
           qfSeeds={qfSeeds}
           playoffSeeds={playoffSeeds}
+          onExit={()=>setScreen(prevScreenRef.current||"schedule")}
         />
       )}
 

@@ -31,7 +31,7 @@ function teamHolePts(rec, tIdx, tid, hi, H) {
 const cumTeam = (rec, tIdx, tid, upto, H) => { let s = 0; for (let h = 0; h < upto; h++) s += teamHolePts(rec, tIdx, tid, h, H); return s; };
 const grossOf = (ps) => (Array.isArray(ps) ? ps.reduce((s, v) => s + (v || 0), 0) : 0);
 
-export default function LiveScreen({ league, schedule = SCHEDULE, qfSeeds = [], playoffSeeds = [] }) {
+export default function LiveScreen({ league, schedule = SCHEDULE, qfSeeds = [], playoffSeeds = [], onExit }) {
   const H = league.handicaps || {};
   const results = league.results || {};
   const seedOf = (tid) => (qfSeeds.indexOf(tid) + 1) || (playoffSeeds.indexOf(tid) + 1) || 0;
@@ -184,6 +184,7 @@ export default function LiveScreen({ league, schedule = SCHEDULE, qfSeeds = [], 
 
       <div className="mast">
         <div className="mast-in">
+          {onExit && <button className="backbtn" onClick={onExit}>‹ Menu</button>}
           <div className="live"><span className={"dot" + (showLive ? "" : " off")}></span><b>{showLive ? "LIVE" : "BOARD"}</b></div>
           <div className="mtitle">
             <h1>PVGC <span>{activeWeek >= 19 ? "PLAYOFFS" : ""}</span> · {weekName(activeWeek).toUpperCase()}</h1>
@@ -345,6 +346,8 @@ const CSS = `
 .pvgc-live .tvbtn{margin-left:auto;flex-shrink:0;background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer}
 .pvgc-live .tvbtn+.tvbtn{margin-left:6px}
 .pvgc-live .tvbtn:hover{color:var(--ink);border-color:var(--gold)}
+.pvgc-live .backbtn{flex-shrink:0;background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:6px 9px;font-size:12px;font-weight:700;cursor:pointer;margin-right:2px}
+.pvgc-live .backbtn:hover{color:var(--ink);border-color:var(--gold)}
 .pvgc-live .ticker{display:flex;align-items:center;border-bottom:1px solid var(--line);background:var(--tickbg);overflow:hidden;height:34px}
 .pvgc-live .ticker .tag{flex-shrink:0;background:var(--red);color:#fff;font-weight:900;font-size:10px;letter-spacing:.12em;padding:0 10px;height:100%;display:flex;align-items:center}
 .pvgc-live .track-wrap{overflow:hidden;flex:1;height:100%;position:relative}
@@ -416,7 +419,8 @@ const CSS = `
 .pvgc-live.tv .wrap{max-width:1100px}
 .pvgc-live.tv .nm{font-size:19px}.pvgc-live.tv .score{font-size:44px}
 .pvgc-live.tv .strip,.pvgc-live.tv .expander,.pvgc-live.tv .selrow{display:none}
-.pvgc-live.tv .cards{grid-template-columns:1fr 1fr;gap:14px}
+.pvgc-live.tv .cards{gap:14px}
+@media(min-width:760px){.pvgc-live.tv .cards{grid-template-columns:1fr 1fr}}
 @keyframes lpulse{0%{box-shadow:0 0 0 0 rgba(207,55,44,.6)}70%{box-shadow:0 0 0 8px rgba(207,55,44,0)}100%{box-shadow:0 0 0 0 rgba(207,55,44,0)}}
 @keyframes lmarq{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 @keyframes lpop{0%{transform:scale(1)}35%{transform:scale(1.26);color:var(--gold)}100%{transform:scale(1)}}
