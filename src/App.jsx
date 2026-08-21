@@ -966,7 +966,7 @@ const [seasonYear] = useState(SEASON_YEAR);
       )}
 
       {screen==="players"&&(
-        <PlayerScreen league={league} initialPlayer={selPlayer} isAdmin={isAdmin} saveLeague={saveLeague} />
+        <PlayerScreen league={league} initialPlayer={selPlayer} isAdmin={isAdmin} saveLeague={saveLeague} schedule={handicapSchedule} />
       )}
 
       {screen==="contacts"&&(

@@ -4,7 +4,7 @@ import { getEffectiveHcp, getEffectiveHcpRaw, getOpponent, matchKey, stabPts, hc
 import { G, GO, R, M, CREAM, GOLD, CARD, CARD2, FB, FD } from "../constants/theme";
 import { auth } from "../firebase/client";
 
-const REGULAR_WEEKS = Array.from({ length: 17 }, (_, i) => i + 1);
+const PROFILE_WEEKS = Array.from({ length: 21 }, (_, i) => i + 1); // full season: regular + knockdown (18) + playoffs (19-21)
 const ALL_SEASON_WEEKS = Array.from({ length: 18 }, (_, i) => i + 1); // includes knockdown (W18)
 
 // Returns { played, missed, weeksLeft, minEligible, totalEligible, status }
@@ -86,12 +86,12 @@ function getPlayerStab(rec, tIdx, pi, tid) {
   return total;
 }
 
-// Build full season stats for a player
-function buildPlayerStats(tid, pi, league) {
+// Build full season stats for a player (incl. knockdown + playoff rounds)
+function buildPlayerStats(tid, pi, league, schedule = SCHEDULE) {
   const rounds = [];
 
-  for (const w of REGULAR_WEEKS) {
-    const opp = getOpponent(tid, w);
+  for (const w of PROFILE_WEEKS) {
+    const opp = getOpponent(tid, w, null, schedule);
     if (!opp) continue;
     const mk = matchKey(w, Math.min(tid, opp), Math.max(tid, opp));
     const rec = league.results[w]?.[mk];
@@ -130,7 +130,7 @@ function buildPlayerStats(tid, pi, league) {
   const losses = rounds.filter(r => r.lost).length;
   const ties = rounds.filter(r => r.tied).length;
   const currentHcp = played
-    ? getEffectiveHcp(tid, pi, REGULAR_WEEKS[REGULAR_WEEKS.length - 1] + 1, league.results, league.handicaps, league.hcpOverrides || {}, league.cancelledWeeks)
+    ? getEffectiveHcp(tid, pi, PROFILE_WEEKS[PROFILE_WEEKS.length - 1] + 1, league.results, league.handicaps, league.hcpOverrides || {}, league.cancelledWeeks)
     : (league.handicaps?.[tid]?.[pi] ?? 0);
 
   // HCP progression: starting HCP + HCP earned after each played round
@@ -199,14 +199,14 @@ function formatPhone(val) {
 }
 
 // Player card for the roster grid
-function PlayerCard({ tid, pi, league, onClick }) {
+function PlayerCard({ tid, pi, league, onClick, schedule = SCHEDULE }) {
   const contacts = league.contacts || {};
   const team = TEAMS[tid];
   const name = pi === 0 ? team?.p1 : team?.p2;
-  const hcp = getEffectiveHcp(tid, pi, 18, league.results, league.handicaps, league.hcpOverrides || {}, league.cancelledWeeks);
+  const hcp = getEffectiveHcp(tid, pi, PROFILE_WEEKS[PROFILE_WEEKS.length - 1] + 1, league.results, league.handicaps, league.hcpOverrides || {}, league.cancelledWeeks);
   let totalStab = 0;
-  for (const w of REGULAR_WEEKS) {
-    const o = getOpponent(tid, w);
+  for (const w of PROFILE_WEEKS) {
+    const o = getOpponent(tid, w, null, schedule);
     if (!o) continue;
     const mk = matchKey(w, Math.min(tid, o), Math.max(tid, o));
     const rec = league.results[w]?.[mk];
@@ -283,10 +283,10 @@ function PlayerCard({ tid, pi, league, onClick }) {
 }
 
 // Full player profile
-function PlayerProfile({ tid, pi, league, onBack, isAdmin, saveLeague }) {
+function PlayerProfile({ tid, pi, league, onBack, isAdmin, saveLeague, schedule = SCHEDULE }) {
   const team = TEAMS[tid];
   const name = pi === 0 ? team?.p1 : team?.p2;
-  const stats = useMemo(() => buildPlayerStats(tid, pi, league), [tid, pi, league.results]);
+  const stats = useMemo(() => buildPlayerStats(tid, pi, league, schedule), [tid, pi, league.results, schedule]);
   const contactKey = `${tid}-${pi}`;
   const savedContact = (league.contacts || {})[contactKey] || {};
   const [editingContact, setEditingContact] = useState(false);
@@ -589,7 +589,7 @@ function PlayerProfile({ tid, pi, league, onBack, isAdmin, saveLeague }) {
 }
 
 // Main screen
-export default function PlayerScreen({ league, initialPlayer, isAdmin, saveLeague }) {
+export default function PlayerScreen({ league, initialPlayer, isAdmin, saveLeague, schedule = SCHEDULE }) {
   const [selected, setSelected] = useState(initialPlayer || null);
   const [search, setSearch] = useState("");
 
@@ -603,7 +603,7 @@ export default function PlayerScreen({ league, initialPlayer, isAdmin, saveLeagu
   if (selected) {
     return (
       <div style={{ maxWidth: "700px", margin: "0 auto", padding: "20px 14px" }}>
-        <PlayerProfile tid={selected.tid} pi={selected.pi} league={league} onBack={() => setSelected(null)} isAdmin={isAdmin} saveLeague={saveLeague} />
+        <PlayerProfile tid={selected.tid} pi={selected.pi} league={league} onBack={() => setSelected(null)} isAdmin={isAdmin} saveLeague={saveLeague} schedule={schedule} />
       </div>
     );
   }
@@ -635,6 +635,7 @@ export default function PlayerScreen({ league, initialPlayer, isAdmin, saveLeagu
             key={`${p.tid}-${p.pi}`}
             tid={p.tid} pi={p.pi}
             league={league}
+            schedule={schedule}
             onClick={() => setSelected({ tid: p.tid, pi: p.pi })}
           />
         ))}
