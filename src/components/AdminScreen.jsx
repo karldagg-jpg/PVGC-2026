@@ -1421,8 +1421,8 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
         </AccordionSection>
       )}
 
-      {/* ── Weekly Points Table ─────────────────────────────────── */}
-      {weeklyTeamPts && (() => {
+      {/* ── Weekly Points Table ── hidden for 2026 (unused); remove at season-end cleanup ── */}
+      {false && weeklyTeamPts && (() => {
         const weeksWithData = [];
         for (let w = 1; w <= 17; w++) {
           if (Object.values(weeklyTeamPts).some(tw => tw[w] != null)) weeksWithData.push(w);

@@ -733,9 +733,10 @@ const [seasonYear] = useState(SEASON_YEAR);
     setMatch(fn);
   };
 
-  const TABS=["schedule","live","scoring","entry","standings","masters","weekly","poty","hcp","playoffs","players","rules","admin"];
+  // Board(masters)/Predict/Pulse hidden for 2026 (unused) — code kept; delete at season-end cleanup.
+  const TABS=["schedule","live","scoring","entry","standings","weekly","poty","hcp","playoffs","players","rules","admin"];
   const PRIMARY_TABS=["schedule","live","scoring","standings","players","poty","hcp","rules","contacts","weekly"];
-  const MORE_TABS=["entry","masters","playoffs","stats","admin","verify","predict","pulse","howto"].filter(t => t !== "verify" || isAdmin);
+  const MORE_TABS=["entry","playoffs","stats","admin","verify","howto"].filter(t => t !== "verify" || isAdmin);
   const TAB_LABEL={schedule:"Schedule",live:"Live",scoring:"Scoring",entry:"Entry",standings:"Standings",masters:"Board",weekly:"Weekly",poty:"POTY",hcp:"HCP",playoffs:"Playoffs",players:"Players",contacts:"Subs",stats:"Stats",rules:"Rules",admin:"Admin",verify:"Verify",predict:"Predict",pulse:"Pulse",howto:"How To"};
   const inMore = MORE_TABS.includes(screen);
 
