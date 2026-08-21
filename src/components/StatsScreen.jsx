@@ -86,8 +86,13 @@ export default function StatsScreen({ league }) {
   const avg9Gross = holesWithData.length === 9 ? (stats.reduce((s, h) => s + (h.avgGross ?? 0), 0)).toFixed(1) : null;
   const avg9Pts   = holesWithData.length === 9 ? (stats.reduce((s, h) => s + (h.avgPts   ?? 0), 0)).toFixed(1) : null;
 
+  // Weeks actually played: has scored records AND not a cancelled/rained-out week
+  // (cancelled weeks can still carry a leftover record, which shouldn't count).
+  const cancelledSet = new Set(
+    [...(league.cancelledWeeks instanceof Set ? league.cancelledWeeks : (league.cancelledWeeks || []))].map(Number)
+  );
   const weeksPlayed = Object.keys(league.results || {}).filter(
-    w => Object.keys(league.results[w] || {}).length > 0
+    w => !cancelledSet.has(Number(w)) && Object.keys(league.results[w] || {}).length > 0
   ).length;
 
   // Quick-fact summaries
@@ -110,7 +115,7 @@ export default function StatsScreen({ league }) {
         Hole Stats
       </div>
       <div style={{ color: M, fontSize: "14px", marginBottom: "18px" }}>
-        Scoring distribution &amp; averages by hole · all regular-season rounds
+        Scoring distribution &amp; averages by hole · every scored round, incl. the Knockdown
       </div>
 
       {/* Player filter */}
