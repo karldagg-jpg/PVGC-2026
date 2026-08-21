@@ -53,14 +53,34 @@ const PRINT_SCHEDULES = {
   2026: { scheduleRaw: L2026.SCHEDULE_RAW, getTeeTimes: L2026.getTeeTimes, teams: L2026.TEAMS },
 };
 
-function printStarterSheet(week, pairs, teeTimes, schedRaw, teams) {
+function printStarterSheet(week, pairs, teeTimes, schedRaw, teams, allSlots, roundLabel) {
   const dateStr = fmtDate(schedRaw.find(r => r[0] === week)?.[1]) || "";
-  const rows = pairs.map(([ta, tb], i) => {
-    const time = teeTimes[i] || "";
+  const chk = `<span style="display:inline-block;width:14px;height:14px;border:1.5px solid #333;border-radius:2px;margin-right:4px;vertical-align:middle"></span>`;
+  // Map each match to its tee time, then render every slot — filled matches + blank "open" rows.
+  const byTime = {};
+  pairs.forEach((p, i) => { const t = teeTimes[i]; if (t && Array.isArray(p)) byTime[t] = p; });
+  const slots = (allSlots && allSlots.length) ? [...allSlots] : [...teeTimes];
+  teeTimes.forEach(t => { if (t && !slots.includes(t)) slots.push(t); }); // never drop a scheduled match
+  const rows = slots.map((time, i) => {
+    const bg = i % 2 === 0 ? "background:#f9f9f9" : "background:#fff";
+    const pr = byTime[time];
+    if (!pr) {
+      return `<tr style="${bg}">
+      <td style="padding:11px 10px;font-weight:700;font-size:13px;white-space:nowrap;border-right:2px solid #ccc">${time}</td>
+      <td colspan="2" style="padding:11px 12px;border-right:2px solid #ccc">
+        <div style="font-size:10px;color:#8a8a8a;text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:8px">Open · League Play</div>
+        <div style="display:flex;gap:18px">
+          <div style="flex:1"><div style="border-bottom:1px solid #bbb;height:17px;margin-bottom:7px"></div><div style="border-bottom:1px solid #bbb;height:17px"></div></div>
+          <div style="flex:1"><div style="border-bottom:1px solid #bbb;height:17px;margin-bottom:7px"></div><div style="border-bottom:1px solid #bbb;height:17px"></div></div>
+        </div>
+      </td>
+      <td style="padding:8px 10px;min-width:120px"><div style="border-bottom:1px solid #ccc;height:14px;margin-bottom:4px"></div><div style="border-bottom:1px solid #ccc;height:14px"></div></td>
+    </tr>`;
+    }
+    const [ta, tb] = pr;
     const t1 = teams[ta] || {};
     const t2 = teams[tb] || {};
-    const chk = `<span style="display:inline-block;width:14px;height:14px;border:1.5px solid #333;border-radius:2px;margin-right:4px;vertical-align:middle"></span>`;
-    return `<tr style="${i % 2 === 0 ? "background:#f9f9f9" : "background:#fff"}">
+    return `<tr style="${bg}">
       <td style="padding:8px 10px;font-weight:700;font-size:13px;white-space:nowrap;border-right:2px solid #ccc">${time}</td>
       <td style="padding:8px 10px;border-right:1px solid #ddd">
         <div style="font-weight:700;font-size:12px;color:#1e4d2b;margin-bottom:4px">T${ta} · ${t1.name || ""}</div>
@@ -79,9 +99,10 @@ function printStarterSheet(week, pairs, teeTimes, schedRaw, teams) {
       </td>
     </tr>`;
   });
+  const title = roundLabel ? `${roundLabel} — Week ${week}` : `Week ${week}`;
 
   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
-<title>PVGC Week ${week} Starter Sheet</title>
+<title>PVGC ${title} Starter Sheet</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:Arial,sans-serif;color:#111;background:#fff;padding:16px 20px}
@@ -94,8 +115,8 @@ tr{border-bottom:1.5px solid #ccc}
 .footer-line{border-top:1px solid #bbb;padding-top:4px;min-width:160px}
 @media print{body{padding:8px};@page{size:portrait;margin:12mm}}
 </style></head><body>
-<h1>⛳ PVGC Golf League — Week ${week} Starter Sheet</h1>
-<div class="sub">${dateStr ? dateStr + " &nbsp;·&nbsp; " : ""}Wednesdays &nbsp;·&nbsp; First tee 4:10 PM &nbsp;·&nbsp; 18 Teams</div>
+<h1>⛳ PVGC Golf League — ${title} Starter Sheet</h1>
+<div class="sub">${dateStr ? dateStr + " &nbsp;·&nbsp; " : ""}First tee 4:10 PM &nbsp;·&nbsp; QF groups shaded; blank rows are open for league play</div>
 <table>
   <thead>
     <tr>
@@ -109,7 +130,7 @@ tr{border-bottom:1.5px solid #ccc}
 </table>
 <div class="footer">
   <div class="footer-line">Weather: _______________________</div>
-  <div class="footer-line">Groups out: ______ / ${pairs.length}</div>
+  <div class="footer-line">Groups out: ______ / ${slots.length}</div>
 </div>
 </body></html>`;
 
@@ -1007,7 +1028,7 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
             </select>
           </div>
           <button
-            onClick={() => printStarterSheet(selWeek, pairs, activeSched.getTeeTimes(selWeek), schedRaw, schedTeams)}
+            onClick={() => printStarterSheet(selWeek, pairs, activeSched.getTeeTimes(selWeek), schedRaw, schedTeams, activeSched.getTeeTimes(1), REPLAY_WEEK_LABEL[selWeek])}
             disabled={pairs.length === 0}
             style={{
               padding: "8px 18px", borderRadius: "8px", cursor: pairs.length ? "pointer" : "not-allowed",
