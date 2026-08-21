@@ -416,10 +416,26 @@ const CSS = `
 .pvgc-live .sheet .tot{color:var(--gold);font-weight:800}
 .pvgc-live .foot{max-width:760px;margin:18px auto 0;padding:0 16px;font-size:11px;color:var(--muted);text-align:center;line-height:1.5}
 .pvgc-live .foot .g{color:var(--green)}
-.pvgc-live.tv .wrap{max-width:1100px}
-.pvgc-live.tv .nm{font-size:19px}.pvgc-live.tv .score{font-size:44px}
-.pvgc-live.tv .strip,.pvgc-live.tv .expander,.pvgc-live.tv .selrow{display:none}
-.pvgc-live.tv .cards{gap:14px}
+.pvgc-live.tv .wrap{max-width:1200px}
+.pvgc-live.tv .strip,.pvgc-live.tv .expander,.pvgc-live.tv .selrow,.pvgc-live.tv .foot{display:none}
+.pvgc-live.tv h1{font-size:clamp(18px,2.6vw,30px)}
+.pvgc-live.tv .sub{font-size:clamp(11px,1.3vw,15px)}
+.pvgc-live.tv .ticker{height:42px}.pvgc-live.tv .m{font-size:clamp(13px,1.6vw,20px)}
+.pvgc-live.tv .cards{gap:16px;margin-top:16px}
+.pvgc-live.tv .chead{padding:13px 18px}
+.pvgc-live.tv .badge{font-size:clamp(11px,1.3vw,15px);padding:5px 13px}
+.pvgc-live.tv .lbl{font-size:clamp(10px,1.1vw,13px)}
+.pvgc-live.tv .row{padding:clamp(16px,2.4vw,28px) 18px}
+.pvgc-live.tv .seed{font-size:clamp(13px,1.6vw,20px);width:30px}
+.pvgc-live.tv .nm{font-size:clamp(20px,3vw,34px);font-weight:800}
+.pvgc-live.tv .spark{gap:5px;margin-top:10px}
+.pvgc-live.tv .pip{width:clamp(14px,1.7vw,22px);height:clamp(14px,1.7vw,22px);border-radius:4px}
+.pvgc-live.tv .thru .t{font-size:clamp(12px,1.3vw,17px)}
+.pvgc-live.tv .score{font-size:clamp(48px,8vw,84px);min-width:66px}
+.pvgc-live.tv .arw{font-size:clamp(17px,2vw,28px);width:24px}
+.pvgc-live.tv .cfoot{padding:13px 18px 17px}
+.pvgc-live.tv .margin{font-size:clamp(13px,1.5vw,19px)}
+.pvgc-live.tv .mom{height:8px}
 @media(min-width:760px){.pvgc-live.tv .cards{grid-template-columns:1fr 1fr}}
 @keyframes lpulse{0%{box-shadow:0 0 0 0 rgba(207,55,44,.6)}70%{box-shadow:0 0 0 8px rgba(207,55,44,0)}100%{box-shadow:0 0 0 0 rgba(207,55,44,0)}}
 @keyframes lmarq{from{transform:translateX(0)}to{transform:translateX(-50%)}}
