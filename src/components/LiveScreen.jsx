@@ -162,20 +162,21 @@ export default function LiveScreen({ league, schedule = SCHEDULE, qfSeeds = [], 
     return { anyStarted, allFinal: allFinal && count > 0, count };
   };
 
+  // Auto-pick the current week by DATE (reliable) — the next round on/after
+  // today, else the most recent week once the season is over. We do NOT scan
+  // for "unfinished-looking" old matches (rainouts/phantoms never reach thru 9).
   const today = new Date().toISOString().slice(0, 10);
-  // Pick the active week: an in-progress round wins; else the next upcoming; else the latest played.
-  let activeWeek = null;
-  const inProgress = weeksWithPairs.filter(w => { const s = statusOf(w); return s.anyStarted && !s.allFinal; });
-  if (inProgress.length) {
-    activeWeek = Math.max(...inProgress);
-  } else {
-    const upcoming = weeksWithPairs.filter(w => !statusOf(w).anyStarted && (schedule[w]?.date || "9999") >= today);
-    if (upcoming.length) activeWeek = upcoming.sort((a, b) => (schedule[a].date || "").localeCompare(schedule[b].date || ""))[0];
-    else {
-      const played = weeksWithPairs.filter(w => statusOf(w).anyStarted);
-      activeWeek = played.length ? Math.max(...played) : (weeksWithPairs[weeksWithPairs.length - 1] || null);
-    }
-  }
+  const autoWeek = (() => {
+    if (!weeksWithPairs.length) return null;
+    const upcoming = weeksWithPairs
+      .filter(w => (schedule[w]?.date || "9999") >= today)
+      .sort((a, b) => (schedule[a].date || "").localeCompare(schedule[b].date || ""));
+    return upcoming.length ? upcoming[0] : weeksWithPairs[weeksWithPairs.length - 1];
+  })();
+
+  const [selWeek, setSelWeek] = useState(null); // null = follow the live/current week
+  const activeWeek = (selWeek && weeksWithPairs.includes(selWeek)) ? selWeek : autoWeek;
+  const onAuto = activeWeek === autoWeek;
 
   const wrap = { maxWidth: "620px", margin: "0 auto", padding: "20px 14px" };
   if (!activeWeek) {
@@ -186,19 +187,61 @@ export default function LiveScreen({ league, schedule = SCHEDULE, qfSeeds = [], 
   const teeTimes = getTeeTimes(activeWeek) || [];
   const roundName = ROUND[activeWeek] || `Week ${activeWeek}`;
   const dateStr = schedule[activeWeek]?.date ? fmtDate(schedule[activeWeek].date) : "";
-  const anyLive = inProgress.includes(activeWeek);
+  const status = statusOf(activeWeek);
+  // "Live" only when we're following the current week AND it's actually being played.
+  const autoIsCurrent = (schedule[activeWeek]?.date || "9999") >= today;
+  const showLive = onAuto && autoIsCurrent && status.anyStarted && !status.allFinal;
   const labelFor = (i) => activeWeek === 21 ? (i === 0 ? "Championship" : "3rd Place") : `Match ${i + 1}`;
+
+  const idx = weeksWithPairs.indexOf(activeWeek);
+  const goto = (w) => setSelWeek(w === autoWeek ? null : w);
+  const weekName = (w) => ROUND[w] || `Week ${w}`;
+
+  const navBtn = (enabled) => ({
+    width: "34px", height: "34px", borderRadius: "8px", flexShrink: 0,
+    border: `1px solid ${GOLD}44`, background: "transparent",
+    color: enabled ? CREAM : M + "44", fontSize: "16px", fontWeight: 700,
+    cursor: enabled ? "pointer" : "default", fontFamily: FB,
+  });
 
   return (
     <div style={wrap}>
       <div style={{ display: "flex", alignItems: "center", gap: "9px", marginBottom: "3px" }}>
-        {anyLive && <span style={{ width: "9px", height: "9px", borderRadius: "50%", background: R, boxShadow: `0 0 0 0 ${R}`, animation: "livePulse 1.6s infinite", flexShrink: 0 }} />}
+        {showLive && <span style={{ width: "9px", height: "9px", borderRadius: "50%", background: R, boxShadow: `0 0 0 0 ${R}`, animation: "livePulse 1.6s infinite", flexShrink: 0 }} />}
         <div style={{ fontFamily: FD, fontSize: "27px", fontWeight: 600, color: CREAM }}>
-          {anyLive ? "Live Scoring" : "Scoreboard"}
+          {showLive ? "Live Scoring" : "Scoreboard"}
         </div>
       </div>
-      <div style={{ color: M, fontSize: "14px", marginBottom: "16px" }}>
-        {roundName}{dateStr ? ` · ${dateStr}` : ""}{anyLive ? " · updating live" : ""}
+      <div style={{ color: M, fontSize: "14px", marginBottom: "14px" }}>
+        {roundName}{dateStr ? ` · ${dateStr}` : ""}{showLive ? " · updating live" : ""}
+      </div>
+
+      {/* Week selector */}
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+        <button style={navBtn(idx > 0)} disabled={idx <= 0} onClick={() => idx > 0 && goto(weeksWithPairs[idx - 1])}>‹</button>
+        <div style={{ position: "relative", flex: 1 }}>
+          <select
+            value={activeWeek}
+            onChange={(e) => goto(parseInt(e.target.value))}
+            style={{
+              width: "100%", height: "34px", padding: "0 10px", borderRadius: "8px",
+              border: `1px solid ${GOLD}55`, background: "#fff8e6", color: CREAM,
+              fontFamily: FB, fontSize: "14px", fontWeight: 600, cursor: "pointer",
+              appearance: "none", textAlignLast: "center",
+            }}
+          >
+            {weeksWithPairs.map(w => (
+              <option key={w} value={w}>{weekName(w)}{w === autoWeek ? " (current)" : ""}</option>
+            ))}
+          </select>
+        </div>
+        <button style={navBtn(idx < weeksWithPairs.length - 1)} disabled={idx >= weeksWithPairs.length - 1} onClick={() => idx < weeksWithPairs.length - 1 && goto(weeksWithPairs[idx + 1])}>›</button>
+        {!onAuto && (
+          <button
+            onClick={() => setSelWeek(null)}
+            style={{ height: "34px", padding: "0 12px", borderRadius: "8px", flexShrink: 0, border: `1px solid ${G}66`, background: G + "12", color: G, fontSize: "12px", fontWeight: 700, letterSpacing: "0.04em", cursor: "pointer", fontFamily: FB, whiteSpace: "nowrap" }}
+          >● Now</button>
+        )}
       </div>
 
       <style>{`@keyframes livePulse { 0%{box-shadow:0 0 0 0 ${R}88;} 70%{box-shadow:0 0 0 7px ${R}00;} 100%{box-shadow:0 0 0 0 ${R}00;} }`}</style>
