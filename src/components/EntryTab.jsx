@@ -28,6 +28,12 @@ function EntryTab({league, saveLeague, saveMatchDoc, entryWeek, setEntryWeek, en
   const entOpp = getOpponent(entryTeam, entryWeek, entDynPairs);
   const entT1id = entryTeam;
   const entT2id = entOpp;
+  // Players free to sub this week = anyone whose team isn't playing (empty in a
+  // regular week where all 18 teams play; the non-playoff players in the playoffs).
+  const weekPairs = entDynPairs || (SCHEDULE[entryWeek]?.pairs || []);
+  const playingTeams = new Set();
+  weekPairs.forEach(pr => { if (Array.isArray(pr)) { playingTeams.add(pr[0]); playingTeams.add(pr[1]); } });
+  const eligibleSubs = ALL_ROSTER.filter(r => !playingTeams.has(parseInt(r.id.split("-")[0], 10)));
   const mk = entT1id && entT2id ? matchKey(entryWeek, Math.min(entT1id,entT2id), Math.max(entT1id,entT2id)) : null;
   const savedRec = mk ? league.results[entryWeek]?.[mk] : null;
 
@@ -405,12 +411,12 @@ function EntryTab({league, saveLeague, saveMatchDoc, entryWeek, setEntryWeek, en
                     <option value="sub">Sub</option>
                     <option value="phantom">Phantom</option>
                   </select>
-                  {ptype==="normal" && (
+                  {ptype==="normal" && (eligibleSubs.length > 0 || subId) && (
                     <select value={subId||""} onChange={e=>setEntrySub(p.tid,p.pi,e.target.value)} title="Playing sub — enters their own scores off their own handicap"
                       style={{background: subId?GOLD+"22":"#fff", border:`1px solid ${subId?GOLD:teamColor+"66"}`, borderRadius:"7px",
                         color: subId?"#7a5a00":M, fontFamily:FB, fontSize:"13px", padding:"5px 8px", cursor:"pointer", outline:"none", flexShrink:0, maxWidth:"160px"}}>
                       <option value="">No sub</option>
-                      {ALL_ROSTER.filter(r=>r.id!==`${p.tid}-${p.pi}`).map(r=><option key={r.id} value={r.id}>Sub: {r.name}</option>)}
+                      {eligibleSubs.map(r=><option key={r.id} value={r.id}>Sub: {r.name}</option>)}
                     </select>
                   )}
                 </div>
