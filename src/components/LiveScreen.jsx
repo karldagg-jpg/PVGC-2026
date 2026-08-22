@@ -120,8 +120,8 @@ export default function LiveScreen({ league, schedule = SCHEDULE, qfSeeds = [], 
             const g = (s[pi] || [])[h] || 0; if (!g) return;
             const pts = stabPts(g, PAR[h], hcpStr(slotHcp(rec, tid, pi, H), SI[h])) || 0; // net Stableford: 3=net birdie, 4+=net eagle
             const nm = slotName(rec, tid, pi);
-            if (pts >= 4) out.push({ c: "clinch", t: `🦅 ${nm} net eagle #${h + 1}` });
-            else if (pts === 3) out.push({ c: "", t: `🐦 ${nm} net birdie #${h + 1}` });
+            if (pts >= 4) out.push({ c: "eagle", t: `🦅 ${nm} net eagle #${h + 1}` });
+            else if (pts === 3) out.push({ c: "birdie", t: `🐦 ${nm} net birdie #${h + 1}` });
           });
         });
         const A = cumTeam(rec, 0, tlow, h + 1, H), B = cumTeam(rec, 1, thigh, h + 1, H);
@@ -199,7 +199,7 @@ export default function LiveScreen({ league, schedule = SCHEDULE, qfSeeds = [], 
 
       {moments.length > 0 && (
         <div className="ticker">
-          <div className="tag">MOMENTS</div>
+          <div className="tag"><span className="tdot" />MOMENTS</div>
           <div className="track-wrap"><div className="track" ref={trackRef}>
             {[0, 1].map(dup => (moments.length ? moments : [{ c: "", t: "⛳ Groups on the tee" }]).map((x, j) => (
               <span key={dup + "-" + j} className={"m " + x.c} dangerouslySetInnerHTML={{ __html: x.t }} />
@@ -353,13 +353,16 @@ const CSS = `
 .pvgc-live .tvbtn:hover{color:var(--ink);border-color:var(--gold)}
 .pvgc-live .backbtn{flex-shrink:0;background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:6px 9px;font-size:12px;font-weight:700;cursor:pointer;margin-right:2px}
 .pvgc-live .backbtn:hover{color:var(--ink);border-color:var(--gold)}
-.pvgc-live .ticker{display:flex;align-items:center;border-bottom:1px solid var(--line);background:var(--tickbg);overflow:hidden;height:34px}
-.pvgc-live .ticker .tag{flex-shrink:0;background:var(--red);color:#fff;font-weight:900;font-size:10px;letter-spacing:.12em;padding:0 10px;height:100%;display:flex;align-items:center}
-.pvgc-live .track-wrap{overflow:hidden;flex:1;height:100%;position:relative}
+.pvgc-live .ticker{display:flex;align-items:center;background:#17402a;overflow:hidden;height:36px;box-shadow:0 4px 14px rgba(0,0,0,.14)}
+.pvgc-live .ticker .tag{flex-shrink:0;display:flex;align-items:center;gap:6px;color:#7fe0a3;font-weight:900;font-size:10px;letter-spacing:.14em;padding:0 12px;height:100%;border-right:1px solid rgba(255,255,255,.13)}
+.pvgc-live .ticker .tag .tdot{width:8px;height:8px;border-radius:50%;background:#ff5b52;box-shadow:0 0 0 0 #ff5b52;animation:lpulse 1.6s infinite;flex-shrink:0}
+.pvgc-live .track-wrap{overflow:hidden;flex:1;height:100%;position:relative;-webkit-mask-image:linear-gradient(90deg,transparent,#000 22px,#000 calc(100% - 22px),transparent);mask-image:linear-gradient(90deg,transparent,#000 22px,#000 calc(100% - 22px),transparent)}
 .pvgc-live .track{display:flex;position:absolute;white-space:nowrap;height:100%;align-items:center;animation:lmarq 30s linear infinite;will-change:transform}
-.pvgc-live .m{display:inline-flex;align-items:center;padding:0 20px;font-size:12.5px;color:var(--ink);border-right:1px solid var(--line)}
-.pvgc-live .m.lead{color:var(--gold);font-weight:700}
-.pvgc-live .m.clinch{color:var(--green);font-weight:800}
+.pvgc-live .m{display:inline-flex;align-items:center;padding:0 20px;font-size:12.5px;color:#eaf5ee;border-right:1px solid rgba(255,255,255,.09)}
+.pvgc-live .m.birdie{color:#6fe6a0;font-weight:700}
+.pvgc-live .m.eagle{color:#ffd45e;font-weight:800}
+.pvgc-live .m.lead{color:#fff;font-weight:800}
+.pvgc-live .m.clinch{color:#6fe6a0;font-weight:800}
 .pvgc-live .selrow{display:flex;align-items:center;gap:8px;padding:14px 0 2px}
 .pvgc-live .nav{width:34px;height:34px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--ink);font-size:16px;font-weight:700;cursor:pointer;flex-shrink:0}
 .pvgc-live .nav:disabled{color:var(--muted);opacity:.4;cursor:default}
@@ -446,5 +449,5 @@ const CSS = `
 @keyframes lmarq{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 @keyframes lpop{0%{transform:scale(1)}35%{transform:scale(1.26);color:var(--gold)}100%{transform:scale(1)}}
 @keyframes ldot{0%{transform:scale(0);opacity:0}60%{transform:scale(1.35)}100%{transform:scale(1)}}
-@media (prefers-reduced-motion:reduce){.pvgc-live .dot,.pvgc-live .track,.pvgc-live .score.bumped,.pvgc-live .pip.just{animation:none}}
+@media (prefers-reduced-motion:reduce){.pvgc-live .dot,.pvgc-live .tdot,.pvgc-live .track,.pvgc-live .score.bumped,.pvgc-live .pip.just{animation:none}}
 `;
