@@ -123,7 +123,7 @@ export default function LiveScreen({ league, schedule = SCHEDULE, qfSeeds = [], 
             if (pts === 5) out.push({ c: "albatross", t: `🦅 ${nm} net albatross #${h + 1}` });
             else if (pts === 4) out.push({ c: "eagle", t: `🦅 ${nm} net eagle #${h + 1}` });
             else if (pts === 3) out.push({ c: "birdie", t: `🐦 ${nm} net birdie #${h + 1}` });
-            else if (pts === -1) out.push({ c: "double", t: `${nm} −1 on #${h + 1}` });
+            else if (pts === -1) out.push({ c: "double", t: `💣 ${nm} −1 on #${h + 1}` });
           });
         });
         const A = cumTeam(rec, 0, tlow, h + 1, H), B = cumTeam(rec, 1, thigh, h + 1, H);
