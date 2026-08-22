@@ -323,8 +323,9 @@ const CSS = `
   --num:'SF Pro Display',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
   color:var(--ink);font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;min-height:100vh;
   background:radial-gradient(120% 90% at 85% -10%,rgba(214,140,30,.12),transparent 55%),linear-gradient(180deg,#f6f3ea,#eef1e8 60%,#e8ece2);
-  -webkit-font-smoothing:antialiased;padding-bottom:56px;
+  -webkit-font-smoothing:antialiased;padding-bottom:56px;overflow-x:hidden;
 }
+.pvgc-live *{min-width:0}
 .pvgc-live.dark{
   --bg:#07110d;--bg2:#0d1a14;--bg3:#12241a;--ink:#f1eee2;--muted:#7f978a;--line:rgba(227,186,78,.14);
   --gold:#e3ba4e;--green:#45d17f;--green-dim:#2f8f57;--red:#ff5b52;--amber:#f4a52a;--shadow:0 10px 30px rgba(0,0,0,.45);
@@ -343,7 +344,7 @@ const CSS = `
 .pvgc-live .dot.off{background:var(--muted);animation:none}
 .pvgc-live .live b{font-size:10px;letter-spacing:.16em;font-weight:800;color:var(--red)}
 .pvgc-live .dot.off ~ b,.pvgc-live .live .dot.off+b{color:var(--muted)}
-.pvgc-live .mtitle{min-width:0}
+.pvgc-live .mtitle{flex:1;min-width:0}
 .pvgc-live h1{font-size:14px;font-weight:800;letter-spacing:.02em;margin:0;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pvgc-live h1 span{color:var(--gold)}
 .pvgc-live .sub{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
