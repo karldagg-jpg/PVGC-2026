@@ -256,21 +256,35 @@ function stabPts(gross, par, strokes) {
 }
 
 // ── Compute team total from a saved match record ───────────────
+// Effective playing handicap for one slot of a match. A "playing sub"
+// (rec.subs["tid-pi"]) plays off their OWN captured handicap; otherwise use the
+// snapshotted handicap, falling back to the current handicap.
+function slotHcp(rec, tid, pi, handicaps) {
+  const sub = rec && rec.subs && rec.subs[`${tid}-${pi}`];
+  if (sub && Number.isFinite(sub.hcp)) return sub.hcp;
+  const snap = rec && rec.hcpSnapshot;
+  return snap ? (snap[tid]||[0,0])[pi]||0 : ((handicaps||{})[tid]||[0,0])[pi]||0;
+}
+// Display name for a slot — the sub's name if one played, else the roster name.
+function slotName(rec, tid, pi, teams=TEAMS) {
+  const sub = rec && rec.subs && rec.subs[`${tid}-${pi}`];
+  if (sub && sub.name) return sub.name;
+  return teams[tid]?.[pi===0?"p1":"p2"] || `P${pi+1}`;
+}
+
 function computeTeamTotal(rec, tIdx, tid, handicaps) {
   let total = 0;
   const types  = tIdx===0 ? rec.t1types  : rec.t2types;
   const scores = tIdx===0 ? rec.t1scores : rec.t2scores;
-  // Use snapshotted handicap if available, else fall back to current
-  const snap = rec.hcpSnapshot;
   for (let pi=0; pi<2; pi++) {
     const type = (types||[])[pi]||"normal";
     if (type==="sub") { total+=6; continue; }
     if (type==="phantom") { total+=2; continue; }
+    const hcp = slotHcp(rec, tid, pi, handicaps); // playing-sub aware
     for (let hi=0; hi<9; hi++) {
       const effHi = (rec.rainout && !((scores||[[],[]])[pi]?.[hi]) && RAINOUT_SUB[hi]!==undefined) ? RAINOUT_SUB[hi] : hi;
       const gross = (scores||[[],[]])[pi]?.[effHi]||0;
       if (!gross) continue;
-      const hcp = snap ? (snap[tid]||[0,0])[pi]||0 : (handicaps[tid]||[0,0])[pi]||0;
       total += stabPts(gross, PAR[hi], hcpStr(hcp, SI[hi]))||0;
     }
   }
@@ -285,12 +299,11 @@ function computePlayerTotal(rec, tIdx, pi, tid, handicaps) {
   if (type==="sub") return 6;
   if (type==="phantom") return 2;
   let total = 0;
-  const snap = rec.hcpSnapshot;
+  const hcp = slotHcp(rec, tid, pi, handicaps); // playing-sub aware
   for (let hi=0; hi<9; hi++) {
     const effHi = (rec.rainout && !((scores||[[],[]])[pi]?.[hi]) && RAINOUT_SUB[hi]!==undefined) ? RAINOUT_SUB[hi] : hi;
     const gross = (scores||[[],[]])[pi]?.[effHi]||0;
     if (!gross) continue;
-    const hcp = snap ? (snap[tid]||[0,0])[pi]||0 : (handicaps[tid]||[0,0])[pi]||0;
     total += stabPts(gross, PAR[hi], hcpStr(hcp, SI[hi]))||0;
   }
   return total;
@@ -608,6 +621,7 @@ function buildGrossHistory(results, upToWeek, defaultHcp=DEFAULT_HCP, cancelledW
         [0,1].forEach((pi) => {
           const type = (types || [])[pi] || 'normal';
           if (type !== 'normal') return; // skip subs/phantoms
+          if (rec.subs && rec.subs[`${tid}-${pi}`]) return; // playing-sub round counts for nobody's handicap
           // Rainout: substitute unplayed holes with earlier hole scores (same as scoring).
           // Cancelled weeks have no records, so they are naturally excluded.
           // Use hcpSnapshot stored with the record for accurate per-hole cap
@@ -825,13 +839,13 @@ function buildWeekRecap(week, results, handicaps, cancelledWeeks=null, loHiOverr
       const tid = tIdx === 0 ? tlow : thigh;
       const scores = tIdx === 0 ? rec.t1scores : rec.t2scores;
       const types  = tIdx === 0 ? rec.t1types  : rec.t2types;
-      const snap   = rec.hcpSnapshot;
       let teamStab = 0;
 
       for (let pi = 0; pi < 2; pi++) {
-        const name = teams[tid]?.[pi === 0 ? "p1" : "p2"] || `P${pi+1}`;
+        const sub = rec.subs && rec.subs[`${tid}-${pi}`];
+        const name = sub && sub.name ? `${sub.name} (sub)` : (teams[tid]?.[pi === 0 ? "p1" : "p2"] || `P${pi+1}`);
         const type = (types || [])[pi] || "normal";
-        const hcp  = snap ? (snap[tid] || [0,0])[pi] || 0 : (handicaps[tid] || [0,0])[pi] || 0;
+        const hcp  = slotHcp(rec, tid, pi, handicaps);
 
         if (type === "sub") {
           lines.push(`  ${name}: SUB (6 pts)`);
@@ -1019,6 +1033,8 @@ export {
   stabPts,
   computeTeamTotal,
   computePlayerTotal,
+  slotHcp,
+  slotName,
   isMatchComplete,
   calcWeekBonus,
   isWeekFullyConfirmed,

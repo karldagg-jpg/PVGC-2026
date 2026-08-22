@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { PAR, SI, RAINOUT_SUB, TEAMS, ALL_PLAYERS } from "../constants/league";
-import { stabPts, hcpStr } from "../lib/leagueLogic";
+import { stabPts, hcpStr, slotHcp } from "../lib/leagueLogic";
 import { G, GO, R, M, CREAM, GOLD, CARD2, FB, FD } from "../constants/theme";
 
 const DIST = [
@@ -29,7 +29,6 @@ function computeStats(results, handicaps, filterTid, filterPi) {
       if (!rec) continue;
       const parts = mk.split("-");
       const tlow = parseInt(parts[1]), thigh = parseInt(parts[2]);
-      const snap = rec.hcpSnapshot || {};
 
       [[tlow, normS(rec.t1scores), rec.t1types],
        [thigh, normS(rec.t2scores), rec.t2types]].forEach(([tid, scores, types]) => {
@@ -37,7 +36,9 @@ function computeStats(results, handicaps, filterTid, filterPi) {
           if (filterTid != null && (tid !== filterTid || pi !== filterPi)) continue;
           const type = (types || [])[pi] || "normal";
           if (type !== "normal") continue;
-          const hcp = (snap[tid] || handicaps?.[tid] || [0, 0])[pi] || 0;
+          // a subbed slot is the sub's round, not the roster player's — skip it when filtering by that player
+          if (filterTid != null && rec.subs && rec.subs[`${tid}-${pi}`]) continue;
+          const hcp = slotHcp(rec, tid, pi, handicaps);
           const gr = scores[pi] || [];
 
           for (let hi = 0; hi < 9; hi++) {

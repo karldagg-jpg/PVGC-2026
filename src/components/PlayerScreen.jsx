@@ -30,6 +30,7 @@ function getEligibility(tid, pi, league, schedule = SCHEDULE) {
     const mk = matchKey(w, Math.min(tid, opp), Math.max(tid, opp));
     const rec = league.results[w]?.[mk];
     if (!rec) continue;
+    if (rec.subs && rec.subs[`${tid}-${pi}`]) continue; // sub covered this slot — doesn't count as the player playing
     const tIdx = tid < opp ? 0 : 1;
     const types = (tIdx === 0 ? rec.t1types : rec.t2types) || [];
     if ((types[pi] || "normal") !== "normal") continue;
@@ -96,6 +97,7 @@ function buildPlayerStats(tid, pi, league, schedule = SCHEDULE) {
     const mk = matchKey(w, Math.min(tid, opp), Math.max(tid, opp));
     const rec = league.results[w]?.[mk];
     if (!rec) continue;
+    if (rec.subs && rec.subs[`${tid}-${pi}`]) continue; // a sub played this slot — not this player's round
     const tIdx = tid < opp ? 0 : 1;
     const types = (tIdx === 0 ? rec.t1types : rec.t2types) || [];
     const type = types[pi] || "normal";
@@ -211,6 +213,7 @@ function PlayerCard({ tid, pi, league, onClick, schedule = SCHEDULE }) {
     const mk = matchKey(w, Math.min(tid, o), Math.max(tid, o));
     const rec = league.results[w]?.[mk];
     if (!rec) continue;
+    if (rec.subs && rec.subs[`${tid}-${pi}`]) continue; // sub played — not this player's round
     const tIdx = tid < o ? 0 : 1;
     const types = (tIdx === 0 ? rec.t1types : rec.t2types) || [];
     if ((types[pi] || "normal") !== "normal") continue;

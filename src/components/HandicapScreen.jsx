@@ -16,6 +16,7 @@ function HandicapScreen({ league, saveLeague, isAdmin, schedule = SCHEDULE }) {
       const mk = matchKey(w, Math.min(tid, opp), Math.max(tid, opp));
       const rec = league.results[w]?.[mk];
       if (!rec || rec.w1stab) continue;
+      if (rec.subs && rec.subs[`${tid}-${pi}`]) continue; // a sub played this slot — not this player's round
       const tIdx = tid < opp ? 0 : 1;
       const scores = (tIdx === 0 ? rec.t1scores : rec.t2scores) || [];
       const types  = (tIdx === 0 ? rec.t1types  : rec.t2types)  || [];

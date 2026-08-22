@@ -5,6 +5,14 @@ import { fmtDate } from "../lib/format";
 import { G, GO, R, M, CREAM, GOLD, FB, FD } from "../constants/theme";
 import { Tag } from "./ui";
 
+// Every league player, for the "playing sub" picker
+const ALL_ROSTER = [];
+for (let t = 1; t <= 18; t++) for (let pi = 0; pi < 2; pi++) {
+  const n = TEAMS[t]?.[pi === 0 ? "p1" : "p2"];
+  if (n) ALL_ROSTER.push({ id: `${t}-${pi}`, name: n });
+}
+const rosterName = (id) => ALL_ROSTER.find(r => r.id === id)?.name || id;
+
 function EntryTab({league, saveLeague, saveMatchDoc, entryWeek, setEntryWeek, entryTeam, setEntryTeam,
                    entryScores, setEntryScores, entrySaved, setEntrySaved,
                    knockdownPairs, qfPairs, sfPairs, finalPairs,
@@ -12,6 +20,7 @@ function EntryTab({league, saveLeague, saveMatchDoc, entryWeek, setEntryWeek, en
   const isReadOnly = (league.readOnlyWeeks || []).includes(entryWeek);
   const cellRefs = useRef({});
   const [draftTypes, setDraftTypes] = useState({});
+  const [draftSubs, setDraftSubs] = useState({}); // draftKey -> { [teamId]: { [pi]: subId|null } }
   const [numpadCell, setNumpadCell] = useState(null); // { row, col }
   const [numpadVal, setNumpadVal] = useState("");
 
@@ -118,6 +127,24 @@ function EntryTab({league, saveLeague, saveMatchDoc, entryWeek, setEntryWeek, en
     setEntrySaved(false);
   };
 
+  // ── Playing-sub helpers ──
+  const subHcpFor = (subId) => {
+    const [st, sp] = subId.split("-").map(Number);
+    return getEffectiveHcp(st, sp, entryWeek, league.results, league.handicaps, league.hcpOverrides || {}, league.cancelledWeeks);
+  };
+  const getEntrySubId = (tid, pi) => {
+    const d = draftSubs[draftKey]?.[tid];
+    if (d && d[pi] !== undefined) return d[pi];              // draft (may be null = explicitly cleared)
+    return savedRec?.subs?.[`${tid}-${pi}`]?.id || null;      // else whatever was saved
+  };
+  const setEntrySub = (tid, pi, subId) => {
+    setDraftSubs(prev => {
+      const cur = prev[draftKey] || {};
+      return { ...prev, [draftKey]: { ...cur, [tid]: { ...(cur[tid] || {}), [pi]: subId || null } } };
+    });
+    setEntrySaved(false);
+  };
+
   const saveEntry = async () => {
     if (!mk || !entT1id || !entT2id) return;
     if (isReadOnly) return;
@@ -139,12 +166,26 @@ function EntryTab({league, saveLeague, saveMatchDoc, entryWeek, setEntryWeek, en
       [tlow]: { confirmedBy: "Admin", confirmedAt: now },
       [thigh]: { confirmedBy: "Admin", confirmedAt: now },
     };
+    // Playing subs — capture each sub's identity + current handicap (locked into the record)
+    const subsDraft = draftSubs[draftKey];
+    const subs = {};
+    for (const teamId of [entT1id, entT2id]) {
+      for (let pi = 0; pi < 2; pi++) {
+        const sid = subsDraft?.[teamId]?.[pi] !== undefined ? subsDraft[teamId][pi] : (existing.subs?.[`${teamId}-${pi}`]?.id || null);
+        if (sid) {
+          const [st, sp] = sid.split("-").map(Number);
+          subs[`${teamId}-${pi}`] = { id: sid, name: TEAMS[st]?.[sp === 0 ? "p1" : "p2"] || sid,
+            hcp: getEffectiveHcp(st, sp, entryWeek, league.results, league.handicaps, league.hcpOverrides || {}, league.cancelledWeeks) };
+        }
+      }
+    }
     const toSave = {
       ...initMatch(), ...existing,
       t1scores: t1s, t2scores: t2s,
       t1types: t1types_draft,
       t2types: t2types_draft,
       hcpSnapshot,
+      subs,
       confirmations,
       locked: true,
     };
@@ -156,6 +197,7 @@ function EntryTab({league, saveLeague, saveMatchDoc, entryWeek, setEntryWeek, en
     }
     setEntryScores(prev => { const n={...prev}; delete n[draftKey]; return n; });
     setDraftTypes(prev => { const n={...prev}; delete n[draftKey]; return n; });
+    setDraftSubs(prev => { const n={...prev}; delete n[draftKey]; return n; });
     setEntrySaved(true);
     setTimeout(() => setEntrySaved(false), 2500);
   };
@@ -295,9 +337,10 @@ function EntryTab({league, saveLeague, saveMatchDoc, entryWeek, setEntryWeek, en
         {/* One card per player */}
         {players.map((p, rowIdx) => {
           const pname = TEAMS[p.tid]?.[p.pi===0?"p1":"p2"] || "";
-          const hcp = getEffectiveHcp(p.tid, p.pi, entryWeek, league.results, league.handicaps, league.hcpOverrides||{}, league.cancelledWeeks);
           const teamColor = p.tIdx===0 ? G : GO;
           const ptype = getEntryType(p.tIdx, p.pi);
+          const subId = getEntrySubId(p.tid, p.pi);           // a playing sub filling this slot?
+          const hcp = subId ? subHcpFor(subId) : getEffectiveHcp(p.tid, p.pi, entryWeek, league.results, league.handicaps, league.hcpOverrides||{}, league.cancelledWeeks);
           const roundCount = (() => {
             let c = 0;
             for (let w = 1; w < entryWeek; w++) {
@@ -362,7 +405,20 @@ function EntryTab({league, saveLeague, saveMatchDoc, entryWeek, setEntryWeek, en
                     <option value="sub">Sub</option>
                     <option value="phantom">Phantom</option>
                   </select>
+                  {ptype==="normal" && (
+                    <select value={subId||""} onChange={e=>setEntrySub(p.tid,p.pi,e.target.value)} title="Playing sub — enters their own scores off their own handicap"
+                      style={{background: subId?GOLD+"22":"#fff", border:`1px solid ${subId?GOLD:teamColor+"66"}`, borderRadius:"7px",
+                        color: subId?"#7a5a00":M, fontFamily:FB, fontSize:"13px", padding:"5px 8px", cursor:"pointer", outline:"none", flexShrink:0, maxWidth:"160px"}}>
+                      <option value="">No sub</option>
+                      {ALL_ROSTER.filter(r=>r.id!==`${p.tid}-${p.pi}`).map(r=><option key={r.id} value={r.id}>Sub: {r.name}</option>)}
+                    </select>
+                  )}
                 </div>
+                {subId && (
+                  <div style={{padding:"4px 16px 0",fontSize:"12px",color:"#7a5a00",fontWeight:600}}>
+                    ▶ {rosterName(subId)} subbing (plays off HCP {hcp}) — {pname}'s handicap is untouched
+                  </div>
+                )}
                 {ptype==="normal"&&grossTotal>0&&(
                   <div style={{display:"flex",gap:"14px",alignItems:"center",marginLeft:"12px",flexShrink:0}}>
                     <div style={{textAlign:"center"}}>

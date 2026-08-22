@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { TEAMS, SCHEDULE, PAR, SI, getTeeTimes } from "../constants/league";
-import { matchKey, computeTeamTotal, computePlayerTotal, stabPts, hcpStr } from "../lib/leagueLogic";
+import { matchKey, computeTeamTotal, computePlayerTotal, stabPts, hcpStr, slotHcp, slotName } from "../lib/leagueLogic";
 import { fmtDate } from "../lib/format";
 
 const ROUND = { 18: "Knockdown Round", 19: "Quarterfinals", 20: "Semifinals", 21: "Finals" };
@@ -19,13 +19,11 @@ function teamHolePts(rec, tIdx, tid, hi, H) {
   if (!rec) return 0;
   const s = unflat(tIdx === 0 ? rec.t1scores : rec.t2scores);
   const types = (tIdx === 0 ? rec.t1types : rec.t2types) || [];
-  const snap = rec.hcpSnapshot;
   let pts = 0;
   for (let pi = 0; pi < 2; pi++) {
     if ((types[pi] || "normal") !== "normal") continue;
     const g = (s[pi] || [])[hi] || 0; if (!g) continue;
-    const hcp = snap ? (snap[tid] || [0, 0])[pi] || 0 : (H[tid] || [0, 0])[pi] || 0;
-    pts += stabPts(g, PAR[hi], hcpStr(hcp, SI[hi])) || 0;
+    pts += stabPts(g, PAR[hi], hcpStr(slotHcp(rec, tid, pi, H), SI[hi])) || 0;
   }
   return pts;
 }
@@ -114,16 +112,14 @@ export default function LiveScreen({ league, schedule = SCHEDULE, qfSeeds = [], 
         const [tlow, thigh] = ta < tb ? [ta, tb] : [tb, ta];
         const rec = results[activeWeek]?.[matchKey(activeWeek, tlow, thigh)]; if (!rec) continue;
         const thru = Math.max(teamThru(rec, 0), teamThru(rec, 1)); if (h >= thru) continue;
-        const snap = rec.hcpSnapshot;
         [[tlow, 0], [thigh, 1]].forEach(([tid, ti]) => {
           const s = unflat(ti === 0 ? rec.t1scores : rec.t2scores);
           const types = (ti === 0 ? rec.t1types : rec.t2types) || [];
           [0, 1].forEach(pi => {
             if ((types[pi] || "normal") !== "normal") return;
             const g = (s[pi] || [])[h] || 0; if (!g) return;
-            const hcp = snap ? (snap[tid] || [0, 0])[pi] || 0 : (H[tid] || [0, 0])[pi] || 0;
-            const pts = stabPts(g, PAR[h], hcpStr(hcp, SI[h])) || 0; // net Stableford: 3=net birdie, 4+=net eagle
-            const nm = TEAMS[tid]?.[pi === 0 ? "p1" : "p2"] || "";
+            const pts = stabPts(g, PAR[h], hcpStr(slotHcp(rec, tid, pi, H), SI[h])) || 0; // net Stableford: 3=net birdie, 4+=net eagle
+            const nm = slotName(rec, tid, pi);
             if (pts >= 4) out.push({ c: "clinch", t: `🦅 ${nm} net eagle #${h + 1}` });
             else if (pts === 3) out.push({ c: "", t: `🐦 ${nm} net birdie #${h + 1}` });
           });
@@ -287,7 +283,7 @@ function Sheet({ m, H }) {
     const s = unflat(ti === 0 ? m.rec.t1scores : m.rec.t2scores);
     const types = (ti === 0 ? m.rec.t1types : m.rec.t2types) || [];
     for (let pi = 0; pi < 2; pi++) {
-      rows.push({ tid, ti, pi, name: TEAMS[tid]?.[pi === 0 ? "p1" : "p2"] || `P${pi + 1}`, type: types[pi] || "normal", gr: s[pi] || [] });
+      rows.push({ tid, ti, pi, name: slotName(m.rec, tid, pi), sub: !!(m.rec.subs && m.rec.subs[`${tid}-${pi}`]), type: types[pi] || "normal", gr: s[pi] || [] });
     }
   });
   return (
