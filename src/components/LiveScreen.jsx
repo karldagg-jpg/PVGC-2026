@@ -122,6 +122,7 @@ export default function LiveScreen({ league, schedule = SCHEDULE, qfSeeds = [], 
             const nm = slotName(rec, tid, pi);
             if (pts >= 4) out.push({ c: "eagle", t: `🦅 ${nm} net eagle #${h + 1}` });
             else if (pts === 3) out.push({ c: "birdie", t: `🐦 ${nm} net birdie #${h + 1}` });
+            else if (pts === -1) out.push({ c: "double", t: `💥 ${nm} net double #${h + 1}` });
           });
         });
         const A = cumTeam(rec, 0, tlow, h + 1, H), B = cumTeam(rec, 1, thigh, h + 1, H);
@@ -361,6 +362,7 @@ const CSS = `
 .pvgc-live .m{display:inline-flex;align-items:center;padding:0 20px;font-size:12.5px;color:#eaf5ee;border-right:1px solid rgba(255,255,255,.09)}
 .pvgc-live .m.birdie{color:#6fe6a0;font-weight:700}
 .pvgc-live .m.eagle{color:#ffd45e;font-weight:800}
+.pvgc-live .m.double{color:#ff6b62;font-weight:800}
 .pvgc-live .m.lead{color:#fff;font-weight:800}
 .pvgc-live .m.clinch{color:#6fe6a0;font-weight:800}
 .pvgc-live .selrow{display:flex;align-items:center;gap:8px;padding:14px 0 2px}
