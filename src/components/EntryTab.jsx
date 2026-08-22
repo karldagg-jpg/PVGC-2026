@@ -411,20 +411,7 @@ function EntryTab({league, saveLeague, saveMatchDoc, entryWeek, setEntryWeek, en
                     <option value="sub">Sub</option>
                     <option value="phantom">Phantom</option>
                   </select>
-                  {ptype==="normal" && (eligibleSubs.length > 0 || subId) && (
-                    <select value={subId||""} onChange={e=>setEntrySub(p.tid,p.pi,e.target.value)} title="Playing sub — enters their own scores off their own handicap"
-                      style={{background: subId?GOLD+"22":"#fff", border:`1px solid ${subId?GOLD:teamColor+"66"}`, borderRadius:"7px",
-                        color: subId?"#7a5a00":M, fontFamily:FB, fontSize:"13px", padding:"5px 8px", cursor:"pointer", outline:"none", flexShrink:0, maxWidth:"160px"}}>
-                      <option value="">No sub</option>
-                      {eligibleSubs.map(r=><option key={r.id} value={r.id}>Sub: {r.name}</option>)}
-                    </select>
-                  )}
                 </div>
-                {subId && (
-                  <div style={{padding:"4px 16px 0",fontSize:"12px",color:"#7a5a00",fontWeight:600}}>
-                    ▶ {rosterName(subId)} subbing (plays off HCP {hcp}) — {pname}'s handicap is untouched
-                  </div>
-                )}
                 {ptype==="normal"&&grossTotal>0&&(
                   <div style={{display:"flex",gap:"14px",alignItems:"center",marginLeft:"12px",flexShrink:0}}>
                     <div style={{textAlign:"center"}}>
@@ -442,6 +429,18 @@ function EntryTab({league, saveLeague, saveMatchDoc, entryWeek, setEntryWeek, en
                   </div>
                 )}
               </div>
+              {ptype==="normal" && (eligibleSubs.length > 0 || subId) && (
+                <div style={{padding:"9px 16px",display:"flex",alignItems:"center",gap:"8px",flexWrap:"wrap",borderBottom:`1px solid ${teamColor}22`}}>
+                  <span style={{fontSize:"12px",color:M,flexShrink:0,fontWeight:600}}>Playing sub:</span>
+                  <select value={subId||""} onChange={e=>setEntrySub(p.tid,p.pi,e.target.value)} title="Playing sub — enters their own scores off their own handicap"
+                    style={{background: subId?GOLD+"22":"#fff", border:`1px solid ${subId?GOLD:teamColor+"66"}`, borderRadius:"7px",
+                      color: subId?"#7a5a00":"#1a2e1a", fontFamily:FB, fontSize:"13px", padding:"5px 8px", cursor:"pointer", outline:"none", maxWidth:"220px"}}>
+                    <option value="">No sub</option>
+                    {eligibleSubs.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}
+                  </select>
+                  {subId && <span style={{fontSize:"11px",color:"#7a5a00",fontWeight:600}}>plays off HCP {hcp} · {pname}'s HCP untouched</span>}
+                </div>
+              )}
               {/* Hole inputs or flat-points display */}
               {(ptype==="phantom"||ptype==="sub") ? (
                 <div style={{padding:"20px 16px",textAlign:"center",color:ptype==="phantom"?R:GO,fontSize:"16px",fontWeight:600}}>
