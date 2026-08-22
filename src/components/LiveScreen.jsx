@@ -120,9 +120,10 @@ export default function LiveScreen({ league, schedule = SCHEDULE, qfSeeds = [], 
             const g = (s[pi] || [])[h] || 0; if (!g) return;
             const pts = stabPts(g, PAR[h], hcpStr(slotHcp(rec, tid, pi, H), SI[h])) || 0; // net Stableford: 3=net birdie, 4+=net eagle
             const nm = slotName(rec, tid, pi);
-            if (pts >= 4) out.push({ c: "eagle", t: `🦅 ${nm} net eagle #${h + 1}` });
+            if (pts === 5) out.push({ c: "albatross", t: `🦅 ${nm} net albatross #${h + 1}` });
+            else if (pts === 4) out.push({ c: "eagle", t: `🦅 ${nm} net eagle #${h + 1}` });
             else if (pts === 3) out.push({ c: "birdie", t: `🐦 ${nm} net birdie #${h + 1}` });
-            else if (pts === -1) out.push({ c: "double", t: `💥 ${nm} net double #${h + 1}` });
+            else if (pts === -1) out.push({ c: "double", t: `${nm} −1 on #${h + 1}` });
           });
         });
         const A = cumTeam(rec, 0, tlow, h + 1, H), B = cumTeam(rec, 1, thigh, h + 1, H);
@@ -360,6 +361,7 @@ const CSS = `
 .pvgc-live .track-wrap{overflow:hidden;flex:1;height:100%;position:relative;-webkit-mask-image:linear-gradient(90deg,transparent,#000 22px,#000 calc(100% - 22px),transparent);mask-image:linear-gradient(90deg,transparent,#000 22px,#000 calc(100% - 22px),transparent)}
 .pvgc-live .track{display:flex;position:absolute;white-space:nowrap;height:100%;align-items:center;animation:lmarq 30s linear infinite;will-change:transform}
 .pvgc-live .m{display:inline-flex;align-items:center;padding:0 20px;font-size:12.5px;color:#eaf5ee;border-right:1px solid rgba(255,255,255,.09)}
+.pvgc-live .m.albatross{color:#ffe28c;font-weight:800;text-shadow:0 0 8px rgba(255,212,94,.55)}
 .pvgc-live .m.birdie{color:#6fe6a0;font-weight:700}
 .pvgc-live .m.eagle{color:#ffd45e;font-weight:800}
 .pvgc-live .m.double{color:#ff6b62;font-weight:800}
