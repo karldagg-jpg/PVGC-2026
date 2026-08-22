@@ -7,6 +7,13 @@ import { useState, useEffect, useRef } from "react";
 
 const LOST_BALL_SECS = 180;
 
+// Every league player, for the playing-sub picker
+const ALL_ROSTER = [];
+for (let t = 1; t <= 18; t++) for (let pi = 0; pi < 2; pi++) {
+  const n = TEAMS[t]?.[pi === 0 ? "p1" : "p2"];
+  if (n) ALL_ROSTER.push({ id: `${t}-${pi}`, name: n });
+}
+
 // Module-level AudioContext — created on first user tap so iOS allows it later
 let _audioCtx = null;
 
@@ -189,8 +196,29 @@ function ScoringScreen({
   unlockMatch,
   currentUserTid,
   isAdmin,
+  knockdownPairs, qfPairs, sfPairs, finalPairs,
 }) {
   const isReadOnly = (league.readOnlyWeeks || []).includes(selWeek);
+  // Playing-sub eligibility: players whose team isn't playing this week (empty in
+  // regular weeks where all 18 teams play; the non-playoff players in the playoffs).
+  const entDynPairs = selWeek===18?(knockdownPairs||null):selWeek===19?(qfPairs||null):selWeek===20?(sfPairs||null):selWeek===21?(finalPairs?[finalPairs.championship,finalPairs.thirdPlace]:null):null;
+  const weekPairs = entDynPairs || (SCHEDULE[selWeek]?.pairs || []);
+  const playingTeams = new Set();
+  weekPairs.forEach(pr => { if (Array.isArray(pr)) { playingTeams.add(pr[0]); playingTeams.add(pr[1]); } });
+  const eligibleSubs = ALL_ROSTER.filter(r => !playingTeams.has(parseInt(r.id.split("-")[0], 10)));
+  const setSubVal = (tid, pi, subId) => {
+    setMatch(prev => {
+      const subs = { ...(prev.subs || {}) };
+      const key = `${tid}-${pi}`;
+      if (!subId) delete subs[key];
+      else {
+        const [st, sp] = subId.split("-").map(Number);
+        subs[key] = { id: subId, name: TEAMS[st]?.[sp === 0 ? "p1" : "p2"] || subId,
+          hcp: getEffectiveHcp(st, sp, selWeek, league.results, league.handicaps, league.hcpOverrides || {}, league.cancelledWeeks) };
+      }
+      return { ...prev, subs };
+    });
+  };
   const isCancelled = cancelledWeeks?.has(selWeek);
   const [tlow, thigh] = t1id && t2id ? (t1id<t2id?[t1id,t2id]:[t2id,t1id]) : [0,0];
   const mk = tlow && thigh ? matchKey(selWeek, tlow, thigh) : null;
@@ -526,7 +554,11 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
           return s + Math.min(g, maxGross(PAR[h], str)) - str;
         }, 0);
         const getType = (tIdx, pi) => (tIdx === 0 ? match.t1types : match.t2types)[pi] || "normal";
-        const getHcp = (tid, pi) => getEffectiveHcp(tid, pi, selWeek, league.results, league.handicaps, league.hcpOverrides||{}, league.cancelledWeeks);
+        const getHcp = (tid, pi) => {
+          const sub = match.subs && match.subs[`${tid}-${pi}`];
+          if (sub && Number.isFinite(sub.hcp)) return sub.hcp; // playing sub off their own handicap
+          return getEffectiveHcp(tid, pi, selWeek, league.results, league.handicaps, league.hcpOverrides||{}, league.cancelledWeeks);
+        };
 
         const getPtsFor = (tIdx, pi, tid, hi) => {
           const type = getType(tIdx, pi);
@@ -626,7 +658,8 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
               const strokes = hcpStr(hcp, SI[hole]);
               const gross = getGross(r.tIdx, r.pi, scoreEffH(r.tIdx, r.pi, hole));
               const pts = getPtsFor(r.tIdx, r.pi, r.tid, hole);
-              const pname = TEAMS[r.tid]?.[r.pi === 0 ? "p1" : "p2"] || "";
+              const subForRow = match.subs && match.subs[`${r.tid}-${r.pi}`];
+              const pname = subForRow ? subForRow.name : (TEAMS[r.tid]?.[r.pi === 0 ? "p1" : "p2"] || "");
               const isSep = ri === 2; // separator between team 1 and team 2
 
               const cap = maxGross(PAR[scoreEffH(r.tIdx, r.pi, hole)], strokes);
@@ -686,6 +719,20 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
                       <option value="sub">Sub</option>
                       <option value="phantom">Phantom</option>
                     </select>
+                    {type==="normal" && (eligibleSubs.length>0 || subForRow) && (
+                      <select value={subForRow?.id || ""} disabled={isDisabled}
+                        onChange={e => !isDisabled && setSubVal(r.tid, r.pi, e.target.value)}
+                        title="Playing sub — enters their own scores off their own handicap"
+                        style={{
+                          background: subForRow ? GOLD+"22" : "rgba(26,61,36,0.04)", border: `1px solid ${GOLD}33`,
+                          borderRadius: "5px", color: subForRow ? "#7a5a00" : CREAM, fontFamily: FB, fontSize: "12px",
+                          padding: "3px 5px", cursor: isDisabled ? "not-allowed" : "pointer",
+                          outline: "none", flexShrink: 0, maxWidth: "150px", opacity: isDisabled ? 0.5 : 1
+                        }}>
+                        <option value="">No sub</option>
+                        {eligibleSubs.map(rr => <option key={rr.id} value={rr.id}>Sub: {rr.name}</option>)}
+                      </select>
+                    )}
 
                     {/* +/- Score entry + net + stab */}
                     {(type === "sub" || type === "phantom") ? (

@@ -884,6 +884,10 @@ const [seasonYear] = useState(SEASON_YEAR);
             isAdmin={isAdmin}
             confirmMatch={confirmMatch}
             unlockMatch={unlockMatch}
+            knockdownPairs={knockdownPairs}
+            qfPairs={qfPairs}
+            sfPairs={sfPairs}
+            finalPairs={finalPairs}
           />
         </>;
       })()}
