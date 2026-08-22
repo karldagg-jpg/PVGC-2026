@@ -719,20 +719,6 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
                       <option value="sub">Sub</option>
                       <option value="phantom">Phantom</option>
                     </select>
-                    {type==="normal" && (eligibleSubs.length>0 || subForRow) && (
-                      <select value={subForRow?.id || ""} disabled={isDisabled}
-                        onChange={e => !isDisabled && setSubVal(r.tid, r.pi, e.target.value)}
-                        title="Playing sub — enters their own scores off their own handicap"
-                        style={{
-                          background: subForRow ? GOLD+"22" : "rgba(26,61,36,0.04)", border: `1px solid ${GOLD}33`,
-                          borderRadius: "5px", color: subForRow ? "#7a5a00" : CREAM, fontFamily: FB, fontSize: "12px",
-                          padding: "3px 5px", cursor: isDisabled ? "not-allowed" : "pointer",
-                          outline: "none", flexShrink: 0, maxWidth: "150px", opacity: isDisabled ? 0.5 : 1
-                        }}>
-                        <option value="">No sub</option>
-                        {eligibleSubs.map(rr => <option key={rr.id} value={rr.id}>Sub: {rr.name}</option>)}
-                      </select>
-                    )}
 
                     {/* +/- Score entry + net + stab */}
                     {(type === "sub" || type === "phantom") ? (
@@ -809,6 +795,24 @@ td,th{border:1px solid #999;text-align:center;vertical-align:middle}
                       </div>
                     )}
                   </div>
+                  {type==="normal" && (eligibleSubs.length>0 || subForRow) && (
+                    <div style={{ padding: "0 14px 11px", display: "flex", alignItems: "center", gap: "7px" }}>
+                      <span style={{ fontSize: "11px", color: M, flexShrink: 0 }}>Playing sub:</span>
+                      <select value={subForRow?.id || ""} disabled={isDisabled}
+                        onChange={e => !isDisabled && setSubVal(r.tid, r.pi, e.target.value)}
+                        title="Playing sub — enters their own scores off their own handicap"
+                        style={{
+                          flex: 1, minWidth: 0, background: subForRow ? GOLD+"22" : "rgba(26,61,36,0.04)",
+                          border: `1px solid ${subForRow ? GOLD : GOLD+"33"}`, borderRadius: "6px",
+                          color: subForRow ? "#7a5a00" : CREAM, fontFamily: FB, fontSize: "13px",
+                          padding: "5px 8px", cursor: isDisabled ? "not-allowed" : "pointer",
+                          outline: "none", opacity: isDisabled ? 0.5 : 1
+                        }}>
+                        <option value="">No sub</option>
+                        {eligibleSubs.map(rr => <option key={rr.id} value={rr.id}>{rr.name}</option>)}
+                      </select>
+                    </div>
+                  )}
                 </div>
               );
             })}
