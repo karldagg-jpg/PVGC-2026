@@ -39,13 +39,13 @@ function Banner({ banner }) {
 function calcCurrentWeek() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  for (let w = 1; w <= 17; w++) {
+  for (let w = 1; w <= 21; w++) { // include the Knockdown (18) + playoffs (19-21)
     const d = SCHEDULE[w]?.date;
     if (!d) continue;
     const matchDate = new Date(d + "T12:00:00");
     if (today <= matchDate) return w;
   }
-  return 17;
+  return 21;
 }
 import { G, R, M, BG, CREAM, GOLD, FD, FB } from "./constants/theme";
 import { NavBtn } from "./components/ui";
