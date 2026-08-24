@@ -60,6 +60,7 @@ import RulesScreen from "./components/RulesScreen";
 import AdminScreen from "./components/AdminScreen";
 import PlayoffScreen from "./components/PlayoffScreen";
 import LiveScreen from "./components/LiveScreen";
+import RecapScreen from "./components/RecapScreen";
 import MastersBoard from "./components/MastersBoard";
 import PlayerScreen from "./components/PlayerScreen";
 import StatsScreen from "./components/StatsScreen";
@@ -193,6 +194,8 @@ const [seasonYear] = useState(SEASON_YEAR);
         readOnlyWeeks: p.readOnlyWeeks || [],
         banner: p.banner !== undefined ? p.banner : prev.banner,
         adminEmails: p.adminEmails || prev.adminEmails || [],
+        recaps: p.recaps || prev.recaps || {},
+        recapEnabled: p.recapEnabled !== undefined ? !!p.recapEnabled : prev.recapEnabled,
       }));
       if (p.rules) setRules(p.rules);
       if (p.adminPin) setAdminPin(p.adminPin);
@@ -237,6 +240,8 @@ const [seasonYear] = useState(SEASON_YEAR);
         allowedEmails: next.allowedEmails || [],
         adminEmails: next.adminEmails || [],
         banner: next.banner || {},
+        recaps: next.recaps || {},
+        recapEnabled: !!next.recapEnabled,
       }, {merge:true});
       setFbStatus("loaded");
     }catch(e){
@@ -737,9 +742,9 @@ const [seasonYear] = useState(SEASON_YEAR);
 
   // Board(masters)/Predict/Pulse hidden for 2026 (unused) — code kept; delete at season-end cleanup.
   const TABS=["schedule","live","scoring","entry","standings","weekly","poty","hcp","playoffs","players","rules","admin"];
-  const PRIMARY_TABS=["schedule","live","scoring","standings","players","poty","hcp","rules","contacts","weekly"];
+  const PRIMARY_TABS=["schedule","live","scoring","standings","players","poty","hcp","rules","contacts","weekly"].concat(league.recapEnabled?["recap"]:[]);
   const MORE_TABS=["entry","playoffs","stats","admin","verify","howto"].filter(t => t !== "verify" || isAdmin);
-  const TAB_LABEL={schedule:"Schedule",live:"Live",scoring:"Scoring",entry:"Entry",standings:"Standings",masters:"Board",weekly:"Weekly",poty:"POTY",hcp:"HCP",playoffs:"Playoffs",players:"Players",contacts:"Subs",stats:"Stats",rules:"Rules",admin:"Admin",verify:"Verify",predict:"Predict",pulse:"Pulse",howto:"How To"};
+  const TAB_LABEL={schedule:"Schedule",live:"Live",scoring:"Scoring",entry:"Entry",standings:"Standings",masters:"Board",weekly:"Weekly",poty:"POTY",hcp:"HCP",playoffs:"Playoffs",players:"Players",contacts:"Subs",stats:"Stats",rules:"Rules",admin:"Admin",verify:"Verify",predict:"Predict",pulse:"Pulse",howto:"How To",recap:"Recap"};
   const inMore = MORE_TABS.includes(screen);
 
   // Current match doc (for confirm/lock)
@@ -903,6 +908,10 @@ const [seasonYear] = useState(SEASON_YEAR);
 
       {screen==="weekly"&&(
         <WeeklyScreen weeklyTeamPts={weeklyTeamPts} results={league.results} cancelledWeeks={cancelledWeeks} schedule={scheduleWithKnockdown} />
+      )}
+
+      {screen==="recap"&&league.recapEnabled&&(
+        <RecapScreen league={league} saveLeague={saveLeague} isAdmin={isAdmin} schedule={handicapSchedule} weeklyPoty={weeklyPoty} />
       )}
 
       {screen==="poty"&&(

@@ -104,6 +104,8 @@ function applySnapshotToLeague(prevLeague, payload, defaultHcp) {
     allowedEmails: p.allowedEmails || [],
     adminEmails: p.adminEmails || [],
     banner: p.banner !== undefined ? p.banner : (prevLeague.banner || {}),
+    recaps: p.recaps || {},
+    recapEnabled: !!p.recapEnabled,
   };
 }
 

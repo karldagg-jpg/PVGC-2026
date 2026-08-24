@@ -864,6 +864,18 @@ export default function AdminScreen({ league, knockdownPairs, qfPairs, sfPairs, 
         Admin
       </div>
 
+      {/* ── Feature toggle: Weekly Recap tab ── */}
+      <div style={{ background: "#fff", border: "1px solid rgba(26,61,36,.14)", borderRadius: "12px", padding: "12px 14px", marginBottom: "16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+        <div>
+          <div style={{ fontWeight: 700, color: "#17281e", fontSize: "14px" }}>📋 Weekly Recap tab</div>
+          <div style={{ fontSize: "12px", color: "#6a7c6f", marginTop: "2px" }}>{league.recapEnabled ? "Visible to everyone in the nav." : "Hidden. Turn on to show the member-facing Recap tab."}</div>
+        </div>
+        <button onClick={() => saveLeague({ ...league, recapEnabled: !league.recapEnabled })} aria-label="Toggle Recap tab"
+          style={{ flexShrink: 0, width: "54px", height: "30px", borderRadius: "16px", border: "none", cursor: "pointer", background: league.recapEnabled ? "#1c854a" : "#c9c4b4", position: "relative", transition: "background .2s" }}>
+          <span style={{ position: "absolute", top: "3px", left: league.recapEnabled ? "27px" : "3px", width: "24px", height: "24px", borderRadius: "50%", background: "#fff", transition: "left .2s", boxShadow: "0 1px 3px rgba(0,0,0,.3)" }} />
+        </button>
+      </div>
+
       {/* ── Admin Access ──────────────────────────────────────────── */}
       <AccordionSection
         id="access" open={isOpen("access")} onToggle={toggleSection}
