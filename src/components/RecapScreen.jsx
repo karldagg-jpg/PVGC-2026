@@ -127,6 +127,14 @@ export default function RecapScreen({ league, saveLeague, isAdmin, schedule = SC
     if (recap.note) L.push(recap.note);
     L.push(`\nRESULTS`);
     matchRows.forEach(m => { const wA = m.A >= m.B; L.push(`  ${TEAMS[m.tlow]?.name} ${m.A} ${wA ? "def." : "lost to"} ${TEAMS[m.thigh]?.name} ${m.B}`); });
+    if (standings.length) {
+      L.push(`\n${week >= 18 ? "SEEDING (THROUGH KNOCKDOWN)" : `STANDINGS (THROUGH WEEK ${week})`}`);
+      standings.slice(0, 8).forEach((tid, i) => {
+        const mv = movement[tid] || 0;
+        const arrow = mv > 0 ? ` (up ${mv})` : mv < 0 ? ` (down ${-mv})` : "";
+        L.push(`  ${i + 1}. ${TEAMS[tid]?.name}${arrow}`);
+      });
+    }
     if (potw?.winners?.length) L.push(`\nPLAYER OF THE WEEK: ${potw.winners.map(p => p.name).join(", ")} — ${potw.pts} pts`);
     const sh = [];
     shots.albatross.forEach(a => sh.push(`  ALBATROSS — ${a.nm} on #${a.h}`));
@@ -148,7 +156,7 @@ export default function RecapScreen({ league, saveLeague, isAdmin, schedule = SC
     const G = "#173d24", GOLD = "#a97d20", MUT = "#6a7c6f";
     const hd = (t) => `<div style="font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:${MUT};margin:16px 0 6px">${esc(t)}</div>`;
     const P = [];
-    P.push(`<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:600px;color:#17281e;line-height:1.5">`);
+    P.push(`<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;width:100%;max-width:600px;color:#17281e;line-height:1.5">`);
     P.push(`<div style="background:${G};color:#fff;padding:14px 18px;border-radius:10px">`);
     P.push(`<div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#cfe6d5;font-weight:700">Pickering Valley Golf Club · 2026</div>`);
     P.push(`<div style="font-size:22px;font-weight:800;margin-top:3px">${esc(roundName)} Recap</div>`);
@@ -162,6 +170,14 @@ export default function RecapScreen({ league, saveLeague, isAdmin, schedule = SC
         const aw = m.A >= m.B;
         const A = `${esc(TEAMS[m.tlow]?.name)} ${m.A}`, B = `${esc(TEAMS[m.thigh]?.name)} ${m.B}`;
         P.push(`<div style="padding:3px 0"><b style="color:${aw ? G : "#17281e"}">${aw ? A : B}</b> <span style="color:${MUT}">def.</span> ${aw ? B : A}</div>`);
+      });
+    }
+    if (standings.length) {
+      P.push(hd(week >= 18 ? "Seeding · through Knockdown" : `Standings · through Week ${week}`));
+      standings.slice(0, 8).forEach((tid, i) => {
+        const mv = movement[tid] || 0;
+        const arrow = mv > 0 ? ` <span style="color:#1c854a">▲${mv}</span>` : mv < 0 ? ` <span style="color:#cf372c">▼${-mv}</span>` : "";
+        P.push(`<div style="padding:2px 0"><b style="color:${GOLD}">${i + 1}</b>&nbsp; ${esc(TEAMS[tid]?.name)}${arrow}</div>`);
       });
     }
     if (potw?.winners?.length) {
