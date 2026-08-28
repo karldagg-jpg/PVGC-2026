@@ -68,6 +68,11 @@ const TEE_TIME_OVERRIDES = {
   // QF matches go off 4:30–5:00 in seed order (#1 seed first). 5:10–5:30 open for
   // league play. QF pairs are ordered [1v8, 2v7, 3v6, 4v5], so index maps to seed.
   19: ["4:30 PM","4:40 PM","4:50 PM","5:00 PM"],
+  // Week 20 Semifinals (Sept 2): two SF matches only; the rest open for league play.
+  // getSFPairs order is [SF1, SF2] = [Charles-Dagg v Harvey-Rowles, Saenz-Huston v
+  // Carickhoff-Schantz], and ScheduleScreen maps teeTimes[i] → pairs[i]. Commissioner's
+  // call: Saenz-Huston (SF2) go off 4:40, Charles-Dagg (SF1) go off 4:50.
+  20: ["4:50 PM","4:40 PM"],
 };
 function getTeeTimes(week) {
   return TEE_TIME_OVERRIDES[week] || BASE_TEE_TIMES;
