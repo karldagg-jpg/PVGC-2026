@@ -119,6 +119,19 @@ export default function RecapScreen({ league, saveLeague, isAdmin, schedule = SC
 
   const seedOf = (tid) => (standings.indexOf(tid) + 1) || 0;
 
+  // Full tee sheet for the Up Next preview — every base slot, playoff matches
+  // placed at their assigned time, everything else marked open (mirrors screen).
+  const upNextSlots = () => {
+    if (!(nextPairs.length && nextName)) return [];
+    const base = getTeeTimes(1) || [];
+    const teeForPair = nextPairs.map((_, j) => nextTee[j]);
+    return base.map(slot => {
+      const pi = teeForPair.indexOf(slot);
+      const p = pi >= 0 ? nextPairs[pi] : null;
+      return p ? { slot, a: p[0], b: p[1] } : { slot, open: true };
+    });
+  };
+
   // ── copy-to-email text ──
   const emailText = () => {
     const L = [];
@@ -145,7 +158,12 @@ export default function RecapScreen({ league, saveLeague, isAdmin, schedule = SC
     if (showDues && dues.unpaid > 0) L.push(`\nDUES: ${dues.unpaid} player${dues.unpaid === 1 ? "" : "s"} still owe $${dues.per}. Settle up!`);
     if (nextPairs.length && nextName) {
       L.push(`\nUP NEXT — ${nextName}`);
-      nextPairs.forEach((p, i) => { const [a, b] = p; L.push(`  ${nextTee[i] || ""}  ${TEAMS[a]?.name} vs ${TEAMS[b]?.name}`); });
+      upNextSlots().forEach(s => {
+        if (s.open) { L.push(`  ${s.slot}  Open — league play`); return; }
+        const sd = nextWeek >= 19;
+        L.push(`  ${s.slot}  ${sd ? `#${seedOf(s.a)} ` : ""}${TEAMS[s.a]?.name} vs ${sd ? `#${seedOf(s.b)} ` : ""}${TEAMS[s.b]?.name}`);
+      });
+      L.push(`  (Open slots are for regular league play — call Jimmy to reserve.)`);
     }
     return L.join("\n");
   };
@@ -195,7 +213,12 @@ export default function RecapScreen({ league, saveLeague, isAdmin, schedule = SC
     }
     if (nextPairs.length && nextName) {
       P.push(hd(`Up Next · ${nextName}`));
-      nextPairs.forEach((p, i) => { const [a, b] = p; P.push(`<div style="padding:3px 0"><b style="color:${GOLD}">${esc(nextTee[i] || "")}</b>  ${esc(TEAMS[a]?.name)} vs ${esc(TEAMS[b]?.name)}</div>`); });
+      upNextSlots().forEach(s => {
+        if (s.open) { P.push(`<div style="padding:3px 0;color:${MUT}"><b style="color:${GOLD}">${esc(s.slot)}</b>  <i>Open — league play</i></div>`); return; }
+        const sd = nextWeek >= 19;
+        P.push(`<div style="padding:3px 0"><b style="color:${GOLD}">${esc(s.slot)}</b>  ${sd ? `#${seedOf(s.a)} ` : ""}${esc(TEAMS[s.a]?.name)} vs ${sd ? `#${seedOf(s.b)} ` : ""}${esc(TEAMS[s.b]?.name)}</div>`);
+      });
+      P.push(`<div style="margin-top:6px;font-size:12px;color:${MUT}">Open slots are for regular league play — call Jimmy to reserve.</div>`);
     }
     P.push(`</div></div>`);
     return P.join("");
