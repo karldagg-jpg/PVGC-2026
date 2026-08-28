@@ -37,6 +37,10 @@ export default function RecapScreen({ league, saveLeague, isAdmin, schedule = SC
   const addHighlight = () => { if (!dHi.trim()) return; saveRecap({ highlights: [...(recap.highlights || []), dHi.trim()] }); setDHi(""); };
   const removeHighlight = (i) => saveRecap({ highlights: (recap.highlights || []).filter((_, j) => j !== i) });
 
+  // ── per-week section show/hide (admin) — default shown ──
+  const toggleFlag = (key) => saveRecap({ [key]: !recap[key] });
+  const SECTION_TOGGLES = [["hidePotw", "Player of the Week"], ["hideStandings", "Seeding / standings"], ["hidePreview", "Next-week preview"]];
+
   // ── results ──
   const pairs = (schedule[week]?.pairs || []).filter(Array.isArray);
   const matchRows = pairs.map(([ta, tb]) => {
@@ -162,6 +166,15 @@ export default function RecapScreen({ league, saveLeague, isAdmin, schedule = SC
         <div className="note edit">
           <input className="hin" value={dHead} onChange={e => setDHead(e.target.value)} placeholder="Headline (e.g. The bracket is set 🦅)" />
           <textarea className="nin" value={dNote} onChange={e => setDNote(e.target.value)} placeholder="Your note — announcements, shout-outs, call Jimmy, trash talk…" rows={4} />
+          <div className="showcfg">
+            <div className="scttl">Show in this recap</div>
+            {SECTION_TOGGLES.map(([k, label]) => (
+              <div className="scrow" key={k}>
+                <span>{label}</span>
+                <button type="button" className={"sw" + (!recap[k] ? " on" : "")} onClick={() => toggleFlag(k)} aria-label={"Toggle " + label}><span className="kn" /></button>
+              </div>
+            ))}
+          </div>
         </div>
       ) : (recap.headline || recap.note) ? (
         <div className="note">
@@ -194,6 +207,7 @@ export default function RecapScreen({ league, saveLeague, isAdmin, schedule = SC
       )}
 
       {/* Standings */}
+      {!recap.hideStandings && (
       <div className="card">
         <div className="sechd"><span>{week >= 18 ? "Seeding · through Knockdown" : `Standings · through Week ${week}`}</span></div>
         <div className="body">
@@ -210,9 +224,10 @@ export default function RecapScreen({ league, saveLeague, isAdmin, schedule = SC
           <div className="more">seeds 9–18 in the Standings tab</div>
         </div>
       </div>
+      )}
 
       {/* Player of the week */}
-      {potw?.winners?.length > 0 && (
+      {!recap.hidePotw && potw?.winners?.length > 0 && (
         <div className="card">
           <div className="sechd"><span>Player of the Week</span><span className="gold">weekly payout</span></div>
           <div className="potw">
@@ -253,7 +268,7 @@ export default function RecapScreen({ league, saveLeague, isAdmin, schedule = SC
       )}
 
       {/* Up next */}
-      {nextPairs.length > 0 && nextName && (
+      {!recap.hidePreview && nextPairs.length > 0 && nextName && (
         <div className="card">
           <div className="sechd"><span>Up Next · {nextName}</span><span>{schedule[nextWeek]?.date ? fmtDate(schedule[nextWeek].date) : ""}</span></div>
           <div className="body">
@@ -335,4 +350,11 @@ const CSS = `
 .pvgc-recap .pv .g{flex:1}
 .pvgc-recap .pv.open{color:var(--muted);font-style:italic}
 .pvgc-recap .copybtn{width:100%;padding:13px;border-radius:12px;border:0;background:var(--greenDk);color:#fff;font-size:15px;font-weight:800;letter-spacing:.02em;cursor:pointer;margin-top:4px}
+.pvgc-recap .showcfg{margin-top:10px;border-top:1px solid #e6cf86;padding-top:8px}
+.pvgc-recap .scttl{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8a6d15;margin:2px 0 4px}
+.pvgc-recap .scrow{display:flex;align-items:center;justify-content:space-between;padding:6px 2px;font-size:14px;color:#3a2c05}
+.pvgc-recap .sw{width:44px;height:25px;border-radius:14px;border:0;background:#d8cfa8;position:relative;cursor:pointer;flex-shrink:0;transition:background .15s;padding:0}
+.pvgc-recap .sw.on{background:var(--green)}
+.pvgc-recap .sw .kn{position:absolute;top:3px;left:3px;width:19px;height:19px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.pvgc-recap .sw.on .kn{left:22px}
 `;
