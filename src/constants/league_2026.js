@@ -73,6 +73,10 @@ const TEE_TIME_OVERRIDES = {
   // Carickhoff-Schantz], and ScheduleScreen maps teeTimes[i] → pairs[i]. Commissioner's
   // call: Saenz-Huston (SF2) go off 4:40, Charles-Dagg (SF1) go off 4:50.
   20: ["4:50 PM","4:40 PM"],
+  // Week 21 Finals (Sept 9): pairs order is [championship, thirdPlace] (App
+  // handicapSchedule / ScheduleScreen map teeTimes[i] → pairs[i]). Commissioner's
+  // call: 3rd-place match off 4:40, Championship off 4:50; rest open for league play.
+  21: ["4:50 PM","4:40 PM"],
 };
 function getTeeTimes(week) {
   return TEE_TIME_OVERRIDES[week] || BASE_TEE_TIMES;
