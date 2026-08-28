@@ -141,8 +141,67 @@ export default function RecapScreen({ league, saveLeague, isAdmin, schedule = SC
     }
     return L.join("\n");
   };
+
+  // ── copy-to-email HTML (keeps formatting when pasted into a mail client) ──
+  const emailHtml = () => {
+    const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const G = "#173d24", GOLD = "#a97d20", MUT = "#6a7c6f";
+    const hd = (t) => `<div style="font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:${MUT};margin:16px 0 6px">${esc(t)}</div>`;
+    const P = [];
+    P.push(`<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:600px;color:#17281e;line-height:1.5">`);
+    P.push(`<div style="background:${G};color:#fff;padding:14px 18px;border-radius:10px">`);
+    P.push(`<div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#cfe6d5;font-weight:700">Pickering Valley Golf Club · 2026</div>`);
+    P.push(`<div style="font-size:22px;font-weight:800;margin-top:3px">${esc(roundName)} Recap</div>`);
+    if (dateStr) P.push(`<div style="font-size:13px;color:#dbe9dd;margin-top:2px">${esc(dateStr)}</div>`);
+    P.push(`</div><div style="padding:14px 4px">`);
+    if (recap.headline) P.push(`<div style="font-size:18px;font-weight:800;color:${G};margin:0 0 6px">${esc(recap.headline)}</div>`);
+    if (recap.note) P.push(`<p style="margin:0 0 14px;white-space:pre-wrap">${esc(recap.note)}</p>`);
+    if (matchRows.length) {
+      P.push(hd(week >= 18 ? roundName + " Results" : "Results"));
+      matchRows.forEach(m => {
+        const aw = m.A >= m.B;
+        const A = `${esc(TEAMS[m.tlow]?.name)} ${m.A}`, B = `${esc(TEAMS[m.thigh]?.name)} ${m.B}`;
+        P.push(`<div style="padding:3px 0"><b style="color:${aw ? G : "#17281e"}">${aw ? A : B}</b> <span style="color:${MUT}">def.</span> ${aw ? B : A}</div>`);
+      });
+    }
+    if (potw?.winners?.length) {
+      P.push(hd("Player of the Week"));
+      P.push(`<div style="padding:3px 0"><b>${esc(potw.winners.map(p => p.name).join(" & "))}</b> — <b style="color:${G}">${potw.pts} pts</b></div>`);
+    }
+    const sh = [];
+    shots.albatross.forEach(a => sh.push(`<b>${esc(a.nm)}</b> — <b style="color:${GOLD}">albatross on #${a.h}</b>`));
+    shots.eagle.forEach(a => sh.push(`<b>${esc(a.nm)}</b> — net eagle on #${a.h}`));
+    if (shots.low) sh.push(`<b>Low round:</b> ${esc(shots.low.nm)} — ${shots.low.g}`);
+    (recap.highlights || []).forEach(h => sh.push(esc(h)));
+    if (sh.length) { P.push(hd("Shots of the Week")); sh.forEach(s => P.push(`<div style="padding:3px 0">${s}</div>`)); }
+    if (showDues && dues.unpaid > 0) {
+      P.push(`<div style="margin-top:16px;background:#fbf3dd;border:1px solid #e6cf86;border-radius:8px;padding:10px 12px;color:#5c4a12">💸 <b>Dues:</b> ${dues.unpaid} player${dues.unpaid === 1 ? "" : "s"} still ${dues.unpaid === 1 ? "owes" : "owe"} $${dues.per}. Settle up.</div>`);
+    }
+    if (nextPairs.length && nextName) {
+      P.push(hd(`Up Next · ${nextName}`));
+      nextPairs.forEach((p, i) => { const [a, b] = p; P.push(`<div style="padding:3px 0"><b style="color:${GOLD}">${esc(nextTee[i] || "")}</b>  ${esc(TEAMS[a]?.name)} vs ${esc(TEAMS[b]?.name)}</div>`); });
+    }
+    P.push(`</div></div>`);
+    return P.join("");
+  };
+
   const [copied, setCopied] = useState(false);
-  const doCopy = () => { try { navigator.clipboard.writeText(emailText()); setCopied(true); setTimeout(() => setCopied(false), 2200); } catch (e) {} };
+  const doCopy = async () => {
+    const text = emailText();
+    try {
+      if (navigator.clipboard && window.ClipboardItem) {
+        await navigator.clipboard.write([new window.ClipboardItem({
+          "text/html": new Blob([emailHtml()], { type: "text/html" }),
+          "text/plain": new Blob([text], { type: "text/plain" }),
+        })]);
+      } else {
+        await navigator.clipboard.writeText(text);
+      }
+      setCopied(true); setTimeout(() => setCopied(false), 2200);
+    } catch (e) {
+      try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2200); } catch (_) {}
+    }
+  };
 
   const weekName = (w) => ROUND[w] || `Week ${w}`;
 
